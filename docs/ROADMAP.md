@@ -83,6 +83,14 @@
 - [x] Network Bind: host `0.0.0.0` architectural decision documented and protected via API-Key auth
 - [x] Mobile responsive layout fix: memory legend and node details converted into elegant bottom sheets on mobile devices (<640px)
 
+## Phase 9: Unified Dashboard & Chat UI (Stable ✅)
+- [x] Dashboard Navigation Shell: AppShell layout component with a left vertical sidebar on desktop and bottom navigation tabs on mobile
+- [x] Chat UI: full-featured interactive chat interface supporting session isolation, loading states, and inline confirmation controls
+- [ ] Calendar Page: future dashboard page for direct calendar event management
+- [ ] Mail Page: future dashboard page for reading/searching mail inboxes
+- [ ] Finance Page: future dashboard page for financial transactions log and overview
+- [ ] Countdowns Page: future dashboard page for deadliness/timer lists
+
 ## Open Technical Debt (Backlog)
 - [ ] DRY refactoring: consolidate fetch, loading state, and error handling in frontend components (graph, review, consolidation) into a reusable hook/service
 - [ ] Accessibility (A11y) improvements: add standard ARIA labels, tab index controls, and keyboard navigation support to frontend components
