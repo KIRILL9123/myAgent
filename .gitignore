@@ -1,0 +1,68 @@
+# Credentials & Configuration
+.env
+.env.*
+.env.local
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Logs
+*.log
+logs/
+
+# Qdrant Database
+backend/qdrant_db/
+
+# Node / JS / React Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# SQLite databases & temp DBs
+*.db
+*.db-journal
+*.db-wal
+
+# Backups and archives
+frontend_backup/
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs & Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo

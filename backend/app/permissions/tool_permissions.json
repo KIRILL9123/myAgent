@@ -1,0 +1,54 @@
+[
+  {
+    "action_name": "list_events",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "search_events",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "list_unread_emails",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "search_emails",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "create_event",
+    "permission_level": "yellow"
+  },
+  {
+    "action_name": "create_reminder",
+    "permission_level": "yellow"
+  },
+  {
+    "action_name": "delete_event",
+    "permission_level": "red"
+  },
+  {
+    "action_name": "modify_event",
+    "permission_level": "red"
+  },
+  {
+    "action_name": "bulk_delete",
+    "permission_level": "red"
+  },
+  {
+    "action_name": "send_email",
+    "permission_level": "red"
+  },
+  {
+    "action_name": "add_transaction",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "get_transactions",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "get_summary",
+    "permission_level": "green"
+  }
+]
