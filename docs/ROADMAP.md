@@ -76,6 +76,11 @@
 - [ ] При росте базы фактов (>100) рассмотреть переход на embeddings-based retrieval вместо LLM-фильтрации всего списка
 - [ ] При росте до 50+ фактов рассмотреть batch-версию backfill_isolated_relations и dedup
 
+## Phase 8.2: Security & Session Isolation (Stable ✅)
+- [x] Session isolation: unique UUID v4 generated in-memory per frontend tab to prevent confirmation race conditions
+- [x] API Key Authorization: FastAPI middleware validating `X-API-Key` on `/api/*` routes (with preflight OPTIONS and health check bypass)
+- [x] Prompt Injection Guard: automatic XML wrapping of untrusted external content (emails and calendar)
+- [x] Network Bind: host `0.0.0.0` architectural decision documented and protected via API-Key auth
 
 ## Backlog / Future Ideas
 - [ ] Языковой тренажёр для Ausbildung (English/German) — детали в NOTES.md, три подхода рассмотрены, старт с варианта 1 (spaced repetition словарь)
