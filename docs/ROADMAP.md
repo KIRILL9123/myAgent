@@ -76,3 +76,8 @@
 - [ ] При росте базы фактов (>100) рассмотреть переход на embeddings-based retrieval вместо LLM-фильтрации всего списка
 - [ ] При росте до 50+ фактов рассмотреть batch-версию backfill_isolated_relations и dedup
 
+
+## Backlog / Future Ideas
+- [ ] Языковой тренажёр для Ausbildung (English/German) — детали в NOTES.md, три подхода рассмотрены, старт с варианта 1 (spaced repetition словарь)
+
+
