@@ -23,6 +23,7 @@ export default function MemoryPage() {
   const [activeTab, setActiveTab] = useState<'graph' | 'pending' | 'consolidate'>('graph');
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const [backfilling, setBackfilling] = useState<boolean>(false);
+  const [isLegendOpen, setIsLegendOpen] = useState<boolean>(false);
 
   const handleRefresh = () => setRefreshTrigger((prev) => prev + 1);
 
@@ -96,12 +97,44 @@ export default function MemoryPage() {
             {/* Force Directed Graph */}
             <MemoryGraph refreshTrigger={refreshTrigger} />
             
+            {/* Mobile Legend Toggle Button */}
+            <button
+              onClick={() => setIsLegendOpen(true)}
+              className="sm:hidden absolute top-6 right-6 p-2.5 bg-zinc-900/90 border border-zinc-800 rounded-xl text-zinc-300 shadow-lg backdrop-blur-md z-10 hover:bg-zinc-800 transition-all cursor-pointer"
+              title="Показать легенду"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+
             {/* Legend layout */}
-            <div className="absolute top-6 right-6 bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5 shadow-2xl backdrop-blur-md z-10 w-72 text-sm flex flex-col gap-5 select-none pointer-events-auto">
-              <div>
-                <h2 className="font-semibold text-zinc-200 border-b border-zinc-800 pb-2 mb-3">
-                  Категории фактов
+            <div className={`
+              z-10 shadow-2xl backdrop-blur-md select-none transition-all duration-300 pointer-events-auto text-sm
+              /* Mobile bottom sheet style */
+              fixed bottom-0 left-0 w-full rounded-t-3xl border-t border-zinc-800 p-6 flex flex-col gap-5 bg-zinc-950/95
+              ${isLegendOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}
+              /* Desktop top-right panel style */
+              sm:absolute sm:top-6 sm:right-6 sm:bottom-auto sm:left-auto sm:w-72 sm:rounded-2xl sm:border sm:p-5 sm:bg-zinc-900/80 sm:translate-y-0 sm:opacity-100 sm:pointer-events-auto sm:flex sm:flex-col
+            `}>
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-1 sm:mb-0">
+                <h2 className="font-semibold text-zinc-200">
+                  Легенда графа
                 </h2>
+                <button
+                  onClick={() => setIsLegendOpen(false)}
+                  className="sm:hidden p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300 transition-colors cursor-pointer"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  Категории фактов
+                </h3>
                 <ul className="flex flex-col gap-2.5">
                   {CATEGORY_LEGEND.map((item) => (
                     <li key={item.name} className="flex items-center gap-3 text-xs text-zinc-400">
@@ -116,9 +149,9 @@ export default function MemoryPage() {
               </div>
 
               <div>
-                <h2 className="font-semibold text-zinc-200 border-b border-zinc-800 pb-2 mb-3">
+                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
                   Типы связей
-                </h2>
+                </h3>
                 <ul className="flex flex-col gap-2.5">
                   {RELATION_LEGEND.map((item, idx) => (
                     <li key={idx} className="flex items-center gap-3 text-xs text-zinc-400">

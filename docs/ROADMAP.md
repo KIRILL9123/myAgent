@@ -81,6 +81,11 @@
 - [x] API Key Authorization: FastAPI middleware validating `X-API-Key` on `/api/*` routes (with preflight OPTIONS and health check bypass)
 - [x] Prompt Injection Guard: automatic XML wrapping of untrusted external content (emails and calendar)
 - [x] Network Bind: host `0.0.0.0` architectural decision documented and protected via API-Key auth
+- [x] Mobile responsive layout fix: memory legend and node details converted into elegant bottom sheets on mobile devices (<640px)
+
+## Open Technical Debt (Backlog)
+- [ ] DRY refactoring: consolidate fetch, loading state, and error handling in frontend components (graph, review, consolidation) into a reusable hook/service
+- [ ] Accessibility (A11y) improvements: add standard ARIA labels, tab index controls, and keyboard navigation support to frontend components
 
 ## Backlog / Future Ideas
 - [ ] Языковой тренажёр для Ausbildung (English/German) — детали в NOTES.md, три подхода рассмотрены, старт с варианта 1 (spaced repetition словарь)

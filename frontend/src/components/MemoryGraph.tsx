@@ -378,9 +378,9 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
         onEngineStop={handleEngineStop}
       />
 
-      {/* Obsidian Detail Side Panel (Right side slide-out) */}
+      {/* Obsidian Detail Side Panel (Right side slide-out on desktop, bottom sheet on mobile) */}
       {selectedNode && (
-        <div className="absolute top-0 right-0 h-full w-80 bg-zinc-950/90 border-l border-zinc-900 p-6 shadow-2xl backdrop-blur-md z-20 flex flex-col gap-6 animate-in slide-in-from-right duration-300 font-sans pointer-events-auto">
+        <div className="absolute bottom-0 left-0 w-full h-[55vh] border-t border-l-0 sm:bottom-auto sm:top-0 sm:right-0 sm:left-auto sm:h-full sm:w-80 sm:border-l sm:border-t-0 bg-zinc-950/95 border-zinc-900 p-6 shadow-2xl backdrop-blur-md z-20 flex flex-col gap-5 sm:gap-6 font-sans pointer-events-auto">
           {/* Close Button & Badge */}
           <div className="flex items-center justify-between">
             <span
