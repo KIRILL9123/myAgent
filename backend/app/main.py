@@ -1,6 +1,7 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from backend.app.api.chat import router as chat_router
@@ -83,6 +84,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def api_key_auth_middleware(request: Request, call_next):
+    # Bypass CORS preflight requests
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
+    if request.url.path.startswith("/api"):
+        if request.url.path == "/api/health":
+            return await call_next(request)
+
+        api_key = os.getenv("HOME_AGENT_API_KEY")
+        if not api_key:
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "HOME_AGENT_API_KEY is not configured on the server."}
+            )
+
+        header_key = request.headers.get("X-API-Key")
+        if header_key != api_key:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Unauthorized: Invalid or missing API Key."}
+            )
+
+    return await call_next(request)
 
 app.include_router(chat_router, prefix="/api")
 

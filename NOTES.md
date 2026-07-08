@@ -82,3 +82,18 @@ Two operations exhibit an N+1 LLM call pattern (one LLM call per item in a loop)
 
 Рекомендованный порядок реализации при возврате к этой фиче: начать с варианта 1 (словарный тренажёр) как наименее сложного технически, затем вариант 3 (ежедневные упражнения используют ту же Telegram-инфраструктуру), вариант 2 (OCR) — в последнюю очередь, так как требует либо новую зависимость (Tesseract), либо смену модели на мультимодальную.
 
+---
+
+## Безопасность и Сессионная изоляция (8 июля 2026)
+
+### 1. Авторизация по API-ключу (FastAPI + React)
+- **Бэкенд**: Внедрено промежуточное ПО `api_key_auth_middleware` в [main.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/main.py). Оно перехватывает все запросы к маршрутам `/api/*` (за исключением `/api/health` и preflight OPTIONS-запросов CORS), проверяя заголовок `X-API-Key` на соответствие секрету `HOME_AGENT_API_KEY` из `.env`. В случае несовпадения возвращается код `401 Unauthorized`.
+- **Фронтенд**: 
+  - Настройки API-ключа вынесены в [frontend/.env](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/frontend/.env) как `VITE_API_KEY`.
+  - Запросы к API памяти в [memory.ts](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/frontend/src/api/memory.ts) и чата в [chat.ts](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/frontend/src/api/chat.ts) автоматически подмешивают этот заголовок во все HTTP-запросы через хелпер `getHeaders()`.
+
+### 2. Сессионная изоляция чата (UUID v4)
+- **Чат API**: Создан клиентский модуль [chat.ts](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/frontend/src/api/chat.ts). Он содержит встроенный генератор UUID v4 `generateSessionId()`, использующий криптографически безопасный браузерный генератор `self.crypto.randomUUID()` с резервным псевдослучайным алгоритмом.
+- **Изоляция**: Вместо общего статичного идентификатора `"default"` фронтенд будет генерировать уникальный in-memory UUID при инициализации сессии и передавать его в каждом POST-запросе к `/api/chat`. Это устраняет коллизии между открытыми вкладками и исключает ситуации, когда подтверждение опасных (RED) действий одного пользователя перехватывалось действиями другого.
+
+

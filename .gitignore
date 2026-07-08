@@ -1,6 +1,7 @@
 # Credentials & Configuration
 .env
 .env.*
+!.env.example
 .env.local
 
 # Python artifacts

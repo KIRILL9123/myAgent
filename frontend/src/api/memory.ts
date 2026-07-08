@@ -31,8 +31,21 @@ export interface PendingFact {
 
 const API_BASE = 'http://localhost:8000/api/memory';
 
+const getHeaders = (withJson = false) => {
+  const apiKey = (import.meta.env.VITE_API_KEY as string) || '';
+  const headers: Record<string, string> = {
+    'X-API-Key': apiKey,
+  };
+  if (withJson) {
+    headers['Content-Type'] = 'application/json';
+  }
+  return headers;
+};
+
 export async function fetchMemoryGraph(): Promise<MemoryGraphData> {
-  const resp = await fetch(`${API_BASE}/graph`);
+  const resp = await fetch(`${API_BASE}/graph`, {
+    headers: getHeaders(),
+  });
   if (!resp.ok) {
     throw new Error(`Failed to fetch memory graph: ${resp.statusText}`);
   }
@@ -40,7 +53,9 @@ export async function fetchMemoryGraph(): Promise<MemoryGraphData> {
 }
 
 export async function fetchPendingFacts(): Promise<{ facts: PendingFact[] }> {
-  const resp = await fetch(`${API_BASE}/pending`);
+  const resp = await fetch(`${API_BASE}/pending`, {
+    headers: getHeaders(),
+  });
   if (!resp.ok) {
     throw new Error(`Failed to fetch pending facts: ${resp.statusText}`);
   }
@@ -50,6 +65,7 @@ export async function fetchPendingFacts(): Promise<{ facts: PendingFact[] }> {
 export async function approveFact(factId: number): Promise<{ status: string; message: string }> {
   const resp = await fetch(`${API_BASE}/${factId}/approve`, {
     method: 'POST',
+    headers: getHeaders(),
   });
   if (!resp.ok) {
     throw new Error(`Failed to approve fact: ${resp.statusText}`);
@@ -60,6 +76,7 @@ export async function approveFact(factId: number): Promise<{ status: string; mes
 export async function rejectFact(factId: number): Promise<{ status: string; message: string }> {
   const resp = await fetch(`${API_BASE}/${factId}/reject`, {
     method: 'POST',
+    headers: getHeaders(),
   });
   if (!resp.ok) {
     throw new Error(`Failed to reject fact: ${resp.statusText}`);
@@ -70,6 +87,7 @@ export async function rejectFact(factId: number): Promise<{ status: string; mess
 export async function backfillRelations(): Promise<{ status: string; message: string; relations_added: number }> {
   const resp = await fetch(`${API_BASE}/backfill-relations`, {
     method: 'POST',
+    headers: getHeaders(),
   });
   if (!resp.ok) {
     throw new Error(`Failed to backfill relations: ${resp.statusText}`);
@@ -87,6 +105,7 @@ export interface ConsolidationSuggestion {
 export async function fetchConsolidationSuggestions(): Promise<{ suggestions: ConsolidationSuggestion[] }> {
   const resp = await fetch(`${API_BASE}/consolidation-suggestions`, {
     method: 'POST',
+    headers: getHeaders(),
   });
   if (!resp.ok) {
     throw new Error(`Failed to fetch consolidation suggestions: ${resp.statusText}`);
@@ -101,9 +120,7 @@ export async function consolidateFacts(
 ): Promise<{ status: string; message: string; new_fact_id: number }> {
   const resp = await fetch(`${API_BASE}/consolidate`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getHeaders(true),
     body: JSON.stringify({
       fact_ids: factIds,
       merged_content: mergedContent,
