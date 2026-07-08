@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import ChatPage from './pages/ChatPage';
 import MemoryPage from './pages/MemoryPage';
+import { generateSessionId } from './api/chat';
 
 const PlaceholderPage = ({ title }: { title: string }) => (
   <div className="h-full w-full flex flex-col items-center justify-center bg-zinc-950 text-zinc-500 font-sans select-none">
@@ -13,11 +15,13 @@ const PlaceholderPage = ({ title }: { title: string }) => (
 );
 
 function App() {
+  const [sessionId] = useState<string>(() => generateSessionId());
+
   return (
     <BrowserRouter>
       <AppShell>
         <Routes>
-          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/chat" element={<ChatPage sessionId={sessionId} />} />
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/calendar" element={<PlaceholderPage title="Календарь" />} />
           <Route path="/mail" element={<PlaceholderPage title="Почта" />} />

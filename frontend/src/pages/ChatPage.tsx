@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { generateSessionId, sendChatMessage, fetchChatHistory } from '../api/chat';
+import { sendChatMessage, fetchChatHistory } from '../api/chat';
 import type { ChatResponse } from '../api/chat';
 import { Send, AlertTriangle, AlertCircle, Bot, User } from 'lucide-react';
 
@@ -8,8 +8,11 @@ interface Message {
   content: string;
 }
 
-export default function ChatPage() {
-  const [sessionId] = useState<string>(() => generateSessionId());
+interface ChatPageProps {
+  sessionId: string;
+}
+
+export default function ChatPage({ sessionId }: ChatPageProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);

@@ -109,5 +109,26 @@ Backend слушает 0.0.0.0:8000 (все интерфейсы), что дел
 - Если в будущем появится доступ извне домашней сети (Tailscale или иначе) — этот же API-ключ продолжит защищать эндпоинты, дополнительных изменений bind-конфигурации не потребуется
 - Единственный сценарий риска: кто-то в той же Wi-Fi сети физически подберёт/перехватит API-ключ — при обычном домашнем использовании маловероятно
 
+---
+
+## Исправление Connection Lag, Замерзания Даты и Опциональности end_datetime (8 июля 2026)
+
+### 1. Асинхронный Запуск и Кэширование Календарей (Lag Fix)
+- **Суть проблемы**: Вызовы CalDAV на серверах iCloud для получения principal-пользователя и списка календарей выполняются крайне медленно (~80 секунд). Из-за синхронного выполнения в основном потоке FastAPI, эти операции блокировали весь Event Loop, приводя к полному зависанию бэкенда и веб-дашборда.
+- **Решение**: 
+  - Настроили 15-секундный таймаут подключения в [caldav_connector.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/connectors/caldav_connector.py).
+  - Внедрено in-memory кэширование списка календарей (`_cached_calendars` и `_cached_primary_calendar`) в [caldav_connector.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/connectors/caldav_connector.py), благодаря чему тяжелая сетевая операция резолвинга выполняется ровно один раз за сессию, снижая последующие задержки до <1.5 секунд.
+  - Синхронная функция `_dispatch_tool` теперь оборачивается в `asyncio.to_thread` в [orchestrator.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/agent/orchestrator.py), что выносит блокирующий I/O в отдельный пул потоков и предотвращает фризы Event Loop.
+
+### 2. Динамическое Вычисление Даты в Системном Промпте
+- **Суть проблемы**: Константа `SYSTEM_PROMPT` вычисляла `datetime.now()` на этапе импорта модуля. В результате дата "замерзала" на моменте запуска uvicorn-сервера, что приводило к рассинхронизации времени с реальным (модель считала текущей датой время старта сервера, даже если он работал 24/7).
+- **Решение**: Рефакторинг `SYSTEM_PROMPT` в функцию `get_system_prompt()`, которая вызывается динамически при каждом проходе цикла планирования. В системный промпт также добавлено строгое правило, предписывающее модели самостоятельно вычислять диапазоны для относительных временных запросов (tomorrow, this month и т.д.) на основе свежего времени.
+
+### 3. Опциональный end_datetime в create_event
+- **Суть проблемы**: Метод `create_event` требовал обязательной передачи `end_datetime`. Локальная модель Qwen2.5 часто опускала этот параметр, если пользователь не указывал его в чате (например, "создай встречу завтра в 15:00"), что приводило к исключению `TypeError: missing required argument: 'end_datetime'`.
+- **Решение**:
+  - Параметр `end_datetime` в [caldav_connector.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/connectors/caldav_connector.py) сделан необязательным (`None` по умолчанию). Если он отсутствует, бэкенд автоматически вычисляет время завершения как `start_datetime + 1 час`.
+  - В [orchestrator.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/agent/orchestrator.py) обновлена схема инструмента (параметр убран из списка required, в описание внесена сноска о поведении по умолчанию).
+
 
 

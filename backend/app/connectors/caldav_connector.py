@@ -7,6 +7,11 @@ from typing import Any
 from icalendar import Calendar as iCalendar, Event as iEvent
 
 
+# In-memory cache for client calendars to avoid slow principal resolution on every query
+_cached_calendars: list[caldav.Calendar] | None = None
+_cached_primary_calendar: caldav.Calendar | None = None
+
+
 def get_client() -> caldav.DAVClient | None:
     url = os.getenv("CALDAV_URL", "https://caldav.icloud.com")
     username = os.getenv("CALDAV_USERNAME")
@@ -15,18 +20,38 @@ def get_client() -> caldav.DAVClient | None:
     if not username or not password:
         return None
 
-    return caldav.DAVClient(url=url, username=username, password=password)
+    # Adding a 15-second timeout to prevent indefinite socket hangs on slow CalDAV queries
+    return caldav.DAVClient(url=url, username=username, password=password, timeout=15)
+
+
+def _get_all_calendars() -> list[caldav.Calendar]:
+    """Retrieve all calendars for the user, with in-memory caching."""
+    global _cached_calendars
+    if _cached_calendars is not None:
+        return _cached_calendars
+
+    client = get_client()
+    if not client:
+        return []
+    try:
+        principal = client.principal()
+        calendars = principal.calendars()
+        _cached_calendars = calendars
+        return calendars
+    except Exception:
+        return []
 
 
 def _get_primary_calendar() -> caldav.Calendar | None:
     """Returns the first available calendar (primary)."""
-    client = get_client()
-    if not client:
-        return None
-    principal = client.principal()
-    calendars = principal.calendars()
+    global _cached_primary_calendar
+    if _cached_primary_calendar is not None:
+        return _cached_primary_calendar
+
+    calendars = _get_all_calendars()
     if calendars:
-        return calendars[0]
+        _cached_primary_calendar = calendars[0]
+        return _cached_primary_calendar
     return None
 
 
@@ -61,8 +86,7 @@ def list_events(start_date: str, end_date: str) -> list[dict[str, Any]]:
         return [{"error": "Invalid date format. Use ISO 8601 (e.g. 2026-07-02T00:00:00)."}]
 
     try:
-        principal = client.principal()
-        calendars = principal.calendars()
+        calendars = _get_all_calendars()
         events_out: list[dict[str, Any]] = []
 
         for calendar in calendars:
@@ -85,8 +109,7 @@ def search_events(query: str) -> list[dict[str, Any]]:
         return [{"error": "CalDAV credentials not configured."}]
 
     try:
-        principal = client.principal()
-        calendars = principal.calendars()
+        calendars = _get_all_calendars()
         events_out: list[dict[str, Any]] = []
 
         for calendar in calendars:
@@ -109,7 +132,7 @@ def search_events(query: str) -> list[dict[str, Any]]:
 def create_event(
     title: str,
     start_datetime: str,
-    end_datetime: str,
+    end_datetime: str | None = None,
     description: str | None = None,
 ) -> dict[str, Any]:
     """
@@ -122,7 +145,10 @@ def create_event(
 
     try:
         start = datetime.fromisoformat(start_datetime)
-        end = datetime.fromisoformat(end_datetime)
+        if end_datetime:
+            end = datetime.fromisoformat(end_datetime)
+        else:
+            end = start + timedelta(hours=1)
     except ValueError:
         return {"error": "Invalid date format. Use ISO 8601 (e.g. 2026-07-03T10:00:00)."}
 
@@ -157,8 +183,7 @@ def _find_event_by_uid_or_title(identifier: str) -> tuple[Any, str] | tuple[None
     if not client:
         return None, "CalDAV credentials not configured."
 
-    principal = client.principal()
-    calendars = principal.calendars()
+    calendars = _get_all_calendars()
 
     # 1. Try by UID
     for calendar in calendars:
