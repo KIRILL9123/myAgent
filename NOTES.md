@@ -130,5 +130,25 @@ Backend слушает 0.0.0.0:8000 (все интерфейсы), что дел
   - Параметр `end_datetime` в [caldav_connector.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/connectors/caldav_connector.py) сделан необязательным (`None` по умолчанию). Если он отсутствует, бэкенд автоматически вычисляет время завершения как `start_datetime + 1 час`.
   - В [orchestrator.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/agent/orchestrator.py) обновлена схема инструмента (параметр убран из списка required, в описание внесена сноска о поведении по умолчанию).
 
+---
+
+## Исправление Истории Вызова Инструментов и Удаления Событий по UID (9 июля 2026)
+
+### 1. Сохранение Tool-сообщений в Базу Данных (Потеря контекста UID)
+- **Суть проблемы**: Результаты выполнения инструментов (`role: "tool"`) не сохранялись в SQLite базу данных `conversations`. При каждом новом входящем запросе история диалога восстанавливалась без сообщений с результатами вызовов. Из-за этого модель теряла доступ к UID созданных ею событий и не могла передать их в `delete_event` на следующем шаге разговора.
+- **Решение**:
+  - Обновили схему таблицы `conversations`, добавив колонки `name` (имя инструмента) и `tool_call_id` для корректного связывания.
+  - Изменили [db.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/storage/db.py): `save_message` теперь принимает и сохраняет `name` и `tool_call_id`, а `get_history` полноценно восстанавливает структуру сообщений `tool` для LLM.
+  - В [orchestrator.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/agent/orchestrator.py) добавили вызовы `save_message` для всех веток исполнения инструментов (успешные вызовы, ошибки синтаксиса, требования подтверждения RED-действий и фактическое выполнение подтверждённых действий).
+
+### 2. Поддержка Поиска Событий по UID на iCloud CalDAV (412 Precondition Failed)
+- **Суть проблемы**: iCloud CalDAV сервер возвращает ошибку `412 Precondition Failed` на попытку прямого поиска `calendar.event_by_uid(uid)`. Логика `delete_event` падала, а резервный поиск искал переданный UID только внутри текстового поля заголовка (summary), что приводило к ошибке "Event not found".
+- **Решение**:
+  - Модифицировали хелпер `_find_event_by_uid_or_title` в [caldav_connector.py](file:///Users/kyrylonaumov/Documents/coding/HomeAssistant/home-agent/backend/app/connectors/caldav_connector.py).
+  - Теперь при ошибке прямого запроса к API iCloud connector выкачивает список событий локально и сначала делает посимвольное сравнение `data["uid"]` с искомым UID, и только при отсутствии совпадений переходит к поиску по заголовку.
+
+### 3. Инструкция SYSTEM_PROMPT для Удаления/Модификации
+- **Решение**: В системный промпт добавлено строгое руководство: если у модели нет UID в контексте разговора, она обязана сначала выполнить `search_events`, чтобы найти нужный UID по заголовку/дате, и только затем вызывать `delete_event` или `modify_event`. Ей строго запрещено рапортовать об успехе без реального вызова инструментов.
+
 
 

@@ -123,18 +123,35 @@ def init_db():
         # Column already exists
         pass
 
+    try:
+        cursor.execute("ALTER TABLE conversations ADD COLUMN name TEXT")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE conversations ADD COLUMN tool_call_id TEXT")
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
     conn.close()
 
 # ─── Conversation Methods ──────────────────────────────────────────────────────
 
-def save_message(session_id: str, role: str, content: str = "", tool_calls: list[dict] | None = None):
+def save_message(
+    session_id: str,
+    role: str,
+    content: str = "",
+    tool_calls: list[dict] | None = None,
+    name: str | None = None,
+    tool_call_id: str | None = None,
+):
     conn = _get_connection()
     cursor = conn.cursor()
     tool_calls_json = json.dumps(tool_calls) if tool_calls else None
     cursor.execute(
-        "INSERT INTO conversations (session_id, role, content, tool_calls) VALUES (?, ?, ?, ?)",
-        (session_id, role, content, tool_calls_json)
+        "INSERT INTO conversations (session_id, role, content, tool_calls, name, tool_call_id) VALUES (?, ?, ?, ?, ?, ?)",
+        (session_id, role, content, tool_calls_json, name, tool_call_id)
     )
     conn.commit()
     conn.close()
@@ -144,7 +161,7 @@ def get_history(session_id: str, limit: int = 20) -> list[dict[str, Any]]:
     cursor = conn.cursor()
     # Fetch latest messages, then reverse to chronological order
     cursor.execute(
-        "SELECT role, content, tool_calls FROM conversations WHERE session_id = ? ORDER BY timestamp DESC, id DESC LIMIT ?",
+        "SELECT role, content, tool_calls, name, tool_call_id FROM conversations WHERE session_id = ? ORDER BY timestamp DESC, id DESC LIMIT ?",
         (session_id, limit)
     )
     rows = cursor.fetchall()
@@ -152,13 +169,17 @@ def get_history(session_id: str, limit: int = 20) -> list[dict[str, Any]]:
 
     history = []
     for row in reversed(rows):
-        role, content, tool_calls_json = row
+        role, content, tool_calls_json, name, tool_call_id = row
         msg = {"role": role, "content": content or ""}
         if tool_calls_json:
             try:
                 msg["tool_calls"] = json.loads(tool_calls_json)
             except json.JSONDecodeError:
                 pass
+        if name:
+            msg["name"] = name
+        if tool_call_id:
+            msg["tool_call_id"] = tool_call_id
         history.append(msg)
     
     return history

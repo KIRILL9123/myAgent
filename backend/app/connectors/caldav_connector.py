@@ -185,7 +185,7 @@ def _find_event_by_uid_or_title(identifier: str) -> tuple[Any, str] | tuple[None
 
     calendars = _get_all_calendars()
 
-    # 1. Try by UID
+    # 1. Try by UID directly
     for calendar in calendars:
         try:
             event = calendar.event_by_uid(identifier)
@@ -193,7 +193,18 @@ def _find_event_by_uid_or_title(identifier: str) -> tuple[Any, str] | tuple[None
         except Exception:
             continue
 
-    # 2. Fallback: search by title across all calendars
+    # 2. Fallback: search by UID locally
+    for calendar in calendars:
+        try:
+            all_events = calendar.events()
+            for event in all_events:
+                data = _extract_event_data(event)
+                if data.get("uid") and identifier.lower() == data["uid"].lower():
+                    return event, "uid_fallback"
+        except Exception:
+            continue
+
+    # 3. Fallback: search by title locally
     for calendar in calendars:
         try:
             all_events = calendar.events()

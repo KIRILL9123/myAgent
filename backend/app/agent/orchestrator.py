@@ -461,6 +461,13 @@ async def _check_confirmation(user_message: str, session_id: str) -> dict | None
             import asyncio
             result = await asyncio.to_thread(_dispatch_tool, action_name, arguments)
             result = sanitize_tool_result(action_name, result)
+            # Save the tool message to history so future turns have access to this result
+            save_message(
+                session_id,
+                "tool",
+                content=json.dumps(result, ensure_ascii=False),
+                name=action_name
+            )
             # Check if the tool itself returned an error
             if isinstance(result, dict) and "error" in result:
                 log_action(action_name, "ERROR", result["error"])
@@ -476,6 +483,12 @@ async def _check_confirmation(user_message: str, session_id: str) -> dict | None
             }
         except Exception as e:
             log_action(action_name, "ERROR", str(e))
+            save_message(
+                session_id,
+                "tool",
+                content=json.dumps({"error": str(e)}, ensure_ascii=False),
+                name=action_name
+            )
             return {
                 "response": f"Ошибка при выполнении '{action_name}': {e}",
                 "tool_calls": [action_name],
@@ -516,6 +529,10 @@ def get_system_prompt() -> str:
         "данные для анализа и пересказа пользователю.\n\n"
         "When the user asks about a relative time period (this month, this week, tomorrow, etc.), "
         "calculate exact dates based on the current datetime below and pass them in ISO 8601 format.\n\n"
+        "To delete or modify an event, you need its UID. If you don't have the UID from earlier in this conversation, "
+        "call search_events first to find it by title/date before attempting delete_event or modify_event. "
+        "NEVER report an action as completed without actually calling the corresponding tool and getting a successful "
+        "result in this turn.\n\n"
         f"Current datetime is {current_time_str}."
     )
 _background_tasks: set = set()
@@ -657,8 +674,10 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
                     "role": "tool",
                     "content": json.dumps({"error": error_msg}, ensure_ascii=False),
                     "name": func_name,
+                    "tool_call_id": tool_call.get("id"),
                 }
                 messages.append(tool_msg)
+                save_message(session_id, "tool", content=tool_msg["content"], name=func_name, tool_call_id=tool_call.get("id"))
                 continue # move to next tool call or loop iteration
 
             # If a RED action needs confirmation, short-circuit
@@ -670,8 +689,10 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
                     "role": "tool",
                     "content": json.dumps({"status": "requires_confirmation", "message": confirmation_message}, ensure_ascii=False),
                     "name": func_name,
+                    "tool_call_id": tool_call.get("id"),
                 }
                 messages.append(tool_msg)
+                save_message(session_id, "tool", content=tool_msg["content"], name=func_name, tool_call_id=tool_call.get("id"))
                 
                 # We return immediately for confirmation, so we save the confirmation message
                 save_message(session_id, "assistant", confirmation_message)
@@ -685,8 +706,10 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
                     "role": "tool",
                     "content": json.dumps(tool_result, ensure_ascii=False),
                     "name": func_name,
+                    "tool_call_id": tool_call.get("id"),
                 }
                 messages.append(tool_msg)
+                save_message(session_id, "tool", content=tool_msg["content"], name=func_name, tool_call_id=tool_call.get("id"))
 
         # Loop continues
 
