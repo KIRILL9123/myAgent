@@ -150,6 +150,36 @@ export default function MailPage() {
       .replace(/<\/untrusted_external_content>/g, '');
   };
 
+  const formatEmailDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    // Strip tag wrappers if any got added
+    const cleanStr = cleanPreviewText(dateStr);
+    const date = new Date(cleanStr);
+    if (isNaN(date.getTime())) return cleanStr;
+
+    const now = new Date();
+    const isToday = date.getDate() === now.getDate() &&
+                    date.getMonth() === now.getMonth() &&
+                    date.getFullYear() === now.getFullYear();
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.getDate() === yesterday.getDate() &&
+                        date.getMonth() === yesterday.getMonth() &&
+                        date.getFullYear() === yesterday.getFullYear();
+
+    const timeStr = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) {
+      return `Сегодня, ${timeStr}`;
+    } else if (isYesterday) {
+      return `Вчера, ${timeStr}`;
+    } else {
+      const datePart = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+      return `${datePart}, ${timeStr}`;
+    }
+  };
+
   return (
     <div className="h-full w-full flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
       {/* Top Header */}
@@ -290,7 +320,7 @@ export default function MailPage() {
                     <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        <span>{cleanPreviewText(emailItem.date)}</span>
+                        <span>{formatEmailDate(emailItem.date)}</span>
                       </div>
                       <span className="uppercase text-blue-500/80 font-bold bg-blue-500/5 px-2 py-0.5 rounded-lg border border-blue-500/10">
                         {account}
