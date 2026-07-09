@@ -4,6 +4,7 @@ import AppShell from './components/AppShell';
 import ChatPage from './pages/ChatPage';
 import MemoryPage from './pages/MemoryPage';
 import CalendarPage from './pages/CalendarPage';
+import MailPage from './pages/MailPage';
 import { generateSessionId } from './api/chat';
 
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -25,7 +26,7 @@ function App() {
           <Route path="/chat" element={<ChatPage sessionId={sessionId} />} />
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/mail" element={<PlaceholderPage title="Почта" />} />
+          <Route path="/mail" element={<MailPage />} />
           <Route path="/finance" element={<PlaceholderPage title="Финансы" />} />
           <Route path="/deadlines" element={<PlaceholderPage title="Дедлайны" />} />
           <Route path="*" element={<Navigate to="/chat" replace />} />

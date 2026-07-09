@@ -94,7 +94,7 @@ def _parse_email(raw_data: bytes) -> dict[str, Any]:
 
 # ─── Public API (green permission) ──────────────────────────────────────────
 
-def list_unread_emails(account: str = "gmail", limit: int = 10) -> list[dict[str, Any]]:
+def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen: bool = False) -> list[dict[str, Any]]:
     """
     List the latest unread emails from INBOX.
     Read-only operation — green permission.
@@ -113,29 +113,28 @@ def list_unread_emails(account: str = "gmail", limit: int = 10) -> list[dict[str
         if not msg_ids:
             return []
 
-        # Filter messages by last_seen_uid
-        from backend.app.storage.db import get_last_seen_uid, update_last_seen_uid
-        last_seen = get_last_seen_uid(account)
+        if not bypass_last_seen:
+            # Filter messages by last_seen_uid
+            from backend.app.storage.db import get_last_seen_uid, update_last_seen_uid
+            last_seen = get_last_seen_uid(account)
 
-        # email UIDs in msg_ids are returned in ascending order (oldest to newest)
-        # However, they might just be sequence numbers depending on the search command.
-        # Since we use `UNSEEN`, they are message sequence numbers.
-        # It's better to fetch the UID of the messages. Let's assume msg_ids are sequence numbers for now.
-        # To be safe, we will just parse the sequence number as integer and compare.
-        new_msg_ids = [mid for mid in msg_ids if int(mid) > last_seen]
+            new_msg_ids = [mid for mid in msg_ids if int(mid) > last_seen]
 
-        if not new_msg_ids:
-            return []
+            if not new_msg_ids:
+                return []
 
-        # Update last seen to the highest sequence number we found
-        highest_id = max([int(mid) for mid in new_msg_ids])
-        update_last_seen_uid(account, highest_id)
+            # Update last seen to the highest sequence number we found
+            highest_id = max([int(mid) for mid in new_msg_ids])
+            update_last_seen_uid(account, highest_id)
+            target_ids = new_msg_ids
+        else:
+            target_ids = msg_ids
 
         # Take the latest N emails
-        new_msg_ids = new_msg_ids[-limit:]
+        target_ids = target_ids[-limit:]
         results: list[dict[str, Any]] = []
 
-        for mid in reversed(new_msg_ids):
+        for mid in reversed(target_ids):
             status, msg_data = conn.fetch(mid, "(BODY.PEEK[])")
             if status == "OK" and msg_data and msg_data[0]:
                 raw = msg_data[0][1]

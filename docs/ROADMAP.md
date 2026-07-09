@@ -87,7 +87,7 @@
 - [x] Dashboard Navigation Shell: AppShell layout component with a left vertical sidebar on desktop and bottom navigation tabs on mobile
 - [x] Chat UI: full-featured interactive chat interface supporting session isolation, loading states, and inline confirmation controls
 - [x] Calendar Page: direct calendar event management and CRUD endpoints (Today/Week/Month views, modals, edit/delete actions, background CalDAV threads)
-- [ ] Mail Page: future dashboard page for reading/searching mail inboxes
+- [x] Mail Page: unread listing, search, and direct compose/reply SMTP flow with double-step preview (Gmail/UkrNet selector, search field, reply pre-fill, preview modal)
 - [ ] Finance Page: future dashboard page for financial transactions log and overview
 - [ ] Countdowns Page: future dashboard page for deadliness/timer lists
 
