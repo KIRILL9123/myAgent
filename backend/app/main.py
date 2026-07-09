@@ -37,6 +37,14 @@ async def lifespan(app: FastAPI):
         replace_existing=True
     )
 
+    from backend.app.finance.finance_service import process_recurring_transactions
+    scheduler.add_job(
+        process_recurring_transactions,
+        trigger=CronTrigger(hour=1, minute=0),
+        id="recurring_transactions_job",
+        replace_existing=True
+    )
+
     scheduler.start()
     print(f"[SCHEDULER] Started. Morning summary at {hour:02d}:{minute:02d}, consolidation at 03:00")
     

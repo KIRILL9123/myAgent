@@ -23,6 +23,16 @@ export interface TransactionCreateInput {
   category: string;
   description?: string;
   date?: string;
+  is_recurring?: boolean;
+}
+
+export interface RecurringTemplate {
+  id: number;
+  type: 'income' | 'expense';
+  amount: number;
+  category: string;
+  description: string;
+  day_of_month: number;
 }
 
 const API_BASE = '/api/finance';
@@ -85,6 +95,29 @@ export async function deleteTransaction(id: number): Promise<{ status: string; m
   if (!resp.ok) {
     const errorText = await resp.text();
     throw new Error(errorText || `Failed to delete transaction: ${resp.statusText}`);
+  }
+  return resp.json();
+}
+
+export async function fetchRecurringTemplates(): Promise<RecurringTemplate[]> {
+  const resp = await fetch(`${API_BASE}/recurring`, {
+    headers: getHeaders(),
+  });
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    throw new Error(errorText || `Failed to fetch recurring templates: ${resp.statusText}`);
+  }
+  return resp.json();
+}
+
+export async function deleteRecurringTemplate(id: number): Promise<{ status: string; message: string }> {
+  const resp = await fetch(`${API_BASE}/recurring/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    throw new Error(errorText || `Failed to delete recurring template: ${resp.statusText}`);
   }
   return resp.json();
 }

@@ -132,3 +132,108 @@ def delete_transaction(transaction_id: int) -> dict[str, Any]:
     conn.commit()
     conn.close()
     return {"status": "success", "message": f"Transaction {transaction_id} deleted."}
+
+def add_recurring_template(type: str, amount: float, category: str, description: str, day_of_month: int) -> dict[str, Any]:
+    if type not in ["income", "expense"]:
+        return {"error": "type must be 'income' or 'expense'"}
+    if not (1 <= day_of_month <= 31):
+        return {"error": "day_of_month must be between 1 and 31"}
+        
+    conn = _get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT name FROM categories WHERE name = ?", (category,))
+    if not cursor.fetchone():
+        conn.close()
+        return {"error": f"Category '{category}' does not exist."}
+        
+    cursor.execute(
+        "INSERT INTO recurring_templates (type, amount, category, description, day_of_month) VALUES (?, ?, ?, ?, ?)",
+        (type, amount, category, description, day_of_month)
+    )
+    conn.commit()
+    inserted_id = cursor.lastrowid
+    conn.close()
+    
+    return {
+        "status": "success",
+        "message": f"Added recurring {type} template of {amount} in {category}",
+        "template_id": inserted_id
+    }
+
+def get_recurring_templates() -> list[dict[str, Any]]:
+    conn = _get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, type, amount, category, description, day_of_month FROM recurring_templates ORDER BY day_of_month ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [
+        {
+            "id": row[0],
+            "type": row[1],
+            "amount": row[2],
+            "category": row[3],
+            "description": row[4],
+            "day_of_month": row[5]
+        }
+        for row in rows
+    ]
+
+def delete_recurring_template(template_id: int) -> dict[str, Any]:
+    conn = _get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM recurring_templates WHERE id = ?", (template_id,))
+    if not cursor.fetchone():
+        conn.close()
+        return {"error": f"Template with ID {template_id} not found."}
+    cursor.execute("DELETE FROM recurring_templates WHERE id = ?", (template_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": f"Recurring template {template_id} deleted."}
+
+def process_recurring_transactions() -> None:
+    """
+    Checks daily if any recurring templates should trigger.
+    Inserts a normal transaction if it hasn't been created yet for this month.
+    """
+    import logging
+    logger = logging.getLogger("home_agent")
+    
+    today = date.today()
+    current_day = today.day
+    current_month_str = today.strftime("%Y-%m")
+    
+    conn = _get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT id, type, amount, category, description, day_of_month FROM recurring_templates")
+    templates = cursor.fetchall()
+    
+    import calendar
+    _, last_day_of_month = calendar.monthrange(today.year, today.month)
+    
+    for t_id, t_type, amount, category, description, day_of_month in templates:
+        should_trigger = False
+        if day_of_month == current_day:
+            should_trigger = True
+        elif current_day == last_day_of_month and day_of_month > last_day_of_month:
+            should_trigger = True
+            
+        if should_trigger:
+            cursor.execute(
+                """
+                SELECT id FROM transactions 
+                WHERE type = ? AND amount = ? AND category = ? AND description = ? 
+                AND date LIKE ?
+                """,
+                (t_type, amount, category, description, f"{current_month_str}-%")
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO transactions (type, amount, category, description, date) VALUES (?, ?, ?, ?, ?)",
+                    (t_type, amount, category, description, today.strftime("%Y-%m-%d"))
+                )
+                logger.info(f"[FINANCE] Recurring template {t_id} triggered: Added {t_type} of {amount} in {category}")
+                
+    conn.commit()
+    conn.close()

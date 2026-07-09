@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MessageSquare, Calendar, Mail, Wallet, Clock, Brain } from 'lucide-react';
+import { MessageSquare, Calendar, Mail, Wallet, Clock, Brain, LayoutDashboard } from 'lucide-react';
 
 interface AppShellProps {
   children: React.ReactNode;
 }
 
 const NAV_ITEMS = [
+  { path: '/dashboard', label: 'Обзор', icon: LayoutDashboard },
   { path: '/chat', label: 'Чат', icon: MessageSquare },
   { path: '/calendar', label: 'Календарь', icon: Calendar },
   { path: '/mail', label: 'Почта', icon: Mail },

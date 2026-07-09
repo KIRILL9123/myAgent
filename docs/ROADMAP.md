@@ -84,11 +84,12 @@
 - [x] Mobile responsive layout fix: memory legend and node details converted into elegant bottom sheets on mobile devices (<640px)
 
 ## Phase 9: Unified Dashboard & Chat UI (Stable ✅)
-- [x] Dashboard Navigation Shell: AppShell layout component with a left vertical sidebar on desktop and bottom navigation tabs on mobile
+- [x] Dashboard Navigation Shell: AppShell layout component with a left vertical sidebar on desktop and bottom navigation tabs on mobile, routing `/` to `/dashboard`
+- [x] Dashboard Home Screen: responsive grid of clickable widgets (Calendar today, Finance monthly net, Urgent countdowns, Unread emails) with skeleton loaders and isolated error handling
 - [x] Chat UI: full-featured interactive chat interface supporting session isolation, loading states, and inline confirmation controls
 - [x] Calendar Page: direct calendar event management and CRUD endpoints (Today/Week/Month views, modals, edit/delete actions, background CalDAV threads)
 - [x] Mail Page: unread listing, search, and direct compose/reply SMTP flow with double-step preview (Gmail/UkrNet selector, search field, reply pre-fill, preview modal)
-- [x] Finance Page: direct transaction logging and summaries dashboard module (Income/Expense summary cards, date switcher, categorized logging, delete transactions)
+- [x] Finance Page: direct transaction logging and summaries module with Category Expense Bar Chart (recharts), monthly Active Subscriptions list, and Repeat monthly toggle
 - [x] Countdowns Page: direct countdowns/timer logs list with urgent highlights (days remaining calculation, urgent styling < 30 days, category tags, delete deadlines)
 
 ## Open Technical Debt (Backlog)
@@ -97,5 +98,11 @@
 
 ## Backlog / Future Ideas
 - [ ] Языковой тренажёр для Ausbildung (English/German) — детали в NOTES.md, три подхода рассмотрены, старт с варианта 1 (spaced repetition словарь)
+
+## Backlog: Product Ideas
+- [ ] Логика агента: проактивное предложение транзакций — если в письме обнаружен чек/квитанция о покупке, агент должен предлагать пользователю "хочешь я запишу это как расход в Finance?" вместо ожидания ручного ввода. Требует доработки orchestrator.py и, возможно, отдельного анализа содержимого писем на предмет финансовых документов.
+- [ ] Calendar: детектор конфликтов — при создании/изменении события в CalendarPage.tsx, если новое время пересекается с уже существующим событием, показывать предупреждение перед сохранением (не блокировать, просто предупреждать).
+- [ ] Calendar: интеграция с Memory Layer — при создании события в форме, если выбранное время попадает в зону, которую пользователь ранее просил избегать (approved facts типа "не любит встречи до 10 утра"), подсвечивать предупреждение в форме создания.
+- [ ] Mail: дальнейшее развитие отложено (низкий приоритет на данный момент) — индикатор непрочитанных в навигации, threading переписки, дальнейшие идеи рассмотреть позже.
 
 
