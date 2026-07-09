@@ -173,7 +173,18 @@ def get_history(session_id: str, limit: int = 20) -> list[dict[str, Any]]:
         msg = {"role": role, "content": content or ""}
         if tool_calls_json:
             try:
-                msg["tool_calls"] = json.loads(tool_calls_json)
+                tcalls = json.loads(tool_calls_json)
+                # Normalize function arguments from JSON string to dictionary
+                # because Ollama requires arguments to be a dictionary inside history
+                for tc in tcalls:
+                    if "function" in tc and "arguments" in tc["function"]:
+                        args = tc["function"]["arguments"]
+                        if isinstance(args, str):
+                            try:
+                                tc["function"]["arguments"] = json.loads(args)
+                            except json.JSONDecodeError:
+                                pass
+                msg["tool_calls"] = tcalls
             except json.JSONDecodeError:
                 pass
         if name:

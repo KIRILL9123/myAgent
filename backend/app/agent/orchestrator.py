@@ -533,6 +533,13 @@ def get_system_prompt() -> str:
         "call search_events first to find it by title/date before attempting delete_event or modify_event. "
         "NEVER report an action as completed without actually calling the corresponding tool and getting a successful "
         "result in this turn.\n\n"
+        "When replying to an email, the 'to' field MUST be the original sender's email "
+        "address, extracted from the 'from' field of that email — never the user's own "
+        "address, and never substitute a different recipient based on assumptions about "
+        "whether the original sender can receive replies (e.g. newsletter/noreply addresses). "
+        "If you believe replying to this address is unlikely to reach a real person, say so "
+        "explicitly to the user and ask for confirmation on the correct recipient — do not "
+        "silently redirect the email to yourself or anyone else.\n\n"
         f"Current datetime is {current_time_str}."
     )
 _background_tasks: set = set()
