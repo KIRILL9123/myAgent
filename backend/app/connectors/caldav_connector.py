@@ -1,4 +1,5 @@
 import os
+import time
 from dotenv import load_dotenv
 load_dotenv()
 import caldav
@@ -7,9 +8,17 @@ from typing import Any
 from icalendar import Calendar as iCalendar, Event as iEvent
 
 
-# In-memory cache for client calendars to avoid slow principal resolution on every query
+# In-memory cache for client calendars and query results to bypass slow iCloud roundtrips
 _cached_calendars: list[caldav.Calendar] | None = None
 _cached_primary_calendar: caldav.Calendar | None = None
+
+_events_cache: dict[tuple[str, str], tuple[float, list[dict[str, Any]]]] = {}
+CACHE_TTL_SECONDS = 180  # Cache query results for 3 minutes
+
+
+def clear_events_cache() -> None:
+    global _events_cache
+    _events_cache.clear()
 
 
 def get_client() -> caldav.DAVClient | None:
@@ -79,6 +88,13 @@ def list_events(start_date: str, end_date: str) -> list[dict[str, Any]]:
     if not client:
         return [{"error": "CalDAV credentials not configured."}]
 
+    cache_key = (start_date, end_date)
+    now = time.time()
+    if cache_key in _events_cache:
+        expiry, cached_data = _events_cache[cache_key]
+        if now < expiry:
+            return cached_data
+
     try:
         start = datetime.fromisoformat(start_date)
         end = datetime.fromisoformat(end_date)
@@ -94,6 +110,7 @@ def list_events(start_date: str, end_date: str) -> list[dict[str, Any]]:
             for event in events:
                 events_out.append(_extract_event_data(event))
 
+        _events_cache[cache_key] = (now + CACHE_TTL_SECONDS, events_out)
         return events_out
     except Exception as e:
         return [{"error": str(e)}]
@@ -139,6 +156,7 @@ def create_event(
     Creates a new calendar event.
     Yellow permission level.
     """
+    clear_events_cache()
     cal = _get_primary_calendar()
     if not cal:
         return {"error": "CalDAV credentials not configured or no calendars found."}
@@ -223,6 +241,7 @@ def delete_event(event_uid: str) -> dict[str, Any]:
     Deletes an event by its UID or title (fallback).
     Red permission level — requires prior human confirmation.
     """
+    clear_events_cache()
     try:
         event, method = _find_event_by_uid_or_title(event_uid)
         if event is None:
@@ -241,6 +260,7 @@ def modify_event(event_uid: str, updated_fields: dict[str, str]) -> dict[str, An
     Red permission level — requires prior human confirmation.
     Supported updated_fields keys: title, start_datetime, end_datetime, description.
     """
+    clear_events_cache()
     try:
         event, method = _find_event_by_uid_or_title(event_uid)
         if event is None:
