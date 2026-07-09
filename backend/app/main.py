@@ -26,7 +26,8 @@ async def lifespan(app: FastAPI):
         morning_summary,
         trigger=CronTrigger(hour=hour, minute=minute),
         id="morning_summary_job",
-        replace_existing=True
+        replace_existing=True,
+        misfire_grace_time=21600
     )
 
     from backend.app.memory.memory_service import run_scheduled_consolidation
@@ -34,7 +35,8 @@ async def lifespan(app: FastAPI):
         run_scheduled_consolidation,
         trigger=CronTrigger(hour=3, minute=0),
         id="nightly_consolidation_job",
-        replace_existing=True
+        replace_existing=True,
+        misfire_grace_time=21600
     )
 
     from backend.app.finance.finance_service import process_recurring_transactions
@@ -42,7 +44,8 @@ async def lifespan(app: FastAPI):
         process_recurring_transactions,
         trigger=CronTrigger(hour=1, minute=0),
         id="recurring_transactions_job",
-        replace_existing=True
+        replace_existing=True,
+        misfire_grace_time=21600
     )
 
     scheduler.start()

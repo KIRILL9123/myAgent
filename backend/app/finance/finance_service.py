@@ -213,13 +213,12 @@ def process_recurring_transactions() -> None:
     _, last_day_of_month = calendar.monthrange(today.year, today.month)
     
     for t_id, t_type, amount, category, description, day_of_month in templates:
-        should_trigger = False
-        if day_of_month == current_day:
-            should_trigger = True
-        elif current_day == last_day_of_month and day_of_month > last_day_of_month:
-            should_trigger = True
-            
-        if should_trigger:
+        # Calculate target day for this month (e.g. if template day is 31 and month has 30 days, trigger on 30)
+        target_day = min(day_of_month, last_day_of_month)
+        
+        # Self-healing logic: Trigger if the target day has already passed or is today, 
+        # and duplicate check below confirms no transaction exists yet for this month.
+        if current_day >= target_day:
             cursor.execute(
                 """
                 SELECT id FROM transactions 
