@@ -5,16 +5,9 @@ import ChatPage from './pages/ChatPage';
 import MemoryPage from './pages/MemoryPage';
 import CalendarPage from './pages/CalendarPage';
 import MailPage from './pages/MailPage';
+import FinancePage from './pages/FinancePage';
+import CountdownsPage from './pages/CountdownsPage';
 import { generateSessionId } from './api/chat';
-
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div className="h-full w-full flex flex-col items-center justify-center bg-zinc-950 text-zinc-500 font-sans select-none">
-    <div className="text-center space-y-2">
-      <h1 className="text-xl font-bold text-zinc-400">{title}</h1>
-      <p className="text-xs text-zinc-650">Этот раздел находится в разработке...</p>
-    </div>
-  </div>
-);
 
 function App() {
   const [sessionId] = useState<string>(() => generateSessionId());
@@ -27,8 +20,8 @@ function App() {
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/mail" element={<MailPage />} />
-          <Route path="/finance" element={<PlaceholderPage title="Финансы" />} />
-          <Route path="/deadlines" element={<PlaceholderPage title="Дедлайны" />} />
+          <Route path="/finance" element={<FinancePage />} />
+          <Route path="/deadlines" element={<CountdownsPage />} />
           <Route path="*" element={<Navigate to="/chat" replace />} />
         </Routes>
       </AppShell>

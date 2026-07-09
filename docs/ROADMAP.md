@@ -88,8 +88,8 @@
 - [x] Chat UI: full-featured interactive chat interface supporting session isolation, loading states, and inline confirmation controls
 - [x] Calendar Page: direct calendar event management and CRUD endpoints (Today/Week/Month views, modals, edit/delete actions, background CalDAV threads)
 - [x] Mail Page: unread listing, search, and direct compose/reply SMTP flow with double-step preview (Gmail/UkrNet selector, search field, reply pre-fill, preview modal)
-- [ ] Finance Page: future dashboard page for financial transactions log and overview
-- [ ] Countdowns Page: future dashboard page for deadliness/timer lists
+- [x] Finance Page: direct transaction logging and summaries dashboard module (Income/Expense summary cards, date switcher, categorized logging, delete transactions)
+- [x] Countdowns Page: direct countdowns/timer logs list with urgent highlights (days remaining calculation, urgent styling < 30 days, category tags, delete deadlines)
 
 ## Open Technical Debt (Backlog)
 - [ ] DRY refactoring: consolidate fetch, loading state, and error handling in frontend components (graph, review, consolidation) into a reusable hook/service

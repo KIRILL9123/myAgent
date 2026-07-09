@@ -42,3 +42,11 @@ async def api_get_summary(
     end_date: Optional[str] = None
 ):
     return get_summary(start_date, end_date)
+
+@router.delete("/transactions/{transaction_id}")
+async def api_delete_transaction(transaction_id: int):
+    from backend.app.finance.finance_service import delete_transaction
+    result = delete_transaction(transaction_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result

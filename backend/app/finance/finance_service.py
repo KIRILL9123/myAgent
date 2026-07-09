@@ -119,3 +119,16 @@ def get_summary(start_date: str | None = None, end_date: str | None = None) -> d
         "expense_breakdown": expense_breakdown,
         "income_breakdown": income_breakdown
     }
+
+def delete_transaction(transaction_id: int) -> dict[str, Any]:
+    conn = _get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM transactions WHERE id = ?", (transaction_id,))
+    if not cursor.fetchone():
+        conn.close()
+        return {"error": f"Transaction with ID {transaction_id} not found."}
+    
+    cursor.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": f"Transaction {transaction_id} deleted."}
