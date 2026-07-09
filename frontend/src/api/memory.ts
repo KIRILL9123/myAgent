@@ -29,7 +29,7 @@ export interface PendingFact {
   updated_at: string;
 }
 
-const API_BASE = 'http://localhost:8000/api/memory';
+const API_BASE = '/api/memory';
 
 const getHeaders = (withJson = false) => {
   const apiKey = (import.meta.env.VITE_API_KEY as string) || '';

@@ -20,7 +20,7 @@ export interface EventUpdateInput {
   description?: string;
 }
 
-const API_BASE = 'http://localhost:8000/api/calendar';
+const API_BASE = '/api/calendar';
 
 const getHeaders = (withJson = false) => {
   const apiKey = (import.meta.env.VITE_API_KEY as string) || '';
