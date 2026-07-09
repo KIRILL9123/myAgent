@@ -1,4 +1,5 @@
 import os
+import time
 import imaplib
 import email
 import smtplib
@@ -10,6 +11,15 @@ from dotenv import load_dotenv
 from typing import Any
 
 load_dotenv()
+
+# In-memory cache for unread emails to speed up dashboard widgets
+_unread_cache: dict[tuple[str, int, bool], tuple[float, list[dict[str, Any]]]] = {}
+CACHE_TTL_SECONDS = 120  # Cache unread emails list for 2 minutes
+
+
+def clear_mail_cache() -> None:
+    global _unread_cache
+    _unread_cache.clear()
 
 # Configuration mapping
 def _get_account_config(account: str) -> dict[str, str | int] | None:
@@ -99,6 +109,13 @@ def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen
     List the latest unread emails from INBOX.
     Read-only operation — green permission.
     """
+    cache_key = (account, limit, bypass_last_seen)
+    now = time.time()
+    if cache_key in _unread_cache:
+        expiry, cached_data = _unread_cache[cache_key]
+        if now < expiry:
+            return cached_data
+
     conn = _connect(account)
     if not conn:
         return [{"error": f"IMAP credentials not configured or connection failed for account '{account}'."}]
@@ -111,6 +128,8 @@ def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen
 
         msg_ids = data[0].split()
         if not msg_ids:
+            # Cache empty list too
+            _unread_cache[cache_key] = (now + CACHE_TTL_SECONDS, [])
             return []
 
         if not bypass_last_seen:
@@ -121,6 +140,7 @@ def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen
             new_msg_ids = [mid for mid in msg_ids if int(mid) > last_seen]
 
             if not new_msg_ids:
+                _unread_cache[cache_key] = (now + CACHE_TTL_SECONDS, [])
                 return []
 
             # Update last seen to the highest sequence number we found
@@ -141,6 +161,7 @@ def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen
                 if isinstance(raw, bytes):
                     results.append(_parse_email(raw))
 
+        _unread_cache[cache_key] = (now + CACHE_TTL_SECONDS, results)
         return results
     except Exception as e:
         return [{"error": str(e)}]
@@ -198,6 +219,7 @@ def send_email(to: str, subject: str, body: str, account: str = "gmail") -> dict
     Send an email via SMTP.
     Requires red permission.
     """
+    clear_mail_cache()
     config = _get_account_config(account)
     if not config or not config["user"] or not config["pwd"]:
         return {"error": f"SMTP credentials not configured for account '{account}'."}
