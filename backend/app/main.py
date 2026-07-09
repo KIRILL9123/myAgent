@@ -57,13 +57,15 @@ async def lifespan(app: FastAPI):
     _background_tasks.add(telegram_task)
     telegram_task.add_done_callback(_background_tasks.discard)
     telegram_task.add_done_callback(_log_task_exception)
-    print("[TELEGRAM] Listener background task started.")
-    
     yield
     
     telegram_task.cancel()
     scheduler.shutdown()
     print("[SCHEDULER] Shutdown.")
+    
+    from backend.app.agent.llm_client import close_http_client
+    await close_http_client()
+    print("[LLM CLIENT] Closed HTTP client pool.")
 
 _background_tasks: set = set()
 

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime as _dt
-from backend.app.storage.db import _get_connection
+from backend.app.storage.db import get_db_connection
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -9,28 +9,26 @@ logger = logging.getLogger(__name__)
 EMBEDDING_THRESHOLD = 100
 
 def save_pending_fact(content: str, category: str, confidence: float, source_conversation_id: int | None = None) -> int:
-    conn = _get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        INSERT INTO user_facts (content, category, source_conversation_id, confidence, status)
-        VALUES (?, ?, ?, ?, 'pending_approval')
-        """,
-        (content, category, source_conversation_id, confidence)
-    )
-    new_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO user_facts (content, category, source_conversation_id, confidence, status)
+            VALUES (?, ?, ?, ?, 'pending_approval')
+            """,
+            (content, category, source_conversation_id, confidence)
+        )
+        new_id = cursor.lastrowid
+        conn.commit()
     return new_id
 
 def get_pending_facts() -> list[dict[str, Any]]:
-    conn = _get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at FROM user_facts WHERE status = 'pending_approval' ORDER BY id DESC"
-    )
-    rows = cursor.fetchall()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at FROM user_facts WHERE status = 'pending_approval' ORDER BY id DESC"
+        )
+        rows = cursor.fetchall()
     return [
         {
             "id": r[0],
@@ -45,13 +43,12 @@ def get_pending_facts() -> list[dict[str, Any]]:
     ]
 
 def get_approved_facts() -> list[dict[str, Any]]:
-    conn = _get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at FROM user_facts WHERE status = 'approved' ORDER BY id DESC"
-    )
-    rows = cursor.fetchall()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at FROM user_facts WHERE status = 'approved' ORDER BY id DESC"
+        )
+        rows = cursor.fetchall()
     return [
         {
             "id": r[0],
@@ -66,19 +63,18 @@ def get_approved_facts() -> list[dict[str, Any]]:
     ]
 
 def get_all_facts(status: str | None = None) -> list[dict[str, Any]]:
-    conn = _get_connection()
-    cursor = conn.cursor()
-    if status:
-        cursor.execute(
-            "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at, status FROM user_facts WHERE status = ? ORDER BY id DESC",
-            (status,)
-        )
-    else:
-        cursor.execute(
-            "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at, status FROM user_facts WHERE status != 'merged' ORDER BY id DESC"
-        )
-    rows = cursor.fetchall()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        if status:
+            cursor.execute(
+                "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at, status FROM user_facts WHERE status = ? ORDER BY id DESC",
+                (status,)
+            )
+        else:
+            cursor.execute(
+                "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at, status FROM user_facts WHERE status != 'merged' ORDER BY id DESC"
+            )
+        rows = cursor.fetchall()
     return [
         {
             "id": r[0],
@@ -94,49 +90,45 @@ def get_all_facts(status: str | None = None) -> list[dict[str, Any]]:
     ]
 
 def update_fact_timestamp(fact_id: int):
-    conn = _get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE user_facts SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (fact_id,)
-    )
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE user_facts SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (fact_id,)
+        )
+        conn.commit()
 
 async def approve_fact(fact_id: int) -> bool:
     # 1. Fetch the fact to approve
-    conn = _get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, content, category, source_conversation_id, confidence, status FROM user_facts WHERE id = ?",
-        (fact_id,)
-    )
-    row = cursor.fetchone()
-    if not row:
-        conn.close()
-        return False
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, content, category, source_conversation_id, confidence, status FROM user_facts WHERE id = ?",
+            (fact_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            return False
+            
+        fact = {
+            "id": row[0],
+            "content": row[1],
+            "category": row[2],
+            "source_conversation_id": row[3],
+            "confidence": row[4],
+            "status": row[5]
+        }
         
-    fact = {
-        "id": row[0],
-        "content": row[1],
-        "category": row[2],
-        "source_conversation_id": row[3],
-        "confidence": row[4],
-        "status": row[5]
-    }
-    
-    if fact["status"] != "pending_approval":
-        # Already approved or rejected
-        conn.close()
-        return False
-        
-    # 2. Update status to approved
-    cursor.execute(
-        "UPDATE user_facts SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (fact_id,)
-    )
-    conn.commit()
-    conn.close()
+        if fact["status"] != "pending_approval":
+            # Already approved or rejected
+            return False
+            
+        # 2. Update status to approved
+        cursor.execute(
+            "UPDATE user_facts SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (fact_id,)
+        )
+        conn.commit()
     
     # 3. Retrieve all other approved facts
     existing_facts = get_approved_facts()
@@ -161,89 +153,83 @@ async def approve_fact(fact_id: int) -> bool:
     return True
 
 def reject_fact(fact_id: int) -> bool:
-    conn = _get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, status FROM user_facts WHERE id = ?",
-        (fact_id,)
-    )
-    row = cursor.fetchone()
-    if not row:
-        conn.close()
-        return False
-        
-    if row[1] != "pending_approval":
-        conn.close()
-        return False
-        
-    cursor.execute(
-        "UPDATE user_facts SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (fact_id,)
-    )
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, status FROM user_facts WHERE id = ?",
+            (fact_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            return False
+            
+        if row[1] != "pending_approval":
+            return False
+            
+        cursor.execute(
+            "UPDATE user_facts SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (fact_id,)
+        )
+        conn.commit()
     clear_consolidation_cache()
     return True
 
 def save_relation(fact_a_id: int, fact_b_id: int, relation_type: str):
-    conn = _get_connection()
-    cursor = conn.cursor()
-    # Check if relation already exists in either direction
-    cursor.execute(
-        """
-        SELECT 1 FROM fact_relations 
-        WHERE (fact_a_id = ? AND fact_b_id = ?) 
-           OR (fact_a_id = ? AND fact_b_id = ?)
-        """,
-        (fact_a_id, fact_b_id, fact_b_id, fact_a_id)
-    )
-    if not cursor.fetchone():
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        # Check if relation already exists in either direction
         cursor.execute(
-            "INSERT INTO fact_relations (fact_a_id, fact_b_id, relation_type) VALUES (?, ?, ?)",
-            (fact_a_id, fact_b_id, relation_type)
+            """
+            SELECT 1 FROM fact_relations 
+            WHERE (fact_a_id = ? AND fact_b_id = ?) 
+               OR (fact_a_id = ? AND fact_b_id = ?)
+            """,
+            (fact_a_id, fact_b_id, fact_b_id, fact_a_id)
         )
-        conn.commit()
-    conn.close()
+        if not cursor.fetchone():
+            cursor.execute(
+                "INSERT INTO fact_relations (fact_a_id, fact_b_id, relation_type) VALUES (?, ?, ?)",
+                (fact_a_id, fact_b_id, relation_type)
+            )
+            conn.commit()
 
 def get_graph_data() -> dict[str, list[dict[str, Any]]]:
-    conn = _get_connection()
-    cursor = conn.cursor()
-    
-    # Nodes (only approved facts)
-    cursor.execute(
-        "SELECT id, content, category, confidence FROM user_facts WHERE status = 'approved'"
-    )
-    nodes = [{"id": r[0], "content": r[1], "category": r[2], "confidence": r[3]} for r in cursor.fetchall()]
-    
-    # Edges (relations between approved facts)
-    cursor.execute(
-        """
-        SELECT r.fact_a_id, r.fact_b_id, r.relation_type 
-        FROM fact_relations r
-        JOIN user_facts fa ON r.fact_a_id = fa.id
-        JOIN user_facts fb ON r.fact_b_id = fb.id
-        WHERE fa.status = 'approved' AND fb.status = 'approved'
-        """
-    )
-    edges = [{"source": r[0], "target": r[1], "relation_type": r[2]} for r in cursor.fetchall()]
-    
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Nodes (only approved facts)
+        cursor.execute(
+            "SELECT id, content, category, confidence FROM user_facts WHERE status = 'approved'"
+        )
+        nodes = [{"id": r[0], "content": r[1], "category": r[2], "confidence": r[3]} for r in cursor.fetchall()]
+        
+        # Edges (relations between approved facts)
+        cursor.execute(
+            """
+            SELECT r.fact_a_id, r.fact_b_id, r.relation_type 
+            FROM fact_relations r
+            JOIN user_facts fa ON r.fact_a_id = fa.id
+            JOIN user_facts fb ON r.fact_b_id = fb.id
+            WHERE fa.status = 'approved' AND fb.status = 'approved'
+            """
+        )
+        edges = [{"source": r[0], "target": r[1], "relation_type": r[2]} for r in cursor.fetchall()]
+        
     return {"nodes": nodes, "edges": edges}
 
 def get_isolated_approved_facts() -> list[dict[str, Any]]:
-    conn = _get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at 
-        FROM user_facts 
-        WHERE status = 'approved'
-          AND id NOT IN (SELECT fact_a_id FROM fact_relations)
-          AND id NOT IN (SELECT fact_b_id FROM fact_relations)
-        """
-    )
-    rows = cursor.fetchall()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at 
+            FROM user_facts 
+            WHERE status = 'approved'
+              AND id NOT IN (SELECT fact_a_id FROM fact_relations)
+              AND id NOT IN (SELECT fact_b_id FROM fact_relations)
+            """
+        )
+        rows = cursor.fetchall()
     return [
         {
             "id": r[0],
@@ -277,24 +263,23 @@ async def backfill_isolated_relations() -> int:
                 fact_b_id = sug.get("fact_b_id")
                 relation_type = sug.get("relation_type")
                 if fact_b_id and relation_type:
-                    conn = _get_connection()
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        """
-                        SELECT 1 FROM fact_relations 
-                        WHERE (fact_a_id = ? AND fact_b_id = ?) 
-                           OR (fact_a_id = ? AND fact_b_id = ?)
-                        """,
-                        (fact["id"], fact_b_id, fact_b_id, fact["id"])
-                    )
-                    if not cursor.fetchone():
+                    with get_db_connection() as conn:
+                        cursor = conn.cursor()
                         cursor.execute(
-                            "INSERT INTO fact_relations (fact_a_id, fact_b_id, relation_type) VALUES (?, ?, ?)",
-                            (fact["id"], fact_b_id, relation_type)
+                            """
+                            SELECT 1 FROM fact_relations 
+                            WHERE (fact_a_id = ? AND fact_b_id = ?) 
+                               OR (fact_a_id = ? AND fact_b_id = ?)
+                            """,
+                            (fact["id"], fact_b_id, fact_b_id, fact["id"])
                         )
-                        conn.commit()
-                        relations_added += 1
-                    conn.close()
+                        if not cursor.fetchone():
+                            cursor.execute(
+                                "INSERT INTO fact_relations (fact_a_id, fact_b_id, relation_type) VALUES (?, ?, ?)",
+                                (fact["id"], fact_b_id, relation_type)
+                            )
+                            conn.commit()
+                            relations_added += 1
         except Exception as e:
             print(f"[MemoryService] Error during backfill suggest_relations for fact #{fact['id']}: {e}")
             
@@ -448,76 +433,73 @@ async def find_consolidation_candidates() -> list[dict]:
         return []
 
 def save_approved_fact(content: str, category: str, confidence: float) -> int:
-    conn = _get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        INSERT INTO user_facts (content, category, confidence, status)
-        VALUES (?, ?, ?, 'approved')
-        """,
-        (content, category, confidence)
-    )
-    new_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO user_facts (content, category, confidence, status)
+            VALUES (?, ?, ?, 'approved')
+            """,
+            (content, category, confidence)
+        )
+        new_id = cursor.lastrowid
+        conn.commit()
     return new_id
 
 def mark_facts_as_merged(fact_ids: list[int], merged_into_id: int):
-    conn = _get_connection()
-    cursor = conn.cursor()
-    placeholders = ",".join(["?"] * len(fact_ids))
-    cursor.execute(
-        f"""
-        UPDATE user_facts 
-        SET status = 'merged', merged_into_id = ?, updated_at = CURRENT_TIMESTAMP 
-        WHERE id IN ({placeholders})
-        """,
-        [merged_into_id] + fact_ids
-    )
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        placeholders = ",".join(["?"] * len(fact_ids))
+        cursor.execute(
+            f"""
+            UPDATE user_facts 
+            SET status = 'merged', merged_into_id = ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE id IN ({placeholders})
+            """,
+            [merged_into_id] + fact_ids
+        )
+        conn.commit()
 
 def consolidate_facts(fact_ids: list[int], merged_content: str, category: str) -> int:
     # 1. Create new approved fact
     new_id = save_approved_fact(merged_content, category, 0.95)
     
     # 2. Re-bind relations to the new fact
-    conn = _get_connection()
-    cursor = conn.cursor()
-    
-    placeholders = ",".join(["?"] * len(fact_ids))
-    # Fetch all relations involving any of the old facts
-    cursor.execute(
-        f"""
-        SELECT fact_a_id, fact_b_id, relation_type FROM fact_relations
-        WHERE fact_a_id IN ({placeholders}) OR fact_b_id IN ({placeholders})
-        """,
-        fact_ids + fact_ids
-    )
-    relations = cursor.fetchall()
-    
-    for fact_a, fact_b, rel_type in relations:
-        other_id = None
-        if fact_a in fact_ids and fact_b not in fact_ids:
-            other_id = fact_b
-        elif fact_b in fact_ids and fact_a not in fact_ids:
-            other_id = fact_a
-            
-        if other_id is not None:
-            # Re-link new_id with other_id
-            from backend.app.memory.memory_service import save_relation
-            save_relation(new_id, other_id, rel_type)
-            
-    # 3. Delete old relations involving these merged facts to clean up the DB
-    cursor.execute(
-        f"""
-        DELETE FROM fact_relations
-        WHERE fact_a_id IN ({placeholders}) OR fact_b_id IN ({placeholders})
-        """,
-        fact_ids + fact_ids
-    )
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        placeholders = ",".join(["?"] * len(fact_ids))
+        # Fetch all relations involving any of the old facts
+        cursor.execute(
+            f"""
+            SELECT fact_a_id, fact_b_id, relation_type FROM fact_relations
+            WHERE fact_a_id IN ({placeholders}) OR fact_b_id IN ({placeholders})
+            """,
+            fact_ids + fact_ids
+        )
+        relations = cursor.fetchall()
+        
+        for fact_a, fact_b, rel_type in relations:
+            other_id = None
+            if fact_a in fact_ids and fact_b not in fact_ids:
+                other_id = fact_b
+            elif fact_b in fact_ids and fact_a not in fact_ids:
+                other_id = fact_a
+                
+            if other_id is not None:
+                # Re-link new_id with other_id
+                from backend.app.memory.memory_service import save_relation
+                save_relation(new_id, other_id, rel_type)
+                
+        # 3. Delete old relations involving these merged facts to clean up the DB
+        cursor.execute(
+            f"""
+            DELETE FROM fact_relations
+            WHERE fact_a_id IN ({placeholders}) OR fact_b_id IN ({placeholders})
+            """,
+            fact_ids + fact_ids
+        )
+        conn.commit()
     
     # 4. Mark old facts as merged and set merged_into_id
     mark_facts_as_merged(fact_ids, new_id)

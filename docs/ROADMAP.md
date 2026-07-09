@@ -92,6 +92,11 @@
 - [x] Finance Page: direct transaction logging and summaries module with Category Expense Bar Chart (recharts), monthly Active Subscriptions list, and Repeat monthly toggle
 - [x] Countdowns Page: direct countdowns/timer logs list with urgent highlights (days remaining calculation, urgent styling < 30 days, category tags, delete deadlines)
 
+## Phase 9.1: Long-Running Resource Audit & Optimization (Stable ✅)
+- [x] SQLite Connection Leak Fix: wrap all database operations in `get_db_connection()` context manager to guarantee connection closing on errors
+- [x] Ollama Connection Pooling: reuse a single persistent global `httpx.AsyncClient` across all model queries with lifespan cleanup
+- [x] Log Rotation: configure `RotatingFileHandler` with 5MB maxBytes and 3 backups rotation for `audit.log` and `summaries.log`
+
 ## Open Technical Debt (Backlog)
 - [ ] DRY refactoring: consolidate fetch, loading state, and error handling in frontend components (graph, review, consolidation) into a reusable hook/service
 - [ ] Accessibility (A11y) improvements: add standard ARIA labels, tab index controls, and keyboard navigation support to frontend components
