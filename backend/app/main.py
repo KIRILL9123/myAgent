@@ -122,6 +122,9 @@ app.include_router(countdown_router, prefix="/api/countdown")
 from backend.app.api.memory import router as memory_router
 app.include_router(memory_router, prefix="/api/memory")
 
+from backend.app.api.calendar import router as calendar_router
+app.include_router(calendar_router, prefix="/api/calendar")
+
 from fastapi.staticfiles import StaticFiles
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
