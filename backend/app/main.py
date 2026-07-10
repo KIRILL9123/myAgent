@@ -148,9 +148,10 @@ app.include_router(mail_router, prefix="/api/mail")
 
 from fastapi.staticfiles import StaticFiles
 
+
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exception_handlers import http_exception_handler
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 @app.exception_handler(StarletteHTTPException)
 async def spa_fallback(request, exc):
@@ -159,14 +160,28 @@ async def spa_fallback(request, exc):
             index_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "dist", "index.html")
             if os.path.exists(index_path):
                 return FileResponse(index_path)
+            else:
+                return JSONResponse(
+                    status_code=404,
+                    content={"detail": "Web dashboard is not built. Run 'npm run build' in the frontend/ directory to serve the dashboard. API endpoints will work regardless."}
+                )
     return await http_exception_handler(request, exc)
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "message": "Home Agent is running"}
 
-app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
+# Gracefully mount frontend static files if they exist
+frontend_dist_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "dist")
+if os.path.exists(frontend_dist_path):
+    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
+else:
+    import logging
+    logging.warning(
+        "WARNING: frontend/dist not found — run 'npm run build' in frontend/ to serve the web dashboard. API endpoints will work regardless."
+    )
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.app.main:app", host="0.0.0.0", port=8000, reload=True)
+
