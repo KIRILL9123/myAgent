@@ -22,6 +22,20 @@ def save_pending_fact(content: str, category: str, confidence: float, source_con
         conn.commit()
     return new_id
 
+def _row_to_fact(r: tuple, include_status: bool = False) -> dict[str, Any]:
+    fact = {
+        "id": r[0],
+        "content": r[1],
+        "category": r[2],
+        "source_conversation_id": r[3],
+        "confidence": r[4],
+        "created_at": r[5],
+        "updated_at": r[6]
+    }
+    if include_status and len(r) > 7:
+        fact["status"] = r[7]
+    return fact
+
 def get_pending_facts() -> list[dict[str, Any]]:
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -29,18 +43,7 @@ def get_pending_facts() -> list[dict[str, Any]]:
             "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at FROM user_facts WHERE status = 'pending_approval' ORDER BY id DESC"
         )
         rows = cursor.fetchall()
-    return [
-        {
-            "id": r[0],
-            "content": r[1],
-            "category": r[2],
-            "source_conversation_id": r[3],
-            "confidence": r[4],
-            "created_at": r[5],
-            "updated_at": r[6]
-        }
-        for r in rows
-    ]
+    return [_row_to_fact(r) for r in rows]
 
 def get_approved_facts() -> list[dict[str, Any]]:
     with get_db_connection() as conn:
@@ -49,18 +52,7 @@ def get_approved_facts() -> list[dict[str, Any]]:
             "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at FROM user_facts WHERE status = 'approved' ORDER BY id DESC"
         )
         rows = cursor.fetchall()
-    return [
-        {
-            "id": r[0],
-            "content": r[1],
-            "category": r[2],
-            "source_conversation_id": r[3],
-            "confidence": r[4],
-            "created_at": r[5],
-            "updated_at": r[6]
-        }
-        for r in rows
-    ]
+    return [_row_to_fact(r) for r in rows]
 
 def get_all_facts(status: str | None = None) -> list[dict[str, Any]]:
     with get_db_connection() as conn:
@@ -75,19 +67,7 @@ def get_all_facts(status: str | None = None) -> list[dict[str, Any]]:
                 "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at, status FROM user_facts WHERE status != 'merged' ORDER BY id DESC"
             )
         rows = cursor.fetchall()
-    return [
-        {
-            "id": r[0],
-            "content": r[1],
-            "category": r[2],
-            "source_conversation_id": r[3],
-            "confidence": r[4],
-            "created_at": r[5],
-            "updated_at": r[6],
-            "status": r[7]
-        }
-        for r in rows
-    ]
+    return [_row_to_fact(r, include_status=True) for r in rows]
 
 def update_fact_timestamp(fact_id: int):
     with get_db_connection() as conn:

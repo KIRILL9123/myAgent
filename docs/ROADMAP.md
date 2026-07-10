@@ -100,6 +100,8 @@
 ## Open Technical Debt (Backlog)
 - [ ] DRY refactoring: consolidate fetch, loading state, and error handling in frontend components (graph, review, consolidation) into a reusable hook/service
 - [ ] Accessibility (A11y) improvements: add standard ARIA labels, tab index controls, and keyboard navigation support to frontend components
+- [ ] Pydantic-валидация аргументов Tool Calls: добавить Pydantic-схемы для валидации входящих аргументов инструментов перед диспетчеризацией (подготовлено переходом на формат status/message)
+- [ ] Типизация хелперов бэкенда: добавить аннотации типов для внутренних функций в `caldav_connector.py`, `mail_connector.py`, `main.py` и возвращаемых типов в `db.py`
 
 ## Backlog / Future Ideas
 - [ ] Языковой тренажёр для Ausbildung (English/German) — детали в NOTES.md, три подхода рассмотрены, старт с варианта 1 (spaced repetition словарь)

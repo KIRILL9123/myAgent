@@ -104,7 +104,7 @@ def _parse_email(raw_data: bytes) -> dict[str, Any]:
 
 # ─── Public API (green permission) ──────────────────────────────────────────
 
-def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen: bool = False) -> list[dict[str, Any]]:
+def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen: bool = False) -> Any:
     """
     List the latest unread emails from INBOX.
     Read-only operation — green permission.
@@ -118,13 +118,13 @@ def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen
 
     conn = _connect(account)
     if not conn:
-        return [{"error": f"IMAP credentials not configured or connection failed for account '{account}'."}]
+        return {"status": "error", "message": f"IMAP credentials not configured or connection failed for account '{account}'."}
 
     try:
         conn.select("INBOX", readonly=True)
         status, data = conn.search(None, "UNSEEN")
         if status != "OK":
-            return [{"error": f"Failed to search for unread emails in {account}."}]
+            return {"status": "error", "message": f"Failed to search for unread emails in {account}."}
 
         msg_ids = data[0].split()
         if not msg_ids:
@@ -164,7 +164,7 @@ def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen
         _unread_cache[cache_key] = (now + CACHE_TTL_SECONDS, results)
         return results
     except Exception as e:
-        return [{"error": str(e)}]
+        return {"status": "error", "message": str(e)}
     finally:
         try:
             conn.close()
@@ -173,14 +173,14 @@ def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen
             pass
 
 
-def search_emails(query: str, account: str = "gmail", limit: int = 10) -> list[dict[str, Any]]:
+def search_emails(query: str, account: str = "gmail", limit: int = 10) -> Any:
     """
     Search emails in INBOX by keyword in the subject.
     Read-only operation — green permission.
     """
     conn = _connect(account)
     if not conn:
-        return [{"error": f"IMAP credentials not configured or connection failed for account '{account}'."}]
+        return {"status": "error", "message": f"IMAP credentials not configured or connection failed for account '{account}'."}
 
     try:
         conn.select("INBOX", readonly=True)
@@ -188,7 +188,7 @@ def search_emails(query: str, account: str = "gmail", limit: int = 10) -> list[d
         # Note: Some IMAP servers (like Gmail) might need charset specification, but SUBJECT usually works with ASCII.
         status, data = conn.search(None, f'(SUBJECT "{query}")')
         if status != "OK":
-            return [{"error": f"Failed to search emails in {account}."}]
+            return {"status": "error", "message": f"Failed to search emails in {account}."}
 
         msg_ids = data[0].split()
         if not msg_ids:
@@ -206,7 +206,7 @@ def search_emails(query: str, account: str = "gmail", limit: int = 10) -> list[d
 
         return results
     except Exception as e:
-        return [{"error": str(e)}]
+        return {"status": "error", "message": str(e)}
     finally:
         try:
             conn.close()
@@ -244,4 +244,4 @@ def send_email(to: str, subject: str, body: str, account: str = "gmail") -> dict
         server.quit()
         return {"status": "success", "message": f"Email sent to {to}"}
     except Exception as e:
-        return {"error": f"Failed to send email: {str(e)}"}
+        return {"status": "error", "message": f"Failed to send email: {str(e)}"}

@@ -12,7 +12,7 @@ def _get_default_date_range() -> tuple[str, str]:
 
 def add_transaction(type: str, amount: float, category: str, description: str, transaction_date: str) -> dict[str, Any]:
     if type not in ["income", "expense"]:
-        return {"error": "type must be 'income' or 'expense'"}
+        return {"status": "error", "message": "type must be 'income' or 'expense'"}
         
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -20,7 +20,7 @@ def add_transaction(type: str, amount: float, category: str, description: str, t
         # Verify category exists
         cursor.execute("SELECT name FROM categories WHERE name = ?", (category,))
         if not cursor.fetchone():
-            return {"error": f"Category '{category}' does not exist."}
+            return {"status": "error", "message": f"Category '{category}' does not exist."}
             
         cursor.execute(
             "INSERT INTO transactions (type, amount, category, description, date) VALUES (?, ?, ?, ?, ?)",
@@ -119,7 +119,7 @@ def delete_transaction(transaction_id: int) -> dict[str, Any]:
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM transactions WHERE id = ?", (transaction_id,))
         if not cursor.fetchone():
-            return {"error": f"Transaction with ID {transaction_id} not found."}
+            return {"status": "error", "message": f"Transaction with ID {transaction_id} not found."}
         
         cursor.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
         conn.commit()
@@ -127,16 +127,16 @@ def delete_transaction(transaction_id: int) -> dict[str, Any]:
 
 def add_recurring_template(type: str, amount: float, category: str, description: str, day_of_month: int) -> dict[str, Any]:
     if type not in ["income", "expense"]:
-        return {"error": "type must be 'income' or 'expense'"}
+        return {"status": "error", "message": "type must be 'income' or 'expense'"}
     if not (1 <= day_of_month <= 31):
-        return {"error": "day_of_month must be between 1 and 31"}
+        return {"status": "error", "message": "day_of_month must be between 1 and 31"}
         
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
         cursor.execute("SELECT name FROM categories WHERE name = ?", (category,))
         if not cursor.fetchone():
-            return {"error": f"Category '{category}' does not exist."}
+            return {"status": "error", "message": f"Category '{category}' does not exist."}
             
         cursor.execute(
             "INSERT INTO recurring_templates (type, amount, category, description, day_of_month) VALUES (?, ?, ?, ?, ?)",
@@ -173,7 +173,7 @@ def delete_recurring_template(template_id: int) -> dict[str, Any]:
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM recurring_templates WHERE id = ?", (template_id,))
         if not cursor.fetchone():
-            return {"error": f"Template with ID {template_id} not found."}
+            return {"status": "error", "message": f"Template with ID {template_id} not found."}
         cursor.execute("DELETE FROM recurring_templates WHERE id = ?", (template_id,))
         conn.commit()
     return {"status": "success", "message": f"Recurring template {template_id} deleted."}

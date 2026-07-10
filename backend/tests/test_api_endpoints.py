@@ -1,4 +1,10 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
+# Setup test environment variables before importing app
+TEST_API_KEY = "test_api_key_123"
+os.environ["HOME_AGENT_API_KEY"] = TEST_API_KEY
 os.environ["DATABASE_PATH"] = "test_home_agent.db"
 
 from fastapi.testclient import TestClient
@@ -18,9 +24,10 @@ def test_routes():
     conn.close()
     
     client = TestClient(app)
+    headers = {"X-API-Key": TEST_API_KEY}
     
     # 1. Test get pending (should be empty initially)
-    resp = client.get("/api/memory/pending")
+    resp = client.get("/api/memory/pending", headers=headers)
     assert resp.status_code == 200
     assert resp.json() == {"facts": []}
     print("Test 1 Passed: GET /api/memory/pending empty state")
@@ -29,7 +36,7 @@ def test_routes():
     fact_id = save_pending_fact("Не любит просыпаться рано", "preference", 0.95)
     
     # 2. Test get pending (should contain the fact)
-    resp = client.get("/api/memory/pending")
+    resp = client.get("/api/memory/pending", headers=headers)
     assert resp.status_code == 200
     facts = resp.json()["facts"]
     assert len(facts) == 1
@@ -38,13 +45,13 @@ def test_routes():
     print("Test 2 Passed: GET /api/memory/pending with data")
     
     # 3. Test approve endpoint
-    resp = client.post(f"/api/memory/{fact_id}/approve")
+    resp = client.post(f"/api/memory/{fact_id}/approve", headers=headers)
     assert resp.status_code == 200
     assert resp.json()["status"] == "success"
     print("Test 3 Passed: POST /api/memory/{fact_id}/approve")
     
     # 4. Test graph endpoint (should contain the node, no edges)
-    resp = client.get("/api/memory/graph")
+    resp = client.get("/api/memory/graph", headers=headers)
     assert resp.status_code == 200
     graph = resp.json()
     assert len(graph["nodes"]) == 1
@@ -57,13 +64,13 @@ def test_routes():
     fact2_id = save_pending_fact("Учит немецкий язык", "project", 0.8)
     
     # 5. Test reject endpoint
-    resp = client.post(f"/api/memory/{fact2_id}/reject")
+    resp = client.post(f"/api/memory/{fact2_id}/reject", headers=headers)
     assert resp.status_code == 200
     assert resp.json()["status"] == "success"
     print("Test 5 Passed: POST /api/memory/{fact2_id}/reject")
     
     # Verify it is no longer pending
-    resp = client.get("/api/memory/pending")
+    resp = client.get("/api/memory/pending", headers=headers)
     assert resp.status_code == 200
     assert len(resp.json()["facts"]) == 0
     print("Test 6 Passed: Rejected fact not in pending")

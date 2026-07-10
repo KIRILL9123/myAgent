@@ -86,7 +86,7 @@ def list_events(start_date: str, end_date: str) -> list[dict[str, Any]]:
     """
     client = get_client()
     if not client:
-        return [{"error": "CalDAV credentials not configured."}]
+        return {"status": "error", "message": "CalDAV credentials not configured."}
 
     cache_key = (start_date, end_date)
     now = time.time()
@@ -99,7 +99,7 @@ def list_events(start_date: str, end_date: str) -> list[dict[str, Any]]:
         start = datetime.fromisoformat(start_date)
         end = datetime.fromisoformat(end_date)
     except ValueError:
-        return [{"error": "Invalid date format. Use ISO 8601 (e.g. 2026-07-02T00:00:00)."}]
+        return {"status": "error", "message": "Invalid date format. Use ISO 8601 (e.g. 2026-07-02T00:00:00)."}
 
     try:
         calendars = _get_all_calendars()
@@ -113,17 +113,17 @@ def list_events(start_date: str, end_date: str) -> list[dict[str, Any]]:
         _events_cache[cache_key] = (now + CACHE_TTL_SECONDS, events_out)
         return events_out
     except Exception as e:
-        return [{"error": str(e)}]
+        return {"status": "error", "message": str(e)}
 
 
-def search_events(query: str) -> list[dict[str, Any]]:
+def search_events(query: str) -> Any:
     """
     Search calendar events matching the query string in their title.
     Read-only operation.
     """
     client = get_client()
     if not client:
-        return [{"error": "CalDAV credentials not configured."}]
+        return {"status": "error", "message": "CalDAV credentials not configured."}
 
     try:
         calendars = _get_all_calendars()
@@ -141,7 +141,7 @@ def search_events(query: str) -> list[dict[str, Any]]:
 
         return events_out
     except Exception as e:
-        return [{"error": str(e)}]
+        return {"status": "error", "message": str(e)}
 
 
 # ─── Write operations (yellow / red) ─────────────────────────────────────────
@@ -159,7 +159,7 @@ def create_event(
     clear_events_cache()
     cal = _get_primary_calendar()
     if not cal:
-        return {"error": "CalDAV credentials not configured or no calendars found."}
+        return {"status": "error", "message": "CalDAV credentials not configured or no calendars found."}
 
     try:
         start = datetime.fromisoformat(start_datetime)
@@ -168,7 +168,7 @@ def create_event(
         else:
             end = start + timedelta(hours=1)
     except ValueError:
-        return {"error": "Invalid date format. Use ISO 8601 (e.g. 2026-07-03T10:00:00)."}
+        return {"status": "error", "message": "Invalid date format. Use ISO 8601 (e.g. 2026-07-03T10:00:00)."}
 
     try:
         # Build the iCalendar VCALENDAR/VEVENT payload
@@ -189,7 +189,7 @@ def create_event(
         data = _extract_event_data(created)
         return {"status": "created", **data}
     except Exception as e:
-        return {"error": str(e)}
+        return {"status": "error", "message": str(e)}
 
 
 def _find_event_by_uid_or_title(identifier: str) -> tuple[Any, str] | tuple[None, str]:
@@ -245,13 +245,13 @@ def delete_event(event_uid: str) -> dict[str, Any]:
     try:
         event, method = _find_event_by_uid_or_title(event_uid)
         if event is None:
-            return {"error": method}  # method contains the error message
+            return {"status": "error", "message": method}  # method contains the error message
 
         data = _extract_event_data(event)
         event.delete()
         return {"status": "deleted", "found_by": method, **data}
     except Exception as e:
-        return {"error": str(e)}
+        return {"status": "error", "message": str(e)}
 
 
 def modify_event(event_uid: str, updated_fields: dict[str, str]) -> dict[str, Any]:
@@ -264,7 +264,7 @@ def modify_event(event_uid: str, updated_fields: dict[str, str]) -> dict[str, An
     try:
         event, method = _find_event_by_uid_or_title(event_uid)
         if event is None:
-            return {"error": method}
+            return {"status": "error", "message": method}
 
         vevent = event.vobject_instance.vevent
 
@@ -283,5 +283,5 @@ def modify_event(event_uid: str, updated_fields: dict[str, str]) -> dict[str, An
         event.save()
         return {"status": "modified", "found_by": method, **_extract_event_data(event)}
     except Exception as e:
-        return {"error": str(e)}
+        return {"status": "error", "message": str(e)}
 

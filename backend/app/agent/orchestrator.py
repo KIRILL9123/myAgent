@@ -312,7 +312,7 @@ def _dispatch_tool(function_name: str, arguments: dict) -> dict:
         from backend.app.countdown.countdown_service import delete_countdown
         return delete_countdown(arguments.get("countdown_id"))
     else:
-        return {"error": f"Function '{function_name}' is not implemented yet."}
+        return {"status": "error", "message": f"Function '{function_name}' is not implemented yet."}
 
 
 def sanitize_tool_result(function_name: str, result: Any) -> Any:
@@ -338,7 +338,7 @@ def sanitize_tool_result(function_name: str, result: Any) -> Any:
         if isinstance(result, list):
             sanitized = []
             for email_dict in result:
-                if isinstance(email_dict, dict) and "error" not in email_dict:
+                if isinstance(email_dict, dict) and email_dict.get("status") != "error":
                     email_copy = email_dict.copy()
                     if "subject" in email_copy:
                         email_copy["subject"] = wrap_text(email_copy["subject"])
@@ -357,7 +357,7 @@ def sanitize_tool_result(function_name: str, result: Any) -> Any:
         if isinstance(result, list):
             sanitized = []
             for event_dict in result:
-                if isinstance(event_dict, dict) and "error" not in event_dict:
+                if isinstance(event_dict, dict) and event_dict.get("status") != "error":
                     event_copy = event_dict.copy()
                     if "summary" in event_copy:
                         event_copy["summary"] = wrap_text(event_copy["summary"])
@@ -385,13 +385,13 @@ async def execute_tool(tool_call: dict, session_id: str) -> dict:
             arguments = json.loads(arguments)
         except json.JSONDecodeError as e:
             log_action(function_name, "ERROR", "Failed to parse arguments JSON")
-            return {"error": f"JSON_ERROR: {str(e)}"}
+            return {"status": "error", "message": f"JSON_ERROR: {str(e)}"}
 
     # 1. Permission Check
     perm = check_permission(function_name)
     if not perm:
         log_action(function_name, "DENIED", "Unknown action")
-        return {"error": f"Action '{function_name}' is not recognized or permitted."}
+        return {"status": "error", "message": f"Action '{function_name}' is not recognized or permitted."}
 
     # 2. RED → store as pending, ask for confirmation
     if perm == PermissionLevel.RED:
@@ -429,7 +429,7 @@ async def execute_tool(tool_call: dict, session_id: str) -> dict:
         return result
     except Exception as e:
         log_action(function_name, "ERROR", str(e))
-        return {"error": str(e)}
+        return {"status": "error", "message": str(e)}
 
 
 # ─── Confirmation handling ───────────────────────────────────────────────────
@@ -469,10 +469,11 @@ async def _check_confirmation(user_message: str, session_id: str) -> dict | None
                 name=action_name
             )
             # Check if the tool itself returned an error
-            if isinstance(result, dict) and "error" in result:
-                log_action(action_name, "ERROR", result["error"])
+            if isinstance(result, dict) and result.get("status") == "error":
+                error_msg = result.get("message", "Unknown error")
+                log_action(action_name, "ERROR", error_msg)
                 return {
-                    "response": f"Ошибка при выполнении '{action_name}': {result['error']}",
+                    "response": f"Ошибка при выполнении '{action_name}': {error_msg}",
                     "tool_calls": [action_name],
                 }
             log_action(action_name, "EXECUTED", f"Execution completed after confirmation: {result}")
@@ -622,8 +623,8 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
     for _round in range(MAX_TOOL_ROUNDS):
         response = await chat_with_ollama(messages, tools=AVAILABLE_TOOLS)
 
-        if "error" in response:
-            return {"response": response["error"], "tool_calls": executed_tool_calls}
+        if isinstance(response, dict) and response.get("status") == "error":
+            return {"response": response.get("message"), "tool_calls": executed_tool_calls}
 
         message = response.get("message", {})
 
@@ -671,7 +672,7 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
             tool_result = await execute_tool(tool_call, session_id)
             
             # JSON Syntax Retry Loop
-            if isinstance(tool_result, dict) and str(tool_result.get("error", "")).startswith("JSON_ERROR:"):
+            if isinstance(tool_result, dict) and str(tool_result.get("message", "")).startswith("JSON_ERROR:"):
                 json_error_count += 1
                 if json_error_count > 2:
                     msg = "Не удалось выполнить действие: неверный формат аргументов."
@@ -681,10 +682,10 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
                         "tool_calls": executed_tool_calls,
                         "requires_confirmation": False
                     }
-                error_msg = f"Your previous tool call had invalid JSON syntax: {tool_result['error']}. Please retry with valid JSON."
+                error_msg = f"Your previous tool call had invalid JSON syntax: {tool_result['message']}. Please retry with valid JSON."
                 tool_msg = {
                     "role": "tool",
-                    "content": json.dumps({"error": error_msg}, ensure_ascii=False),
+                    "content": json.dumps({"status": "error", "message": error_msg}, ensure_ascii=False),
                     "name": func_name,
                     "tool_call_id": tool_call.get("id"),
                 }

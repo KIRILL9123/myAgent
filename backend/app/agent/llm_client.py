@@ -59,4 +59,4 @@ async def chat_with_ollama(
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        return {"error": f"Failed to communicate with Ollama: {str(e)}"}
+        return {"status": "error", "message": f"Failed to communicate with Ollama: {str(e)}"}
