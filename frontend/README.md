@@ -1,32 +1,52 @@
-# React + TypeScript + Vite
+# myAgent — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + TypeScript + Vite dashboard for the myAgent home assistant backend.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** with React Router v7 for client-side routing
+- **TypeScript** (strict, compiled via `tsc` before production build)
+- **Vite 8** for dev server and bundling
+- **Tailwind CSS v4** (via `@tailwindcss/vite` plugin)
+- **Recharts** for finance charts
+- **react-force-graph-2d** for the memory knowledge graph
+- **lucide-react** for icons
 
-## React Compiler
+## Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+frontend/src/
+  api/           # Typed API clients (chat, calendar, mail, finance, memory, countdown)
+  components/    # Shared UI components (AppShell, MemoryGraph, PendingFactsQueue, ConsolidationQueue)
+  pages/         # One file per route (Dashboard, Chat, Calendar, Mail, Finance, Countdowns, Memory)
+  main.tsx       # App entry point and router setup
+  index.css      # Global styles (Tailwind base)
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+All API calls include the `X-API-Key` header sourced from `VITE_API_KEY` in `frontend/.env`.
+
+## Development
+
+Start the FastAPI backend first (port 8000), then:
+
+```bash
+cd frontend
+npm install
+npm run dev       # Vite dev server at http://localhost:5173 — proxies /api/* to localhost:8000
+```
+
+## Production build
+
+```bash
+cd frontend
+npm install
+npm run build     # tsc -b && vite build → outputs to frontend/dist/
+```
+
+The FastAPI backend serves the built `frontend/dist/` directory as static files. Run the build before starting the backend if you want the web dashboard available.
+
+## Linting
+
+```bash
+npm run lint      # oxlint
+```
