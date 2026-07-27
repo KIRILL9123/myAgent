@@ -10,4 +10,4 @@ The permission logic is located in `backend/app/permissions/permission_checker.p
 - **Yellow**: State-altering but generally safe actions (e.g., `create_event`, `create_reminder`). The agent can execute these, but they might trigger a notification or require secondary validation depending on future configuration.
 - **Red**: Destructive or high-impact actions (e.g., `delete_event`, `modify_event`, `bulk_delete`). These require explicit human approval before the orchestrator will execute the tool call.
 
-*Note: In Phase 1, only Green actions are implemented.*
+*Current code includes Green, Yellow, and RED flows, with explicit confirmation required for RED actions in the orchestrator.*
