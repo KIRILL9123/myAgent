@@ -51,7 +51,14 @@ A local AI agent running 24/7 on a Mac as a home server, designed to manage dail
      python3 -c "import secrets; print(secrets.token_hex(32))"
      ```
 
-5. **Build the Frontend (Mandatory for Web Dashboard)**:
+5. **Configure the Frontend API Key**:
+   The frontend must know the same API key as the backend in order to authenticate all requests:
+   ```bash
+   cp frontend/.env.example frontend/.env
+   ```
+   Open `frontend/.env` and set `VITE_API_KEY` to the same value you used for `HOME_AGENT_API_KEY` in the backend `.env`.
+
+6. **Build the Frontend (Mandatory for Web Dashboard)**:
    Navigate to the frontend directory, install dependencies, and build the static assets. This step must be run before starting the backend if you wish to access the web panel:
    ```bash
    cd frontend

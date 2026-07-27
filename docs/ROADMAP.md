@@ -148,6 +148,8 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 
 *The agent proposes changes to its own codebase under strict human oversight.*
 
+> For implementation design detail (Aider diff format, LangGraph state graph, Docker sandbox), see [self_improving_agent.md](self_improving_agent.md).
+
 Design principles (never to be compromised):
 
 - Backlog-driven: only items explicitly in the backlog are candidates.

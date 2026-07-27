@@ -14,7 +14,7 @@ This document reflects the **current code reality**.
 - React + Vite + TypeScript frontend dashboard: `frontend/src/*`
 
 ## Partially implemented / inconsistent
-- API auth bypass check references `/api/health`, but route is `/health`: `backend/app/main.py`
+- ~~API auth bypass check referenced `/api/health`, but route is `/health`~~ — **fixed** (`backend/app/main.py`)
 - Scheduled summary parses connector outputs as JSON strings, while connectors return Python objects: `backend/app/agent/scheduled_tasks.py`
 - Mail error contract is inconsistent (`{"error": ...}` vs `{"status":"error"}`): `backend/app/connectors/mail_connector.py`, `backend/app/api/utils.py`
 
@@ -25,8 +25,8 @@ This document reflects the **current code reality**.
 - SQLite backup/restore operational flow
 
 ## Obsolete or stale references
-- `docs/ARCHITECTURE.md` body is up to date (Mem0 removed, React+Vite+TypeScript stack accurately described); top-level historical note can be removed
-- `frontend/README.md` is default Vite template text, not project-specific (see [REPOSITORY_CLEANUP.md](REPOSITORY_CLEANUP.md))
+- `docs/ARCHITECTURE.md` is up to date (Mem0 removed, React+Vite+TypeScript stack accurately described, historical note removed)
+- `frontend/README.md` has been replaced with a project-specific frontend README
 
 ## High-risk operational areas
 - External side effects (SMTP/CalDAV/Telegram) are reachable from app runtime and some dev scripts

@@ -11,13 +11,13 @@
 | `dev-tools/test_caldav.py` | Live external CalDAV script; unsafe as a "test" artifact | Direct connector call to real CalDAV | High | Deprecate (add dry-run guard or remove) |
 | `dev-tools/test_gmail.py` | Live external auth check | Calls `_connect("gmail")` directly | High | Deprecate (add dry-run guard or remove) |
 | `dev-tools/test_gmail2.py` | Live external mailbox read script | Calls `list_unread_emails` directly | High | Deprecate (add dry-run guard or remove) |
-| `dev-tools/test_gmail3.py` | Credential print/debug script | Prints credential presence values | Medium | Delete |
+| ~~`dev-tools/test_gmail3.py`~~ | Credential print/debug script | Prints credential presence values | High | ✅ **DELETED** |
 | `dev-tools/test_summary.py` | Runs side-effecting scheduled summary pipeline | Calls `morning_summary()` (mail/calendar/Telegram) | High | Deprecate (add dry-run guard or remove) |
 | `dev-tools/test_morning_summary.py` | Same side-effecting behavior as above | Calls `morning_summary()` | High | Deprecate (add dry-run guard or remove) |
-| `frontend/src/assets/react.svg` | Unused Vite template asset | No import found in `frontend/src/` (verified via grep) | Medium | Delete |
-| `frontend/src/assets/vite.svg` | Unused Vite template asset | No import found in `frontend/src/` (verified via grep) | Medium | Delete |
-| `frontend/src/assets/hero.png` | Unused static asset | No import found in `frontend/src/` (verified via grep) | Medium | Delete |
-| `frontend/src/App.css` | Effectively empty placeholder | File content is `/* App.css cleared for Tailwind */`; not imported by `App.tsx` (verified via grep) | Medium | Delete |
+| ~~`frontend/src/assets/react.svg`~~ | Unused Vite template asset | No import found in `frontend/src/` (verified via grep) | High | ✅ **DELETED** |
+| ~~`frontend/src/assets/vite.svg`~~ | Unused Vite template asset | No import found in `frontend/src/` (verified via grep) | High | ✅ **DELETED** |
+| ~~`frontend/src/assets/hero.png`~~ | Unused static asset | No import found in `frontend/src/` (verified via grep) | High | ✅ **DELETED** |
+| ~~`frontend/src/App.css`~~ | Effectively empty placeholder | File content was `/* App.css cleared for Tailwind */`; not imported by `App.tsx` | High | ✅ **DELETED** |
 | `docs/ARCHITECTURE.md` | Partially historical | Top-level note acknowledges historical content; body has been updated (Mem0 removed, stack is accurate). Consolidate with ARCHITECTURE_STATUS.md or update remaining stale wording. | Low | Minor consolidation or leave with existing note |
 | `backend/tests/test_memory_flow.py` | Script-style integration test, not a pytest test | Uses `asyncio.run(main())` with no pytest test functions; not discovered by pytest runner | Medium | Refactor into proper pytest tests or document as a manual dev script |
 

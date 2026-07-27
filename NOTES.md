@@ -2,7 +2,7 @@
 
 - **Date of Creation**: July 2, 2026
 - **Calendar Provider**: We use **iCloud CalDAV** instead of Google Calendar. We connect using an `app-specific password`.
-- **Mail Provider**: The mail provider is not yet finalized, but our working assumption for Phase 2 is **iCloud Mail** (via IMAP/SMTP on `imap.mail.me.com`).
+- **Mail Provider**: The implemented mail providers are **Gmail** and **ukr.net** (IMAP/SMTP). The original Phase 2 assumption of iCloud Mail was superseded — see the Phase 2 Technical Decisions section below.
 - **Smart Home Integration**: This is a low priority. We plan to integrate with Home Assistant later (Phase 4-5) instead of designing IoT protocols from scratch.
 - **Whitelist Permissions System**: Permissions are strictly enforced in Python code (`permission_checker.py`), NOT left to the LLM's discretion. This is a foundational security decision and must not be changed without explicit agreement.
 
@@ -12,8 +12,8 @@
 
 - **CalDAV write operations**: Using `icalendar` library to build VCALENDAR/VEVENT payloads for `create_event`. The `caldav` library's `save_event()` accepts raw iCalendar strings. For `delete_event` and `modify_event`, we look up events by UID across all calendars.
 - **Confirmation flow for RED actions**: Implemented using an in-memory dict (`_PENDING_ACTIONS`) keyed by `session_id`. No database needed at this stage. The user must reply with exact confirmation words ("да", "подтверждаю", etc.) to execute, or cancellation words to abort. The pending action is cleared after either outcome.
-- **iCloud Mail via IMAP**: Uses `imaplib` (standard library) with `IMAP4_SSL` on port 993. We use `BODY.PEEK[]` to fetch emails without marking them as read. This preserves the mailbox state. Search is done via IMAP `SUBJECT` search criteria.
-- **App-specific passwords**: iCloud CalDAV and iCloud Mail may use the **same** app-specific password, or separate ones depending on the user's preference. Both are configured independently in `.env` (`CALDAV_PASSWORD` vs `IMAP_PASSWORD`).
+- **Mail via IMAP (Gmail / ukr.net)**: Uses `imaplib` (standard library) with `IMAP4_SSL` on port 993. We use `BODY.PEEK[]` to fetch emails without marking them as read. This preserves the mailbox state. Search is done via IMAP `SUBJECT` search criteria. *(Note: originally prototyped for iCloud Mail; corrected to Gmail + ukr.net before Phase 2 completion.)*
+- **App-specific passwords**: iCloud CalDAV and the mail accounts use separate app-specific passwords configured independently in `.env` (`CALDAV_PASSWORD`, `GMAIL_APP_PASSWORD`, `UKRNET_PASSWORD`).
 - **Language model behavior**: Added `CRITICAL LANGUAGE RULE` to the system prompt and lowered temperature to 0.3 to prevent `qwen2.5:7b` from mixing Russian with Chinese text.
 - **System prompt datetime**: Changed from hardcoded date to `datetime.now()` so the agent always knows the current time.
 - **delete_event / modify_event fallback**: The LLM often sends event titles instead of real CalDAV UIDs, especially with parallel tool calling (qwen2.5:7b calls `search_events` + `delete_event` in the same round before seeing search results). Solved by adding `_find_event_by_uid_or_title()` helper that tries UID lookup first, then falls back to title-based search across all calendars.
