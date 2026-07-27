@@ -67,3 +67,4 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+\n# Replit uploaded assets (not for version control)\nattached_assets/
