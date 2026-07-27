@@ -3,7 +3,7 @@
 A local AI agent running 24/7 on a Mac as a home server, designed to manage daily routines (calendar, email, and eventually smart home). It's accessible locally via Wi-Fi and remotely via Tailscale.
 
 ## Status
-**Phase 1 (Foundation)**: Active
+**Current state**: Multi-module MVP implemented (chat, calendar, mail, finance, countdowns, memory, scheduler).
 
 ## Prerequisites
 
@@ -66,7 +66,7 @@ A local AI agent running 24/7 on a Mac as a home server, designed to manage dail
    ```bash
    uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
    ```
-   The server will initialize the SQLite database and run any missing migrations automatically on startup. The web dashboard will be available at [http://localhost:8000/memory](http://localhost:8000/memory).
+   The server will initialize the SQLite database and run any missing migrations automatically on startup. The web dashboard will be available at [http://localhost:8000/dashboard](http://localhost:8000/dashboard) (with `/memory` and other modules routed inside the SPA).
 
 ## Development
 
@@ -77,7 +77,20 @@ If you are developing the React interface and want Hot Module Replacement (HMR):
    cd frontend
    npm run dev
    ```
-   This will start the Vite dev server at [http://localhost:5173/memory](http://localhost:5173/memory) and proxy API requests automatically to the backend.
+   This will start the Vite dev server at [http://localhost:5173/dashboard](http://localhost:5173/dashboard) and proxy API requests automatically to the backend.
 
 ## Architecture & Design
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ROADMAP.md](docs/ROADMAP.md) for deeper details.
+
+## Planning Documents (Issue #1)
+
+- [Architecture status snapshot](docs/ARCHITECTURE_STATUS.md)
+- [Repository cleanup candidates](docs/REPOSITORY_CLEANUP.md)
+- [Engineering rules](docs/ENGINEERING_RULES.md)
+- [Dry-run architecture](docs/DRY_RUN_ARCHITECTURE.md)
+- [Commitment contract](docs/domain/COMMITMENT_CONTRACT.md)
+- [Tool validation plan](docs/TOOL_VALIDATION_PLAN.md)
+- [Backup/restore plan](docs/BACKUP_RESTORE_PLAN.md)
+- [Memory evolution roadmap](docs/MEMORY_EVOLUTION.md)
+- [Development dependencies](docs/DEVELOPMENT_DEPENDENCIES.md)
+- [Testing gaps](docs/TESTING_GAPS.md)

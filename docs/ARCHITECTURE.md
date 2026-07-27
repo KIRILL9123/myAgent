@@ -1,5 +1,7 @@
 # Architecture
 
+> Note: parts of this document are historical. For code-accurate status, see [ARCHITECTURE_STATUS.md](ARCHITECTURE_STATUS.md).
+
 ## Overview
 
 The Home Agent is structured with a FastAPI backend driving an orchestration loop, connecting to local LLMs (Ollama) and external services (CalDAV, IMAP, and eventually Home Assistant).
@@ -19,7 +21,7 @@ The Home Agent is structured with a FastAPI backend driving an orchestration loo
 8. **Response**: The result is fed back to the LLM to formulate the final answer to the user.
 ## Frontend Modules
 
-The frontend is structured as a multi-module dashboard built with vanilla HTML/JS/CSS.
+The frontend is structured as a multi-module dashboard built with React + TypeScript + Vite.
 - **Chat**: The core interface for communicating with the agent.
 - **Finance**: A dedicated module for tracking incomes, expenses, and viewing summaries.
 - **Deadlines**: A module for tracking countdowns to important dates.
@@ -29,7 +31,7 @@ The frontend is structured as a multi-module dashboard built with vanilla HTML/J
 
 - **API Layer**: `fastapi` entrypoints for client communication.
 - **Agent Layer**: Core intelligence, tool calling loops, session-based memory for confirmations.
-  - **Memory Sublayer**: `mem0_client.py` uses `mem0ai` (with local Ollama and Qdrant) to extract and persist user facts across sessions.
+  - **Memory Sublayer**: custom SQLite-backed Memory Layer (`backend/app/memory/*`) with human approval flow, relation graphing, and consolidation support.
 - **Permission Layer**: Hardcoded, strictly enforced security boundaries (`tool_permissions.json`).
 - **Voice Sublayer**: `transcriber.py` uses `openai-whisper` for local speech-to-text recognition.
 - **Connector Layer**: Adapters for third-party services:
