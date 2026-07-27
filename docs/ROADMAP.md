@@ -1,131 +1,231 @@
-# Roadmap
+# myAgent — Long-Term Roadmap and Product Vision
 
-## Phase 1: Foundation (Completed)
-- [x] Project scaffolding and documentation
-- [x] FastAPI entrypoint
-- [x] Whitelist permission system (green/yellow/red)
-- [x] Tool calling loop with Ollama (local LLM)
-- [x] iCloud CalDAV connector (Read-only: list/search events)
+> **Responsibility**: Complete long-term vision, phased roadmap, and product direction.  
+> For what is currently implemented, see [ARCHITECTURE_STATUS.md](ARCHITECTURE_STATUS.md).  
+> For the active work cycle, see [BACKLOG.md](BACKLOG.md).
 
-## Phase 2: Calendar Management & Email Reader
-**Status: COMPLETED**
-- [x] Create CalDAV connector with write capabilities
-- [x] Implement multi-turn confirmation loop for safety
-- [x] Create Email connector (IMAP) for reading emails
-- [x] Update tool_permissions.json with new actions
-- [x] Update frontend UI for basic chat capabilities
+---
 
-### Phase 3: Proactive Background Tasks 
-**Status: COMPLETED**
-- **Scheduler**: Added `apscheduler` and running as a background task.
-- **Morning Summary Task**: Agent checks email/calendar every morning and generates an LLM summary.
-- **Email Sending**: Agent can send emails via SMTP (requires explicit RED permission confirmation).
-- **Notifications**: Summary is sent directly to the user via Telegram Bot API.
+## A. North Star
 
-## Phase 4: Finance Module (MVP)
-**Status: COMPLETED**
-- [x] Create database tables for transactions and categories
-- [x] Implement backend finance service and API endpoints
-- [x] Register finance tools for the agent (green permission)
-- [x] Refactor frontend into a multi-module dashboard (Chat, Finance)
+**myAgent is a local-first Personal Operating System — a Personal Chief of Staff for one person.**
 
-## Phase 4.5: Countdowns / Deadlines
-**Status: COMPLETED**
-- [x] Create database table `countdowns`
-- [x] Implement `countdown_service.py`
-- [x] Add tools `add_countdown`, `get_all_countdowns`, `delete_countdown`
-- [x] Add frontend Deadlines tab
-- [x] Include countdowns in morning summary
+The long-term system will:
 
-## Phase 5: Voice Telegram Integration
-**Status: COMPLETED**
-- [x] Add `openai-whisper` for local voice recognition
-- [x] Implement audio transcription in `backend/app/voice/transcriber.py`
-- [x] Update Telegram listener to download and transcribe voice messages
+- Understand the user's state, preferences, history, goals, commitments, and documents.
+- Reason across memory, email, calendar, finance, files, projects, and other domains.
+- Proactively surface important information without becoming noisy.
+- Propose actions with provenance — every conclusion traceable to supporting evidence.
+- Execute only inside deterministic permission boundaries.
+- Require explicit human approval for all high-impact actions.
+- Remain local-first and privacy-preserving where practical.
+- Improve through controlled, backlog-driven engineering workflows with automated validation and human review.
 
-## Phase 6: Smart Home Integration
-**Status: POSTPONED (отложена по решению пользователя, не приоритет)**
-- [ ] Connect to Home Assistant (REST/WebSocket API)
-- [ ] Read-only state access for sensors and lights
+---
 
-## Phase 7: Complete Home Automation
-- [ ] Allow the agent to control Home Assistant devices (turn on lights, adjust thermostat)
-- [ ] Refine remote access via Tailscale and secure the web interface
+## B. Personal OS Data Model
 
-## Phase 8: Memory Layer (Stable ✅ — future optimizations documented in NOTES.md)
-- [x] Create SQLite DB schema for user facts and relations
-- [x] Implement LLM fact extractor with semantic deduplication check
-- [x] Implement LLM relation builder with closed type list
-- [x] Create confirmation flow REST endpoints (get pending, approve, reject, get graph data)
-- [x] Scaffold React + Vite + TS + Tailwind CSS frontend
-- [x] Build Obsidian-style interactive force-directed memory graph view (visual styling, search query highlights, camera zoom controls, and slide-out details panel)
-- [x] Add Approve/Reject pending facts review queue UI
-- [x] Add backend relations backfill endpoint and trigger button in UI
-- [x] Implement semantic fact consolidation flow (clustering candidates, POST-merge status update, and UI tab)
+The long-term system conceptually manages eight categories of structured knowledge:
 
-## Phase 8.1: Memory Integration in Orchestrator (Stable ✅)
-- [x] Implement LLM-based `get_relevant_facts()` retrieval in `memory_service.py`
-- [x] Inject relevant approved facts into orchestrator system prompt
-- [x] Add background `extract_facts_from_conversation()` call after each LLM response
-- [x] Replace Mem0/Qdrant integration with custom Memory Layer (human-in-the-loop)
-- [x] Add debug logging for retrieved facts (`[MEMORY]` prefix in server logs)
-- [x] Automated nightly consolidation via APScheduler (03:00, results cached for instant tab load)
-- [x] Extraction guard: prompt explicitly allows `[]` for fact-neutral queries
-- [x] Embedding threshold warning at >100 facts (`EMBEDDING_THRESHOLD` constant)
-- [x] N+1 LLM call audit documented in NOTES.md (backfill + dedup patterns)
-- [ ] При росте базы фактов (>100) рассмотреть переход на embeddings-based retrieval вместо LLM-фильтрации всего списка
-- [ ] При росте до 50+ фактов рассмотреть batch-версию backfill_isolated_relations и dedup
+| Type | Description |
+|---|---|
+| **Facts** | Stable, approved beliefs about the user (preferences, skills, habits) |
+| **Episodes** | Recorded events or conversations with temporal context |
+| **Artifacts** | Binary files, documents, PDFs — separate from structured state |
+| **Plans** | Sequences of intended actions toward a goal |
+| **Commitments** | Obligations the user has made or accepted, with lifecycle tracking |
+| **Events** | Calendar entries with temporal anchoring |
+| **Decisions** | Explicit choices made by the user, with supporting rationale |
+| **Evidence** | Raw source material supporting a fact, decision, or commitment |
 
-## Phase 8.2: Security & Session Isolation (Stable ✅)
-- [x] Session isolation: unique UUID v4 generated in-memory per frontend tab to prevent confirmation race conditions
-- [x] API Key Authorization: FastAPI middleware validating `X-API-Key` on `/api/*` routes (with preflight OPTIONS and health check bypass)
-- [x] Prompt Injection Guard: automatic XML wrapping of untrusted external content (emails and calendar)
-- [x] Network Bind: host `0.0.0.0` architectural decision documented and protected via API-Key auth
-- [x] Mobile responsive layout fix: memory legend and node details converted into elegant bottom sheets on mobile devices (<640px)
+### Storage architecture principles
 
-## Phase 9: Unified Dashboard & Chat UI (Stable ✅)
-- [x] Dashboard Navigation Shell: AppShell layout component with a left vertical sidebar on desktop and bottom navigation tabs on mobile, routing `/` to `/dashboard`
-- [x] Dashboard Home Screen: responsive grid of clickable widgets (Calendar today, Finance monthly net, Urgent countdowns, Unread emails) with skeleton loaders and isolated error handling
-- [x] Chat UI: full-featured interactive chat interface supporting session isolation, loading states, and inline confirmation controls
-- [x] Calendar Page: direct calendar event management and CRUD endpoints (Today/Week/Month views, modals, edit/delete actions, background CalDAV threads)
-- [x] Mail Page: unread listing, search, and direct compose/reply SMTP flow with double-step preview (Gmail/UkrNet selector, search field, reply pre-fill, preview modal)
-- [x] Finance Page: direct transaction logging and summaries module with Category Expense Bar Chart (recharts), monthly Active Subscriptions list, and Repeat monthly toggle
-- [x] Countdowns Page: direct countdowns/timer logs list with urgent highlights (days remaining calculation, urgent styling < 30 days, category tags, delete deadlines)
+- **SQL is authoritative for structured state.** SQLite is the source of truth for facts, commitments, events, decisions, and their relations.
+- **Vector search is for retrieval, not truth.** Embeddings and similarity indices accelerate lookup; they do not replace structured records.
+- **Binary files and artifacts remain separate** from structured state. The document vault is distinct from the memory layer.
+- **Provenance connects conclusions to evidence.** Every derived fact, commitment, or decision should carry a reference trail back to its source material.
 
-## Phase 9.1: Long-Running Resource Audit & Optimization (Stable ✅)
-- [x] SQLite Connection Leak Fix: wrap all database operations in `get_db_connection()` context manager to guarantee connection closing on errors
-- [x] Ollama Connection Pooling: reuse a single persistent global `httpx.AsyncClient` across all model queries with lifespan cleanup
-- [x] Log Rotation: configure `RotatingFileHandler` with 5MB maxBytes and 3 backups rotation for `audit.log` and `summaries.log`
+---
 
-## Open Technical Debt (Backlog)
-- [ ] DRY refactoring: consolidate fetch, loading state, and error handling in frontend components (graph, review, consolidation) into a reusable hook/service
-- [ ] Accessibility (A11y) improvements: add standard ARIA labels, tab index controls, and keyboard navigation support to frontend components
-- [ ] Pydantic-валидация аргументов Tool Calls: добавить Pydantic-схемы для валидации входящих аргументов инструментов перед диспетчеризацией (подготовлено переходом на формат status/message)
-- [ ] Типизация хелперов бэкенда: добавить аннотации типов для внутренних функций в `caldav_connector.py`, `mail_connector.py`, `main.py` и возвращаемых типов в `db.py`
+## C. Unified Approval Control Plane
 
-## Backlog / Future Ideas
-- [ ] Языковой тренажёр для Ausbildung (English/German) — детали в NOTES.md, три подхода рассмотрены, старт с варианта 1 (spaced repetition словарь)
+The long-term design converges on a single **Unified Approval Inbox / Approval Control Plane** as the gateway for all high-impact proposed changes.
 
-## Backlog: Product Ideas
-- [ ] Логика агента: проактивное предложение транзакций — если в письме обнаружен чек/квитанция о покупке, агент должен предлагать пользователю "хочешь я запишу это как расход в Finance?" вместо ожидания ручного ввода. Требует доработки orchestrator.py и, возможно, отдельного анализа содержимого писем на предмет финансовых документов.
-- [ ] Финансы: проактивные алерты в Telegram — бот отслеживает темп трат по категориям и предупреждает при превышении лимитов (например: «Кирилл, на этой неделе расходы на категорию "Еда" выросли на 30% выше твоего обычного лимита. Притормозим?»).
-- [ ] Дедлайны: умные проактивные напоминания в Telegram — бот напоминает о дедлайнах интерактивным языком вместо сухих цифр (например: «До сдачи проекта Ausbildung осталось 3 дня. Ты просил напомнить. Всё готово или нужно перенести встречу?»).
-- [ ] Голосовое управление: локальный Speech-to-Text (STT) — кнопка микрофона в веб-чате, использующая whisper.cpp локально на Mac для расшифровки голоса.
-- [ ] Голосовое управление: локальный Text-to-Speech (TTS) — интеграция Kokoro / Piper TTS для озвучивания ответов бота (например, подтверждение добавления транзакции голосом).
-- [ ] Почта: авто-события из писем — агент в фоне парсит подтверждения бронирования (отели, авиабилеты, запись к врачу) и предлагает внести их в календарь.
-- [ ] Чат: контекстные подсказки на основе бюджета — агент отвечает на вопросы о покупках (например: «Могу я купить этот монитор за 30 000 руб?») анализируя реальный баланс в Finance.
-- [ ] Интерфейс: интерактивные виджеты дашборда — поддержка Drag-and-Drop и изменения размеров виджетов на главной странице (Gridstack).
-- [ ] Интерфейс: тёмная тема нового поколения — матовое стекло (Glassmorphism), View Transitions API для плавной анимации страниц, интерактивные hover-эффекты на графиках.
-- [ ] Calendar: детектор конфликтов — при создании/изменении события в CalendarPage.tsx, если новое время пересекается с уже существующим событием, показывать предупреждение перед сохранением (не блокировать, просто предупреждать).
-- [ ] Calendar: интеграция с Memory Layer — при создании события в форме, если выбранное время попадает в зону, которую пользователь ранее просил избегать (approved facts типа "не любит встречи до 10 утра"), подсвечивать предупреждение в форме создания.
-- [ ] Mail: автоматическая очистка спама — фоновый агент для анализа входящих писем, классификации мусора/рекламы/уведомлений и их авто-удаления/перемещения в корзину на основе предпочтений пользователя.
-- [ ] Mail: дальнейшее развитие отложено (низкий приоритет на данный момент) — индикатор непрочитанных в навигации, threading переписки, дальнейшие идеи рассмотреть позже.
-- [ ] IoT: интеграция с Home Assistant (самый низкий приоритет) — вывод графиков датчиков, управление розетками/светом по командам в чате.
-- [ ] Finance: добавить поле source_template_id в таблицу транзакций для надежной дедупликации (известное ограничение: сейчас два разных шаблона с абсолютно одинаковой суммой, категорией и описанием в одном месяце будут блокировать друг друга).
-- [ ] Документы: умный сейф (Semantic Document Vault) — загрузка важных PDF-документов (контракты, страховки, договоры аренды), их локальное индексирование (RAG) и возможность задавать вопросы по ним в чате (например, про сроки расторжения, даты продления страховки с предложением автоматически создать дедлайны в календаре).
-- [ ] Архитектура: автономное самосовершенствование (Self-Improving Agent Loop) — интеграция инструментов чтения/редактирования собственного кода, выполнение команд сборки/тестирования (npm run build, pytest) в изолированной песочнице и автономный цикл исправления ошибок (компиляции/тестов). Использовать лучшие практики и открытый код из Open Source проектов:
-  - **Aider** (формат коммитов, Git-aware репозитории, эффективное редактирование через Unified Diff/Search-Replace блоки, сжатая карта проекта Repository Map).
-  - **OpenHands** (бывший OpenDevin) и **SWE-agent** (песочница в Docker, интерфейс взаимодействия агента с компьютером ACI для поиска и навигации по файлам).
-  - **LangGraph** и **Smolagents** (фреймворки для создания стабильных циклов рассуждений, обработки ошибок компилятора и интеграции человека в цикл одобрения изменений).
+This control plane handles:
 
+- Memory fact approvals (currently implemented in isolation)
+- RED tool action confirmations (currently implemented in isolation)
+- Commitment activation proposals
+- Document merge/extraction proposals
+- Future self-improvement code change proposals
+- Other high-impact state changes requiring human review
 
+### Conceptual flow
+
+```
+AI proposal
+  → Approval Center (unified record store)
+  → User: approve / reject / edit
+  → Deterministic policy/permission check
+  → Execution
+  → Audit log with full provenance
+```
+
+Implementation note: Telegram and the web dashboard may share the same underlying approval records. This is an architectural concept; it does not prescribe a single UI implementation.
+
+---
+
+## D. Roadmap Phases
+
+### Phase 1 — Reliability and Safety Foundation
+
+*Prerequisites for all future automation work.*
+
+- [ ] Dry-run / side-effect isolation (see [DRY_RUN_ARCHITECTURE.md](DRY_RUN_ARCHITECTURE.md))
+- [ ] Pydantic tool argument validation (see [TOOL_VALIDATION_PLAN.md](TOOL_VALIDATION_PLAN.md))
+- [ ] SQLite backup and restore (see [BACKUP_RESTORE_PLAN.md](BACKUP_RESTORE_PLAN.md))
+- [ ] Fact confidence, temporal validity, provenance (see [MEMORY_EVOLUTION.md](MEMORY_EVOLUTION.md))
+- [ ] Regression tests for RED action boundaries and side-effect isolation
+- [ ] Fix known scheduler/connector contract inconsistencies (see [ARCHITECTURE_STATUS.md](ARCHITECTURE_STATUS.md))
+- [ ] Evaluate centralized Tool Registry (see [TOOL_VALIDATION_PLAN.md](TOOL_VALIDATION_PLAN.md))
+
+### Phase 2 — Personal Commitments and Proactive Assistance
+
+*Add obligation tracking and proactive user-facing intelligence.*
+
+- [ ] Commitment Tracker domain (see [domain/COMMITMENT_CONTRACT.md](domain/COMMITMENT_CONTRACT.md))
+- [ ] Commitment extraction from chat and email
+- [ ] Calendar / deadline linkage for commitments
+- [ ] Commitment reminders via Telegram
+- [ ] Commitment expiry and review flow
+- [ ] Calendar × Memory conflict detection (flag when scheduled time conflicts with known preferences)
+- [ ] Receipt → Expense proposal (agent notices a purchase receipt and proposes adding it to Finance)
+- [ ] Quiet hours configuration
+- [ ] Notification budget and priority scoring
+- [ ] Notification coalescing (batch low-priority alerts)
+
+### Phase 3 — Personal State and Decision Intelligence
+
+*Higher-order reasoning across the user's goals, projects, and history.*
+
+- [ ] Personal State Engine (consumes commitment, memory, and calendar signals)
+- [ ] Decision Journal (explicit record of choices with rationale)
+- [ ] Project entities: Goals → Projects → Tasks → Commitments hierarchy
+- [ ] Chief-of-staff daily plan generation
+- [ ] Nightly "State of Me" summary (broader than morning summary; covers commitments, goals, decisions)
+- [ ] Temporal validity for facts (facts can expire; conflicts resolved via human decision)
+- [ ] Contradiction-aware retrieval (prefer latest human-confirmed facts when conflicts exist)
+
+### Phase 4 — Document and Knowledge Layer
+
+*Separate, privacy-respecting document intelligence.*
+
+- [ ] Semantic Document Vault — distinct from Memory Facts
+- [ ] Local embeddings (Ollama embeddings or equivalent)
+- [ ] Local vector store (Chroma or equivalent)
+- [ ] Hybrid SQL + vector retrieval
+- [ ] Optional reranking
+- [ ] Provenance and citations in answers
+- [ ] PDF / scan ingestion
+- [ ] Document deadline extraction → Calendar suggestions
+- [ ] Document → Commitment proposals (e.g. lease renewal date → commitment with deadline)
+- [ ] Optional email indexing with explicit user-controlled retention rules
+
+### Phase 5 — Ausbildung and Learning Intelligence
+
+*Language and technical learning support integrated with the daily workflow.*
+
+- [ ] Ausbildung document and knowledge workspace
+- [ ] Spaced repetition vocabulary trainer (Telegram-delivered cards via APScheduler)
+- [ ] Study material extraction from documents
+- [ ] Learning progress tracking
+- [ ] Language learning support (German / English technical vocabulary)
+- [ ] Daily generative exercises (translation, gap-fill, mini-dialogue)
+- [ ] OCR correction for handwritten notes (requires multimodal model or Tesseract)
+- [ ] Clear distinction between authoritative documents and generated study material
+
+### Phase 6 — Controlled Self-Improvement
+
+*The agent proposes changes to its own codebase under strict human oversight.*
+
+Design principles (never to be compromised):
+
+- Backlog-driven: only items explicitly in the backlog are candidates.
+- Narrow scope: one feature or fix per cycle.
+- Isolated branch: changes never go directly to `main`.
+- Sandbox execution: tests run in an isolated environment with no external side effects.
+- Tests first where practical.
+- Automated validation: unit, integration, regression, security, permission, and side-effect checks.
+- Structured report delivered to user via Telegram and web.
+- Risk classification: low / medium / high impact.
+- Human review and manual merge: the human approves before any merge.
+- **Never bypass the permission or approval architecture.**
+- **Never directly modify `main`.**
+
+---
+
+## E. Cross-Cutting Capabilities
+
+These capabilities span multiple phases and should inform design at each phase:
+
+**Approval and Safety**
+- Unified Approval Control Plane (see Section C)
+- Provenance and citations for all AI-proposed actions
+- Capability tokens / time-limited grants for sensitive operations
+- Shadow mode for new tools (log intent without executing)
+- Adversarial prompt injection regression corpus (grow from real incidents)
+- Regression pack from real failures
+
+**Observability and Reliability**
+- Structured correlation IDs across request/tool/audit chain
+- Cost, latency, and time budgets per tool call
+- Sleep-aware startup reconciliation (Mac sleeps; scheduler must detect missed jobs on wake)
+- Evaluation harness / golden scenarios for end-to-end agent behavior
+
+**Notifications**
+- Notification priority hierarchy
+- Quiet hours configuration
+- Notification budget (daily/weekly cap per category)
+- Coalescing of low-priority alerts
+
+**Privacy and Backup**
+- Encrypted off-machine backups
+- Optional encrypted history/export
+- Retention policies for all stored data categories
+
+**Model Routing**
+- Local model router
+- Small models for classification and extraction tasks
+- Larger models for multi-step reasoning
+
+---
+
+## F. Later / Experimental
+
+Lower-priority ideas that are worth preserving but not scheduled:
+
+- **Home Assistant integration** — sensor graphs, basic device control via chat (currently postponed; low device count)
+- **Deeper email intelligence** — thread grouping, unread badge in navigation, advanced spam classification
+- **Approval-based email auto-filing rules** — user-configured, not autonomous
+- **GitHub integration** — open issues and PRs in morning summary
+- **Finance intelligence** — "Can I afford X?" answers based on real Finance logs; proactive category-limit alerts
+- **Language trainer extensions** — see Phase 5 for primary plan
+- **More autonomous personal planning** — calendar optimization, energy-aware scheduling
+- **Always-on dedicated server** — Raspberry Pi or mini-PC to replace MacBook Air as host
+- **Voice in web chat** — microphone button using local whisper.cpp (Telegram voice already works)
+- **Local Text-to-Speech** — Kokoro or Piper TTS for agent response audio
+- **Interactive dashboard widgets** — drag-and-drop resize (Gridstack)
+- **UI aesthetics evolution** — Glassmorphism, View Transitions API
+
+---
+
+## G. Explicit Non-Goals
+
+The following are out of scope by design:
+
+- Generic multi-tenant SaaS architecture
+- Plugin marketplace infrastructure
+- Full BPM/workflow engine without a concrete, justified need
+- Unrestricted shell or code execution in production
+- Unsupervised production self-modification (see Phase 6 for the controlled alternative)
+- Autonomous high-impact financial or communication actions without explicit human approval

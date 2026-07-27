@@ -11,7 +11,7 @@ This document reflects the **current code reality**.
   - Telegram listener/notifier: `backend/app/notifications/telegram_listener.py`, `backend/app/notifications/telegram_notifier.py`
 - Memory Layer (SQLite + approval + graph + relation building): `backend/app/memory/*`
 - Finance and countdown domains: `backend/app/finance/*`, `backend/app/countdown/*`
-- React + Vite frontend dashboard: `frontend/src/*`
+- React + Vite + TypeScript frontend dashboard: `frontend/src/*`
 
 ## Partially implemented / inconsistent
 - API auth bypass check references `/api/health`, but route is `/health`: `backend/app/main.py`
@@ -25,9 +25,8 @@ This document reflects the **current code reality**.
 - SQLite backup/restore operational flow
 
 ## Obsolete or stale references
-- `docs/ARCHITECTURE.md` still mentions Mem0 and vanilla frontend (historical)
-- `frontend/README.md` is template text and not project-specific
-- `docs/PERMISSIONS.md` and `README.md` contain older phase wording
+- `docs/ARCHITECTURE.md` body is up to date (Mem0 removed, React+Vite+TypeScript stack accurately described); top-level historical note can be removed
+- `frontend/README.md` is default Vite template text, not project-specific (see [REPOSITORY_CLEANUP.md](REPOSITORY_CLEANUP.md))
 
 ## High-risk operational areas
 - External side effects (SMTP/CalDAV/Telegram) are reachable from app runtime and some dev scripts

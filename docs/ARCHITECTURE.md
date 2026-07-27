@@ -1,6 +1,6 @@
 # Architecture
 
-> Note: parts of this document are historical. For code-accurate status, see [ARCHITECTURE_STATUS.md](ARCHITECTURE_STATUS.md).
+> For the current implementation status (what is implemented, partial, or planned), see [ARCHITECTURE_STATUS.md](ARCHITECTURE_STATUS.md).
 
 ## Overview
 
