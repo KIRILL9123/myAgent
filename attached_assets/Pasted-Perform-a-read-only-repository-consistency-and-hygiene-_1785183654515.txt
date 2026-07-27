@@ -1,0 +1,159 @@
+Perform a read-only repository consistency and hygiene audit.
+
+IMPORTANT:
+- Do NOT modify production code.
+- Do NOT modify application behavior.
+- Do NOT add dependencies.
+- Do NOT modify database schemas or migrations.
+- Do NOT modify permission logic.
+- Do NOT delete files.
+- Do NOT refactor code.
+- Do NOT make architectural changes.
+- Prefer a report over making changes.
+- This task is primarily READ-ONLY.
+
+Inspect the entire repository and produce a detailed report.
+
+1. DOCUMENTATION CONSISTENCY
+Check all Markdown documentation for:
+- broken internal links
+- references to files that no longer exist
+- references to deleted files
+- outdated filenames
+- duplicated or contradictory architectural statements
+- inconsistent terminology
+- features described as implemented when they are only planned
+- planned features described as implemented
+
+Pay special attention to:
+- README.md
+- docs/ROADMAP.md
+- docs/BACKLOG.md
+- docs/ARCHITECTURE.md
+- docs/ARCHITECTURE_STATUS.md
+- docs/ENGINEERING_RULES.md
+- docs/DRY_RUN_ARCHITECTURE.md
+- docs/TOOL_VALIDATION_PLAN.md
+- docs/BACKUP_RESTORE_PLAN.md
+- docs/MEMORY_EVOLUTION.md
+- docs/DEVELOPMENT_DEPENDENCIES.md
+- docs/TESTING_GAPS.md
+- docs/REPOSITORY_CLEANUP.md
+- docs/domain/COMMITMENT_CONTRACT.md
+
+2. REPOSITORY STRUCTURE
+Compare the actual repository structure against the documentation.
+
+Identify:
+- important files that are undocumented
+- documented components that no longer exist
+- suspicious orphan files
+- duplicate configuration files
+- duplicate implementations
+- temporary files
+- generated files accidentally committed
+
+Do NOT delete anything.
+
+3. GIT HYGIENE
+Check for:
+- .env files
+- credential files
+- API keys
+- private keys
+- tokens
+- accidentally committed secrets
+- .DS_Store
+- __pycache__
+- node_modules
+- build output
+- dist artifacts
+- temporary logs
+- large binary files
+
+Do not expose actual secret values in the report.
+If something suspicious is found, report only the filename/path and type of risk.
+
+4. TODO / FIXME AUDIT
+Search the codebase for:
+- TODO
+- FIXME
+- HACK
+- XXX
+- temporary workarounds
+
+Categorize them:
+- important technical debt
+- future feature
+- harmless note
+- potentially obsolete
+
+Do not modify them.
+
+5. DEAD / SUSPICIOUS CODE
+Look for:
+- obviously unused modules
+- duplicate functions
+- unreachable code
+- obsolete compatibility code
+- old test scripts
+- debug utilities
+
+Do NOT delete anything.
+
+For each finding, provide:
+- path
+- what you found
+- confidence: HIGH / MEDIUM / LOW
+- recommended action: KEEP / REVIEW / DEPRECATE / DELETE
+- reason
+
+6. CONFIGURATION CONSISTENCY
+Check whether:
+- environment variables documented in .env.example match actual usage
+- configuration names are consistent
+- frontend/backend configuration expectations match
+- ports and URLs are consistent
+- development commands in README match package.json / actual scripts
+- Python dependencies match actual imports
+- frontend dependencies match actual imports
+
+Do not install or modify dependencies.
+
+7. TESTING HYGIENE
+Identify:
+- actual automated tests
+- manual test scripts
+- scripts that may access real external services
+- scripts that may cause real side effects
+- tests that are incorrectly named
+- missing obvious test coverage
+
+Do not rewrite tests.
+
+8. FINAL REPORT
+
+Create a report in the chat/output only.
+
+Structure it as:
+
+A. Critical findings
+B. High-value cleanup candidates
+C. Documentation inconsistencies
+D. Security/hygiene findings
+E. TODO/FIXME findings
+F. Suspicious/dead code
+G. Configuration inconsistencies
+H. Testing observations
+I. Recommended next actions
+
+For every recommendation, clearly distinguish:
+- Safe to fix now
+- Should wait for Dry-Run work
+- Should wait for Tool Registry/Pydantic work
+- Should wait for a future architecture phase
+- Do not touch
+
+IMPORTANT:
+Do not make changes unless absolutely necessary to run the audit.
+This is an inspection and reporting task, not an implementation task.
