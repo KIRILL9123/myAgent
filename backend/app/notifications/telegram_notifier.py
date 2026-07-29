@@ -7,11 +7,22 @@ load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-async def send_notification(message: str, chat_id: str = None) -> bool:
+async def send_notification(message: str, chat_id: str = None) -> bool | dict:
     """
     Sends a message via the Telegram Bot API.
-    Returns True if successful, False otherwise.
+    Returns True/False in REAL mode, or {"status":"dry_run","would_do":{...}} in DRY_RUN mode.
     """
+    from backend.app.core.execution_mode import is_dry_run
+    if is_dry_run():
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "send_notification",
+                "message": message,
+                "chat_id": chat_id or TELEGRAM_CHAT_ID,
+            },
+        }
+
     target_chat_id = chat_id or TELEGRAM_CHAT_ID
     
     if not TELEGRAM_BOT_TOKEN or not target_chat_id:

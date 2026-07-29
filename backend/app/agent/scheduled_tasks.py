@@ -1,5 +1,4 @@
 import os
-import json
 import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime, date, timedelta
@@ -42,19 +41,14 @@ async def morning_summary():
     start_date = today.strftime("%Y-%m-%d")
     end_date = tomorrow.strftime("%Y-%m-%d")
     
-    events_raw = list_events(start_date=start_date, end_date=end_date)
-    # the function returns a JSON string, need to load it
-    try:
-        events = json.loads(events_raw)
-    except Exception:
-        events = [{"error": "Failed to parse events"}]
+    events = list_events(start_date=start_date, end_date=end_date)
+    if isinstance(events, dict) and events.get("status") == "error":
+        events = []
 
     # 2. Fetch Unread Emails
-    emails_raw = list_unread_emails(limit=10)
-    try:
-        emails = json.loads(emails_raw)
-    except Exception:
-        emails = [{"error": "Failed to parse emails"}]
+    emails = list_unread_emails(limit=10)
+    if isinstance(emails, dict) and emails.get("status") == "error":
+        emails = []
 
     # 3. Build Prompt for LLM
     events_text = "\n".join([f"- {e.get('summary', 'No Title')} ({e.get('start', '')} to {e.get('end', '')})" for e in events]) if events else "Нет событий на сегодня."
@@ -81,8 +75,10 @@ async def morning_summary():
     summary_logger.info(f"=== Summary for {today.strftime('%Y-%m-%d')} ===\n{response_text}\n\n")
 
     # 6. Send via Telegram
-    success = await send_notification(response_text)
-    if success:
+    result = await send_notification(response_text)
+    if isinstance(result, dict) and result.get("status") == "dry_run":
+        log_action("morning_summary", "DRY_RUN", "Telegram notification blocked by dry-run mode.")
+    elif result:
         log_action("morning_summary", "SENT", "Telegram notification sent.")
     else:
         log_action("morning_summary", "FAILED_SEND", "Failed to send Telegram notification.")
