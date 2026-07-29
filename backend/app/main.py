@@ -48,6 +48,22 @@ async def lifespan(app: FastAPI):
         misfire_grace_time=21600
     )
 
+    from backend.app.storage.backup import create_backup, apply_retention_policy
+
+    async def daily_backup_job():
+        import asyncio
+        result = await asyncio.to_thread(create_backup)
+        if result.get("status") == "ok":
+            apply_retention_policy()
+
+    scheduler.add_job(
+        daily_backup_job,
+        trigger=CronTrigger(hour=2, minute=0),
+        id="daily_backup_job",
+        replace_existing=True,
+        misfire_grace_time=21600
+    )
+
     scheduler.start()
     print(f"[SCHEDULER] Started. Morning summary at {hour:02d}:{minute:02d}, consolidation at 03:00")
     
