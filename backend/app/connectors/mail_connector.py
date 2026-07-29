@@ -219,10 +219,22 @@ def send_email(to: str, subject: str, body: str, account: str = "gmail") -> dict
     Send an email via SMTP.
     Requires red permission.
     """
+    from backend.app.core.execution_mode import is_dry_run
+    if is_dry_run():
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "send_email",
+                "to": to,
+                "subject": subject,
+                "account": account,
+            },
+        }
+
     clear_mail_cache()
     config = _get_account_config(account)
     if not config or not config["user"] or not config["pwd"]:
-        return {"error": f"SMTP credentials not configured for account '{account}'."}
+        return {"status": "error", "message": f"SMTP credentials not configured for account '{account}'."}
 
     msg = MIMEMultipart()
     msg["From"] = config["user"]
