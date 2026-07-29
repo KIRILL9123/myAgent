@@ -156,6 +156,26 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+        try:
+            cursor.execute("ALTER TABLE user_facts ADD COLUMN last_confirmed_at DATETIME")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE user_facts ADD COLUMN valid_from DATETIME")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE user_facts ADD COLUMN valid_to DATETIME")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE user_facts ADD COLUMN source_type TEXT")
+        except sqlite3.OperationalError:
+            pass
+
         conn.commit()
 
 # ─── Conversation Methods ──────────────────────────────────────────────────────

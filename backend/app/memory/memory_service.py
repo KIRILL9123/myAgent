@@ -20,8 +20,9 @@ def save_pending_fact(content: str, category: str, confidence: float, source_con
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO user_facts (content, category, source_conversation_id, confidence, status)
-            VALUES (?, ?, ?, ?, 'pending_approval')
+            INSERT INTO user_facts (content, category, source_conversation_id, confidence, status,
+                                    source_type, last_confirmed_at, valid_from)
+            VALUES (?, ?, ?, ?, 'pending_approval', 'llm_extraction', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """,
             (content, category, source_conversation_id, confidence)
         )
@@ -37,10 +38,19 @@ def _row_to_fact(r: tuple, include_status: bool = False) -> dict[str, Any]:
         "source_conversation_id": r[3],
         "confidence": r[4],
         "created_at": r[5],
-        "updated_at": r[6]
+        "updated_at": r[6],
     }
     if include_status and len(r) > 7:
         fact["status"] = r[7]
+    _offset = 1 if include_status else 0
+    if len(r) > 7 + _offset:
+        fact["last_confirmed_at"] = r[7 + _offset]
+    if len(r) > 8 + _offset:
+        fact["valid_from"] = r[8 + _offset]
+    if len(r) > 9 + _offset:
+        fact["valid_to"] = r[9 + _offset]
+    if len(r) > 10 + _offset:
+        fact["source_type"] = r[10 + _offset] if r[10 + _offset] is not None else "unknown"
     return fact
 
 def get_pending_facts() -> list[dict[str, Any]]:
@@ -56,7 +66,11 @@ def get_approved_facts() -> list[dict[str, Any]]:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id, content, category, source_conversation_id, confidence, created_at, updated_at FROM user_facts WHERE status = 'approved' ORDER BY id DESC"
+            "SELECT id, content, category, source_conversation_id, confidence, "
+            "created_at, updated_at, last_confirmed_at, valid_from, valid_to, source_type "
+            "FROM user_facts WHERE status = 'approved' "
+            "AND (valid_to IS NULL OR valid_to > CURRENT_TIMESTAMP) "
+            "ORDER BY id DESC"
         )
         rows = cursor.fetchall()
     return [_row_to_fact(r) for r in rows]
@@ -112,7 +126,7 @@ async def approve_fact(fact_id: int) -> bool:
             
         # 2. Update status to approved
         cursor.execute(
-            "UPDATE user_facts SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            "UPDATE user_facts SET status = 'approved', updated_at = CURRENT_TIMESTAMP, last_confirmed_at = CURRENT_TIMESTAMP WHERE id = ?",
             (fact_id,)
         )
         conn.commit()
@@ -454,8 +468,9 @@ def save_approved_fact(content: str, category: str, confidence: float) -> int:
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO user_facts (content, category, confidence, status)
-            VALUES (?, ?, ?, 'approved')
+            INSERT INTO user_facts (content, category, confidence, status,
+                                    source_type, last_confirmed_at, valid_from)
+            VALUES (?, ?, ?, 'approved', 'manual_consolidation', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """,
             (content, category, confidence)
         )

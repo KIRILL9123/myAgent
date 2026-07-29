@@ -107,3 +107,27 @@ async def api_consolidate_facts(req: ConsolidateRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class FactValidityRequest(BaseModel):
+    valid_to: str | None = None
+
+@router.patch("/facts/{fact_id}/validity")
+async def api_set_fact_validity(fact_id: int, req: FactValidityRequest):
+    from backend.app.storage.db import get_db_connection
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM user_facts WHERE id = ?", (fact_id,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail=f"Fact {fact_id} not found.")
+            cursor.execute(
+                "UPDATE user_facts SET valid_to = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (req.valid_to, fact_id)
+            )
+            conn.commit()
+        return {"status": "success", "message": f"Fact {fact_id} validity updated.", "valid_to": req.valid_to}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
