@@ -1,11 +1,14 @@
-# Architecture Status Snapshot (2026-07-29)
+# Architecture Status Snapshot (2026-07-30)
 
 This document reflects the **current code reality**.
 
 ## Implemented
 - FastAPI backend bootstrap, scheduler, API-key middleware: `backend/app/main.py`
 - Orchestrator tool loop with permission gating and RED confirmation: `backend/app/agent/orchestrator.py`
-- Dry-run / side-effect isolation (send_email, calendar mutations, finance writes, Telegram notify): `backend/app/core/execution_mode.py` + guarded in connectors
+- Dry-run / side-effect isolation: `backend/app/core/execution_mode.py` + guarded in connectors
+- Pydantic tool-call validation: `backend/app/agent/tool_models.py` + integrated in `execute_tool()`
+- SQLite backup/restore with daily cron + retention: `backend/app/storage/backup.py`
+- Temporal fact validity (provenance, valid_from/valid_to, expired filter): `backend/app/storage/db.py` migrations + `backend/app/memory/memory_service.py`
 - Connectors and integrations:
   - CalDAV: `backend/app/connectors/caldav_connector.py`
   - Mail (IMAP/SMTP): `backend/app/connectors/mail_connector.py`
@@ -22,8 +25,6 @@ This document reflects the **current code reality**.
 
 ## Planned / not implemented yet
 - Commitment Tracker domain implementation
-- Pydantic tool-call validation layer before dispatch
-- SQLite backup/restore operational flow
 
 ## Obsolete or stale references
 - `docs/ARCHITECTURE.md` is up to date (Mem0 removed, React+Vite+TypeScript stack accurately described, historical note removed)

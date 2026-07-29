@@ -81,17 +81,18 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 
 *Prerequisites for all future work. The system must be safe to test, safe to run, and maintainable.*
 
-- [ ] Dry-run / side-effect isolation (see [DRY_RUN_ARCHITECTURE.md](DRY_RUN_ARCHITECTURE.md))
-- [ ] Pydantic tool argument validation (see [TOOL_VALIDATION_PLAN.md](TOOL_VALIDATION_PLAN.md))
-- [ ] SQLite backup and restore (see [BACKUP_RESTORE_PLAN.md](BACKUP_RESTORE_PLAN.md))
-- [ ] Fix known contract inconsistencies:
+- [x] Dry-run / side-effect isolation (see [DRY_RUN_ARCHITECTURE.md](DRY_RUN_ARCHITECTURE.md))
+- [x] Pydantic tool argument validation (see [TOOL_VALIDATION_PLAN.md](TOOL_VALIDATION_PLAN.md))
+- [x] SQLite backup and restore (see [BACKUP_RESTORE_PLAN.md](BACKUP_RESTORE_PLAN.md))
+- [x] Fix known contract inconsistencies:
   - `scheduled_tasks.py` parses connector outputs as JSON strings (connectors return Python objects)
   - `mail_connector.py` `send_email()` uses `{"error": ...}` instead of `{"status": "error", ...}`
   - Missing permissions for countdown tools in `tool_permissions.json`
   - `delete_countdown` should have explicit permission level
 - [ ] Set up test runner (pytest) + CI
 - [ ] Type hints across all backend modules
-- [ ] Regression tests for RED action boundaries and side-effect isolation
+- [x] Regression tests for RED action boundaries and side-effect isolation
+- [x] Fact confidence / temporal validity / provenance — audit + metadata + expired filter + PATCH endpoint (see [MEMORY_EVOLUTION.md](MEMORY_EVOLUTION.md))
 - [ ] Add token counting to prevent silent context window overflow
 - [ ] Fix N+1 LLM calls in memory layer (batch dedup for fact extraction, batch relations for backfill)
 

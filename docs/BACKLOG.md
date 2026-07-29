@@ -9,10 +9,8 @@
 
 Maximum 4 tasks. These are the only items actively worked on in the current cycle. Everything else lives in the parking lot below.
 
-1. **Dry-Run / Side-Effect Isolation** — make it impossible by construction for tests/agents to trigger a real email/calendar/Telegram/finance side effect (see [DRY_RUN_ARCHITECTURE.md](DRY_RUN_ARCHITECTURE.md)).
-2. **Pydantic Tool Validation** — unify and validate tool inputs before execution (see [TOOL_VALIDATION_PLAN.md](TOOL_VALIDATION_PLAN.md)).
-3. **SQLite Backup & Restore** — data protection before any schema-heavy domain expansion (see [BACKUP_RESTORE_PLAN.md](BACKUP_RESTORE_PLAN.md)).
-4. **Fact Confidence / Temporal Memory** — prepare the Memory Layer with confidence/provenance/temporal metadata (see [MEMORY_EVOLUTION.md](MEMORY_EVOLUTION.md)).
+_Cycle complete — awaiting next selection._
+
 
 ---
 
