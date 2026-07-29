@@ -2,6 +2,7 @@ import json
 import re
 from datetime import datetime
 from typing import Any
+from pydantic import ValidationError
 from backend.app.agent.llm_client import chat_with_ollama
 from backend.app.permissions.permission_checker import check_permission, PermissionLevel
 from backend.app.connectors.caldav_connector import (
@@ -387,6 +388,16 @@ async def execute_tool(tool_call: dict, session_id: str) -> dict:
         except json.JSONDecodeError as e:
             log_action(function_name, "ERROR", "Failed to parse arguments JSON")
             return {"status": "error", "message": f"JSON_ERROR: {str(e)}"}
+
+    from backend.app.agent.tool_models import TOOL_MODEL_REGISTRY
+    model_cls = TOOL_MODEL_REGISTRY.get(function_name)
+    if model_cls:
+        try:
+            validated = model_cls(**arguments)
+            arguments = validated.model_dump(exclude_none=True)
+        except ValidationError as e:
+            log_action(function_name, "VALIDATION_ERROR", str(e))
+            return {"status": "error", "message": f"Invalid arguments: {e}"}
 
     # 1. Permission Check
     perm = check_permission(function_name)
