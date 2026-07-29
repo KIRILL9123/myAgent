@@ -156,6 +156,19 @@ def create_event(
     Creates a new calendar event.
     Yellow permission level.
     """
+    from backend.app.core.execution_mode import is_dry_run
+    if is_dry_run():
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "create_event",
+                "title": title,
+                "start_datetime": start_datetime,
+                "end_datetime": end_datetime,
+                "description": description,
+            },
+        }
+
     clear_events_cache()
     cal = _get_primary_calendar()
     if not cal:
@@ -241,6 +254,16 @@ def delete_event(event_uid: str) -> dict[str, Any]:
     Deletes an event by its UID or title (fallback).
     Red permission level — requires prior human confirmation.
     """
+    from backend.app.core.execution_mode import is_dry_run
+    if is_dry_run():
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "delete_event",
+                "event_uid": event_uid,
+            },
+        }
+
     clear_events_cache()
     try:
         event, method = _find_event_by_uid_or_title(event_uid)
@@ -260,6 +283,17 @@ def modify_event(event_uid: str, updated_fields: dict[str, str]) -> dict[str, An
     Red permission level — requires prior human confirmation.
     Supported updated_fields keys: title, start_datetime, end_datetime, description.
     """
+    from backend.app.core.execution_mode import is_dry_run
+    if is_dry_run():
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "modify_event",
+                "event_uid": event_uid,
+                "updated_fields": updated_fields,
+            },
+        }
+
     clear_events_cache()
     try:
         event, method = _find_event_by_uid_or_title(event_uid)
