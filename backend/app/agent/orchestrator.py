@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 from typing import Any
 from backend.app.agent.llm_client import chat_with_ollama
@@ -396,12 +397,14 @@ async def execute_tool(tool_call: dict, session_id: str) -> dict:
     # 2. RED → store as pending, ask for confirmation
     if perm == PermissionLevel.RED:
         if function_name == "send_email":
+            account = arguments.get("account", "gmail")
             description = (
-                f"\nКому: {arguments.get('to')}\n"
+                f"\nОтправитель (аккаунт): {account}\n"
+                f"Кому: {arguments.get('to')}\n"
                 f"Тема: {arguments.get('subject')}\n"
                 f"Текст:\n{arguments.get('body')}\n"
             )
-            message_text = f"Я хочу отправить письмо:\n{description}\nОтветьте 'да' для отправки или 'нет' для отмены."
+            message_text = f"Я хочу отправить письмо через {account}:\n{description}\nОтветьте 'да' для отправки или 'нет' для отмены."
         else:
             description = f"{function_name} with args: {json.dumps(arguments, ensure_ascii=False)}"
             message_text = (
@@ -438,6 +441,18 @@ _CONFIRM_WORDS = {"да", "подтверждаю", "подтвердить", "y
 _CANCEL_WORDS = {"нет", "отмена", "отменить", "no", "cancel", "не надо"}
 
 
+def _matches_any_word_or_phrase(phrase_set: set[str], message_words: list[str], normalised: str) -> bool:
+    for item in phrase_set:
+        if " " in item:
+            pattern = r'\b' + re.escape(item) + r'\b'
+            if re.search(pattern, normalised):
+                return True
+        else:
+            if item in message_words:
+                return True
+    return False
+
+
 async def _check_confirmation(user_message: str, session_id: str) -> dict | None:
     """
     If there's a pending RED action for this session, check whether the user
@@ -450,7 +465,40 @@ async def _check_confirmation(user_message: str, session_id: str) -> dict | None
 
     normalised = user_message.strip().lower()
 
-    if normalised in _CONFIRM_WORDS:
+    # Rule 1: Existential negations check (e.g. "нет времени", "нет сил")
+    existential_negations = {
+        "нет времени", "нет возможности", "нет сил",
+        "нет связи", "нет интернета", "нет желания", "нет денег"
+    }
+    if any(phrase in normalised for phrase in existential_negations):
+        return None
+
+    # Tokenize user message
+    message_words = re.findall(r'[a-zа-яё0-9]+', normalised)
+    if not message_words:
+        return None
+
+    # Rule 2: Position/Length filter
+    # The auto-matching triggers only if:
+    # - The message is short (<= 3 words), OR
+    # - The message starts with a confirm/cancel word.
+    first_word = message_words[0]
+    starts_with_confirm = (first_word in _CONFIRM_WORDS) or any(
+        first_word == w.split()[0] for w in _CONFIRM_WORDS if " " in w
+    )
+    starts_with_cancel = (first_word in _CANCEL_WORDS) or any(
+        first_word == w.split()[0] for w in _CANCEL_WORDS if " " in w
+    )
+    
+    is_short = len(message_words) <= 3
+    should_match_confirm = is_short or starts_with_confirm
+    should_match_cancel = is_short or starts_with_cancel
+
+    # Perform matching
+    is_confirm = should_match_confirm and _matches_any_word_or_phrase(_CONFIRM_WORDS, message_words, normalised)
+    is_cancel = should_match_cancel and _matches_any_word_or_phrase(_CANCEL_WORDS, message_words, normalised)
+
+    if is_confirm:
         # Execute the pending action
         action_name = pending["action"]
         arguments = pending["args"]
@@ -495,7 +543,7 @@ async def _check_confirmation(user_message: str, session_id: str) -> dict | None
                 "tool_calls": [action_name],
             }
 
-    elif normalised in _CANCEL_WORDS:
+    elif is_cancel:
         action_name = pending["action"]
         delete_pending_action(session_id)
         log_action(action_name, "CANCELLED", "User cancelled the action")
@@ -665,9 +713,28 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
         messages.append(message)
         save_message(session_id, "assistant", message.get("content", ""), tool_calls=message["tool_calls"])
 
+        pending_confirmation_msg = ""
         for tool_call in message["tool_calls"]:
             func_name = tool_call["function"]["name"]
             executed_tool_calls.append(func_name)
+
+            # Check if this tool is RED
+            perm = check_permission(func_name)
+            if perm == PermissionLevel.RED and requires_confirmation:
+                # We already have a pending RED action in this round!
+                # We must tell the LLM that it cannot execute multiple RED actions simultaneously.
+                tool_msg = {
+                    "role": "tool",
+                    "content": json.dumps({
+                        "status": "error",
+                        "message": "Only one action requiring confirmation can be processed at a time. This action is postponed."
+                    }, ensure_ascii=False),
+                    "name": func_name,
+                    "tool_call_id": tool_call.get("id"),
+                }
+                messages.append(tool_msg)
+                save_message(session_id, "tool", content=tool_msg["content"], name=func_name, tool_call_id=tool_call.get("id"))
+                continue
 
             tool_result = await execute_tool(tool_call, session_id)
             
@@ -691,29 +758,21 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
                 }
                 messages.append(tool_msg)
                 save_message(session_id, "tool", content=tool_msg["content"], name=func_name, tool_call_id=tool_call.get("id"))
-                continue # move to next tool call or loop iteration
+                continue
 
-            # If a RED action needs confirmation, short-circuit
+            # If a RED action needs confirmation, mark it and don't exit the loop
             if isinstance(tool_result, dict) and tool_result.get("requires_confirmation"):
                 requires_confirmation = True
-                confirmation_message = tool_result["message"]
+                pending_confirmation_msg = tool_result["message"]
                 
                 tool_msg = {
                     "role": "tool",
-                    "content": json.dumps({"status": "requires_confirmation", "message": confirmation_message}, ensure_ascii=False),
+                    "content": json.dumps({"status": "requires_confirmation", "message": pending_confirmation_msg}, ensure_ascii=False),
                     "name": func_name,
                     "tool_call_id": tool_call.get("id"),
                 }
                 messages.append(tool_msg)
                 save_message(session_id, "tool", content=tool_msg["content"], name=func_name, tool_call_id=tool_call.get("id"))
-                
-                # We return immediately for confirmation, so we save the confirmation message
-                save_message(session_id, "assistant", confirmation_message)
-                return {
-                    "response": confirmation_message,
-                    "tool_calls": executed_tool_calls,
-                    "requires_confirmation": True,
-                }
             else:
                 tool_msg = {
                     "role": "tool",
@@ -724,9 +783,24 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
                 messages.append(tool_msg)
                 save_message(session_id, "tool", content=tool_msg["content"], name=func_name, tool_call_id=tool_call.get("id"))
 
+        # After processing all tool calls of the current round, if we require confirmation,
+        # return the confirmation message immediately.
+        if requires_confirmation:
+            save_message(session_id, "assistant", pending_confirmation_msg)
+            return {
+                "response": pending_confirmation_msg,
+                "tool_calls": executed_tool_calls,
+                "requires_confirmation": True,
+            }
+
         # Loop continues
 
     # ── Safety: max rounds reached ──
+    log_action(
+        "ORCHESTRATOR",
+        "MAX_TOOL_ROUNDS_REACHED",
+        f"Session: {session_id} | Total rounds: {MAX_TOOL_ROUNDS} | Executed tools: {executed_tool_calls}"
+    )
     fallback_response = "Достигнут лимит вызовов инструментов. Пожалуйста, попробуйте переформулировать запрос."
     save_message(session_id, "assistant", fallback_response)
     return {

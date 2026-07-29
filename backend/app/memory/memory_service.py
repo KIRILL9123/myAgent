@@ -7,6 +7,13 @@ logger = logging.getLogger(__name__)
 
 # ─── Embedding threshold: log a warning when fact count exceeds this ─────────
 EMBEDDING_THRESHOLD = 100
+# TODO: Once fact count exceeds EMBEDDING_THRESHOLD, migrate database storage
+# to a vector DB (e.g. Qdrant) and compute embeddings using a lightweight model (e.g. sentence-transformers).
+
+_RUSSIAN_STOPWORDS = {
+    "как", "для", "что", "его", "это", "там", "где", "или", "она",
+    "они", "оно", "при", "уже", "еще", "был", "все", "той", "тот", "эту"
+}
 
 def save_pending_fact(content: str, category: str, confidence: float, source_conversation_id: int | None = None) -> int:
     with get_db_connection() as conn:
@@ -154,7 +161,7 @@ def reject_fact(fact_id: int) -> bool:
     clear_consolidation_cache()
     return True
 
-def save_relation(fact_a_id: int, fact_b_id: int, relation_type: str):
+def save_relation(fact_a_id: int, fact_b_id: int, relation_type: str) -> bool:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         # Check if relation already exists in either direction
@@ -172,6 +179,8 @@ def save_relation(fact_a_id: int, fact_b_id: int, relation_type: str):
                 (fact_a_id, fact_b_id, relation_type)
             )
             conn.commit()
+            return True
+    return False
 
 def get_graph_data() -> dict[str, list[dict[str, Any]]]:
     with get_db_connection() as conn:
@@ -243,37 +252,58 @@ async def backfill_isolated_relations() -> int:
                 fact_b_id = sug.get("fact_b_id")
                 relation_type = sug.get("relation_type")
                 if fact_b_id and relation_type:
-                    with get_db_connection() as conn:
-                        cursor = conn.cursor()
-                        cursor.execute(
-                            """
-                            SELECT 1 FROM fact_relations 
-                            WHERE (fact_a_id = ? AND fact_b_id = ?) 
-                               OR (fact_a_id = ? AND fact_b_id = ?)
-                            """,
-                            (fact["id"], fact_b_id, fact_b_id, fact["id"])
-                        )
-                        if not cursor.fetchone():
-                            cursor.execute(
-                                "INSERT INTO fact_relations (fact_a_id, fact_b_id, relation_type) VALUES (?, ?, ?)",
-                                (fact["id"], fact_b_id, relation_type)
-                            )
-                            conn.commit()
-                            relations_added += 1
+                    if save_relation(fact["id"], fact_b_id, relation_type):
+                        relations_added += 1
         except Exception as e:
             print(f"[MemoryService] Error during backfill suggest_relations for fact #{fact['id']}: {e}")
             
     return relations_added
 
+def _filter_facts_by_keyword(approved: list[dict], query: str) -> list[dict]:
+    import re
+    # Regex split to get alphanumeric words in lowercase
+    query_words = re.findall(r'[a-zа-яё0-9]+', query.lower())
+    query_words = [w for w in query_words if len(w) >= 3 and w not in _RUSSIAN_STOPWORDS]
+    if not query_words:
+        return []
+
+    # Get stems: first 5 characters of each word, plus full word fallback
+    def get_stems_and_words(words_list):
+        result = set()
+        for w in words_list:
+            result.add(w) # fallback: full word
+            if len(w) >= 5:
+                result.add(w[:5]) # first 5 chars
+            elif len(w) >= 4:
+                result.add(w[:4]) # first 4 chars
+        return result
+
+    query_targets = get_stems_and_words(query_words)
+    matched_facts = []
+
+    for fact in approved:
+        content_lower = fact["content"].lower()
+        fact_words = re.findall(r'[a-zа-яё0-9]+', content_lower)
+        fact_words = [w for w in fact_words if len(w) >= 3 and w not in _RUSSIAN_STOPWORDS]
+        fact_targets = get_stems_and_words(fact_words)
+
+        overlap = query_targets.intersection(fact_targets)
+        if overlap:
+            matched_facts.append((len(overlap), fact))
+
+    # Sort by overlap score descending
+    matched_facts.sort(key=lambda x: x[0], reverse=True)
+    return [fact for _, fact in matched_facts]
+
+
 async def get_relevant_facts(query: str, limit: int = 5) -> list[dict]:
     """
     Retrieve approved facts relevant to the user's query.
     
-    Strategy (naive LLM-based, no embeddings):
-    - If total approved facts ≤ limit → return all (skip LLM call)
-    - If total approved facts > limit → ask LLM to pick the most relevant IDs
-    
-    This is an intentional compromise while the facts count is small (<50-100).
+    Strategy:
+    - Step 1: Filter facts by keyword (fast stem/exact match).
+    - Step 2: If candidates count <= limit, return them directly (skip LLM call).
+    - Step 3: If candidates count > limit, ask LLM to pick the most relevant IDs from candidates.
     """
     approved = get_approved_facts()
     
@@ -287,15 +317,22 @@ async def get_relevant_facts(query: str, limit: int = 5) -> list[dict]:
             "consider switching to embeddings-based retrieval"
         )
     
-    # Shortcut: if we have few facts, just return all — no need for LLM filtering
-    if len(approved) <= limit:
-        print(f"[MEMORY] Returning all {len(approved)} approved facts (≤ limit {limit}), skipping LLM filter")
-        return approved
+    # 1. Apply fast keyword matching filter
+    candidates = _filter_facts_by_keyword(approved, query)
     
-    # Build a numbered list for the LLM
+    if not candidates:
+        print(f"[MEMORY] No keyword overlap found, returning 0 facts and skipping LLM filter")
+        return []
+        
+    # Shortcut: if we have few candidates, just return them — no need for LLM filtering
+    if len(candidates) <= limit:
+        print(f"[MEMORY] Returning all {len(candidates)} candidate facts (≤ limit {limit}), skipping LLM filter")
+        return candidates
+    
+    # Build a numbered list for the LLM from candidates
     facts_list_str = "\n".join([
         f"- ID: {f['id']}, Content: \"{f['content']}\", Category: {f['category']}"
-        for f in approved
+        for f in candidates
     ])
     
     filter_prompt = (
@@ -316,8 +353,8 @@ async def get_relevant_facts(query: str, limit: int = 5) -> list[dict]:
     )
     
     if "error" in response:
-        print(f"[MEMORY] LLM filter error, falling back to all facts: {response['error']}")
-        return approved[:limit]
+        print(f"[MEMORY] LLM filter error, falling back to candidates limit: {response['error']}")
+        return candidates[:limit]
     
     content_str = response.get("message", {}).get("content", "")
     try:
@@ -328,16 +365,16 @@ async def get_relevant_facts(query: str, limit: int = 5) -> list[dict]:
         # Convert to int safely
         selected_ids = [int(x) for x in selected_ids if x is not None]
     except (json.JSONDecodeError, ValueError) as e:
-        print(f"[MEMORY] Failed to parse LLM filter response: {e}, falling back to all facts")
-        return approved[:limit]
+        print(f"[MEMORY] Failed to parse LLM filter response: {e}, falling back to candidates limit")
+        return candidates[:limit]
     
     if not selected_ids:
         # LLM found nothing relevant — return empty
         return []
     
-    # Filter approved facts by selected IDs, preserving order
+    # Filter candidate facts by selected IDs, preserving order
     selected_id_set = set(selected_ids)
-    relevant = [f for f in approved if f["id"] in selected_id_set]
+    relevant = [f for f in candidates if f["id"] in selected_id_set]
     return relevant
 
 CONSOLIDATION_PROMPT = """You are a semantic consolidation assistant. Analyze this list of user facts and group facts that contain overlapping, redundant, or semantically similar information that can be merged into a single, more concise and consolidated fact.
@@ -468,7 +505,6 @@ def consolidate_facts(fact_ids: list[int], merged_content: str, category: str) -
                 
             if other_id is not None:
                 # Re-link new_id with other_id
-                from backend.app.memory.memory_service import save_relation
                 save_relation(new_id, other_id, rel_type)
                 
         # 3. Delete old relations involving these merged facts to clean up the DB
@@ -497,6 +533,12 @@ def clear_consolidation_cache():
     global _consolidation_cache, _consolidation_cache_timestamp
     _consolidation_cache = []
     _consolidation_cache_timestamp = None
+
+def set_consolidation_cache(suggestions: list[dict]):
+    """Set cached consolidation suggestions and update the timestamp."""
+    global _consolidation_cache, _consolidation_cache_timestamp
+    _consolidation_cache = suggestions
+    _consolidation_cache_timestamp = _dt.now()
 
 def get_cached_consolidation_suggestions() -> tuple[list[dict], _dt | None]:
     """Return cached consolidation suggestions and the time they were computed."""

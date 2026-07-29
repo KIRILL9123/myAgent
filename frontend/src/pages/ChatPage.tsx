@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { sendChatMessage, fetchChatHistory } from '../api/chat';
 import type { ChatResponse } from '../api/chat';
-import { Send, AlertTriangle, AlertCircle, Bot, User } from 'lucide-react';
+import { Send, AlertTriangle, AlertCircle, Bot, User, Loader2 } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -22,6 +22,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
     action: string;
     message: string;
   } | null>(null);
+  const [confirming, setConfirming] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -78,9 +79,30 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
     }
   };
 
-  const handleConfirmAction = (confirm: boolean) => {
+  const handleConfirmAction = async (confirm: boolean) => {
+    if (!pendingConfirm) return;
+    setError(null);
+    setConfirming(true);
     const reply = confirm ? 'да' : 'нет';
-    handleSend(reply);
+
+    try {
+      const resp: ChatResponse = await sendChatMessage(reply, sessionId);
+      const assistantMsg: Message = { role: 'assistant', content: resp.response };
+      setMessages((prev) => [...prev, assistantMsg]);
+
+      if (resp.requires_confirmation) {
+        setPendingConfirm({
+          action: resp.tool_calls[0] || 'действие',
+          message: resp.response,
+        });
+      } else {
+        setPendingConfirm(null);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Не удалось отправить подтверждение. Проверьте соединение с сервером.');
+    } finally {
+      setConfirming(false);
+    }
   };
 
   return (
@@ -169,13 +191,16 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
             <div className="flex gap-2 mt-1">
               <button
                 onClick={() => handleConfirmAction(true)}
-                className="flex-1 py-1.5 px-3 bg-yellow-600 hover:bg-yellow-500 active:bg-yellow-750 text-zinc-950 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                disabled={confirming}
+                className="flex-1 py-1.5 px-3 bg-yellow-600 hover:bg-yellow-500 active:bg-yellow-750 text-zinc-950 text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
+                {confirming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 Да, разрешить
               </button>
               <button
                 onClick={() => handleConfirmAction(false)}
-                className="flex-1 py-1.5 px-3 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 active:bg-zinc-950 text-zinc-300 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                disabled={confirming}
+                className="flex-1 py-1.5 px-3 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 active:bg-zinc-950 text-zinc-300 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 Нет, отменить
               </button>

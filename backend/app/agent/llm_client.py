@@ -4,7 +4,7 @@ import json
 from typing import Any
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:30b-a3b")
 
 _http_client: httpx.AsyncClient | None = None
 
@@ -12,7 +12,7 @@ def get_http_client() -> httpx.AsyncClient:
     """Returns a shared, persistent httpx.AsyncClient to enable connection pooling."""
     global _http_client
     if _http_client is None or _http_client.is_closed:
-        _http_client = httpx.AsyncClient(timeout=60.0)
+        _http_client = httpx.AsyncClient(timeout=180.0)
     return _http_client
 
 async def close_http_client():
@@ -54,7 +54,7 @@ async def chat_with_ollama(
         response = await client.post(
             f"{OLLAMA_URL}/api/chat",
             json=payload,
-            timeout=60.0
+            timeout=180.0
         )
         response.raise_for_status()
         return response.json()

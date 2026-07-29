@@ -1,7 +1,7 @@
 # myAgent — Long-Term Roadmap and Product Vision
 
-> **Responsibility**: Complete long-term vision, phased roadmap, and product direction.  
-> For what is currently implemented, see [ARCHITECTURE_STATUS.md](ARCHITECTURE_STATUS.md).  
+> **Responsibility**: Complete long-term vision, phased roadmap, and product direction.
+> For what is currently implemented, see [ARCHITECTURE_STATUS.md](ARCHITECTURE_STATUS.md).
 > For the active work cycle, see [BACKLOG.md](BACKLOG.md).
 
 ---
@@ -77,151 +77,142 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 
 ## D. Roadmap Phases
 
-### Phase 1 — Reliability and Safety Foundation
+### Phase 1 — Safety, Infrastructure, and Code Quality
 
-*Prerequisites for all future automation work.*
+*Prerequisites for all future work. The system must be safe to test, safe to run, and maintainable.*
 
 - [ ] Dry-run / side-effect isolation (see [DRY_RUN_ARCHITECTURE.md](DRY_RUN_ARCHITECTURE.md))
 - [ ] Pydantic tool argument validation (see [TOOL_VALIDATION_PLAN.md](TOOL_VALIDATION_PLAN.md))
 - [ ] SQLite backup and restore (see [BACKUP_RESTORE_PLAN.md](BACKUP_RESTORE_PLAN.md))
-- [ ] Fact confidence, temporal validity, provenance (see [MEMORY_EVOLUTION.md](MEMORY_EVOLUTION.md))
+- [ ] Fix known contract inconsistencies:
+  - `scheduled_tasks.py` parses connector outputs as JSON strings (connectors return Python objects)
+  - `mail_connector.py` `send_email()` uses `{"error": ...}` instead of `{"status": "error", ...}`
+  - Missing permissions for countdown tools in `tool_permissions.json`
+  - `delete_countdown` should have explicit permission level
+- [ ] Set up test runner (pytest) + CI
+- [ ] Type hints across all backend modules
 - [ ] Regression tests for RED action boundaries and side-effect isolation
-- [ ] Fix known scheduler/connector contract inconsistencies (see [ARCHITECTURE_STATUS.md](ARCHITECTURE_STATUS.md))
-- [ ] Evaluate centralized Tool Registry (see [TOOL_VALIDATION_PLAN.md](TOOL_VALIDATION_PLAN.md))
+- [ ] Add token counting to prevent silent context window overflow
+- [ ] Fix N+1 LLM calls in memory layer (batch dedup for fact extraction, batch relations for backfill)
 
-### Phase 2 — Personal Commitments and Proactive Assistance
+### Phase 2 — Model Abstraction Layer
 
-*Add obligation tracking and proactive user-facing intelligence.*
+*Model coupling is the biggest architectural debt. Every model-dependent file imports `chat_with_ollama` directly.*
 
-- [ ] Commitment Tracker domain (see [domain/COMMITMENT_CONTRACT.md](domain/COMMITMENT_CONTRACT.md))
+- [ ] `ModelProvider` abstract base class (unified interface: chat, embed, supports_tools, supports_json)
+- [ ] `OllamaProvider` implementation
+- [ ] `OpenAICompatibleProvider` implementation (OpenAI, OpenRouter, Groq — any REST-compatible API)
+- [ ] `MLXProvider` implementation (Apple Silicon native, for future production)
+- [ ] `ModelRegistry` — role-to-model mapping via configuration
+- [ ] Model roles: `main_reasoning`, `extractor`, `fast_classifier`, `embeddings`
+- [ ] Replace all 8 direct `chat_with_ollama` call sites:
+  - `orchestrator.py` (main chat + tool calling)
+  - `scheduled_tasks.py` (morning summary)
+  - `memory_service.py` (fact filtering + consolidation)
+  - `fact_extractor.py` (extraction + dedup)
+  - `relation_builder.py` (relation suggestions)
+- [ ] Model configuration in `.env` / config (per-role model selection, provider choice)
+- [ ] Fallback model support (if main model is unavailable → try fallback → error)
+
+**Expected benefit**: Swap models by changing config, not code. Run different models for different tasks. Add remote APIs without business logic changes.
+
+### Phase 3 — Centralized Tool Infrastructure
+
+*Tool definitions are duplicated in 3+ places. A tool registry eliminates this.*
+
+- [ ] Centralized Tool Registry (schema, Pydantic model, permission level, dispatch handler, audit metadata in one place)
+- [ ] Replace inline `AVAILABLE_TOOLS` in `orchestrator.py` with registry-driven generation
+- [ ] Standardize all tool return contracts to `{"status": "success"|"error", ...}`
+- [ ] Auto-generate OpenAI-compatible tool definitions from Pydantic models
+- [ ] Shadow mode for new tools (log intent without executing)
+- [ ] `ExecutionMode` fully integrated (DRY_RUN → return `would_do` payloads)
+
+### Phase 4 — Domain Services
+
+*Extract complex domains into maintainable services without turning them into agents.*
+
+**Commitment Tracker**
+- [ ] Commitment entity lifecycle: PROPOSED → ACTIVE → COMPLETED / CANCELLED / EXPIRED
 - [ ] Commitment extraction from chat and email
 - [ ] Calendar / deadline linkage for commitments
 - [ ] Commitment reminders via Telegram
 - [ ] Commitment expiry and review flow
-- [ ] Calendar × Memory conflict detection (flag when scheduled time conflicts with known preferences)
-- [ ] Receipt → Expense proposal (agent notices a purchase receipt and proposes adding it to Finance)
+
+**Memory Evolution**
+- [ ] Provenance bundle (source type, source ref, extractor metadata)
+- [ ] `last_confirmed_at` field
+- [ ] Temporal validity window (`valid_from`, `valid_to`)
+- [ ] Decay scoring (advisory only)
+- [ ] Auto-weight retrieval by confidence + recency
+
+**Notifications**
 - [ ] Quiet hours configuration
 - [ ] Notification budget and priority scoring
 - [ ] Notification coalescing (batch low-priority alerts)
 
-### Phase 3 — Personal State and Decision Intelligence
+**Cross-domain**
+- [ ] Calendar × Memory conflict detection (flag when new event conflicts with known preferences)
+- [ ] Receipt → Expense proposal (agent notices a purchase receipt and proposes adding it to Finance)
 
-*Higher-order reasoning across the user's goals, projects, and history.*
+### Phase 5 — Personal State and RAG (Only If Justified)
 
-- [ ] Personal State Engine (consumes commitment, memory, and calendar signals)
+*These features should be built only if Phase 4 demonstrates a concrete need. Do not build speculatively.*
+
+**Personal State Engine**
+- [ ] Consumes commitment, memory, and calendar signals
 - [ ] Decision Journal (explicit record of choices with rationale)
 - [ ] Project entities: Goals → Projects → Tasks → Commitments hierarchy
-- [ ] Chief-of-staff daily plan generation
-- [ ] Nightly "State of Me" summary (broader than morning summary; covers commitments, goals, decisions)
-- [ ] Temporal validity for facts (facts can expire; conflicts resolved via human decision)
+- [ ] Nightly "State of Me" summary
 - [ ] Contradiction-aware retrieval (prefer latest human-confirmed facts when conflicts exist)
 
-### Phase 4 — Document and Knowledge Layer
-
-*Separate, privacy-respecting document intelligence.*
-
+**Document / RAG Layer**
 - [ ] Semantic Document Vault — distinct from Memory Facts
-- [ ] Local embeddings (Ollama embeddings or equivalent)
-- [ ] Local vector store (Chroma or equivalent)
+- [ ] Local embeddings (via Model Registry, role: `embeddings`)
+- [ ] Local vector store (Chroma or Qdrant)
 - [ ] Hybrid SQL + vector retrieval
-- [ ] Optional reranking
 - [ ] Provenance and citations in answers
 - [ ] PDF / scan ingestion
 - [ ] Document deadline extraction → Calendar suggestions
-- [ ] Document → Commitment proposals (e.g. lease renewal date → commitment with deadline)
-- [ ] Optional email indexing with explicit user-controlled retention rules
+- [ ] Document → Commitment proposals
 
-### Phase 5 — Ausbildung and Learning Intelligence
+### Phase 6 — Selective Multi-Agent Architecture (Only If Justified)
 
-*Language and technical learning support integrated with the daily workflow.*
+*Do not build multi-agent because it is fashionable. The single orchestrator must prove insufficient first.*
 
-- [ ] Ausbildung document and knowledge workspace
-- [ ] Spaced repetition vocabulary trainer (Telegram-delivered cards via APScheduler)
-- [ ] Study material extraction from documents
-- [ ] Learning progress tracking
-- [ ] Language learning support (German / English technical vocabulary)
-- [ ] Daily generative exercises (translation, gap-fill, mini-dialogue)
-- [ ] OCR correction for handwritten notes (requires multimodal model or Tesseract)
-- [ ] Clear distinction between authoritative documents and generated study material
+**Criteria for escalation from single orchestrator to multi-agent:**
+- System prompt exceeds 8K effective tokens
+- Tool count exceeds 25-30
+- A domain requires complete containerized isolation (separate model, separate context, separate memory)
+- Latency from accumulated context becomes user-visible
 
-### Phase 6 — Controlled Self-Improvement
-
-*The agent proposes changes to its own codebase under strict human oversight.*
-
-> For implementation design detail (Aider diff format, LangGraph state graph, Docker sandbox), see [self_improving_agent.md](self_improving_agent.md).
-
-Design principles (never to be compromised):
-
-- Backlog-driven: only items explicitly in the backlog are candidates.
-- Narrow scope: one feature or fix per cycle.
-- Isolated branch: changes never go directly to `main`.
-- Sandbox execution: tests run in an isolated environment with no external side effects.
-- Tests first where practical.
-- Automated validation: unit, integration, regression, security, permission, and side-effect checks.
-- Structured report delivered to user via Telegram and web.
-- Risk classification: low / medium / high impact.
-- Human review and manual merge: the human approves before any merge.
-- **Never bypass the permission or approval architecture.**
-- **Never directly modify `main`.**
+**If criteria are met:**
+- [ ] Agent Registry (agent_id, capabilities, allowed_tools, required_permissions, model_role)
+- [ ] Inter-agent dispatch with permission context inheritance
+- [ ] Cross-agent audit trail
+- [ ] Max delegation depth (2 levels max)
+- [ ] Circuit breaker for recursive / infinite loops
 
 ---
 
-## E. Cross-Cutting Capabilities
+## E. Later / Experimental
 
-These capabilities span multiple phases and should inform design at each phase:
+These are worth preserving but not scheduled. Do not plan implementation time for them.
 
-**Approval and Safety**
-- Unified Approval Control Plane (see Section C)
-- Provenance and citations for all AI-proposed actions
-- Capability tokens / time-limited grants for sensitive operations
-- Shadow mode for new tools (log intent without executing)
-- Adversarial prompt injection regression corpus (grow from real incidents)
-- Regression pack from real failures
-
-**Observability and Reliability**
-- Structured correlation IDs across request/tool/audit chain
-- Cost, latency, and time budgets per tool call
-- Sleep-aware startup reconciliation (Mac sleeps; scheduler must detect missed jobs on wake)
-- Evaluation harness / golden scenarios for end-to-end agent behavior
-
-**Notifications**
-- Notification priority hierarchy
-- Quiet hours configuration
-- Notification budget (daily/weekly cap per category)
-- Coalescing of low-priority alerts
-
-**Privacy and Backup**
-- Encrypted off-machine backups
-- Optional encrypted history/export
-- Retention policies for all stored data categories
-
-**Model Routing**
-- Local model router
-- Small models for classification and extraction tasks
-- Larger models for multi-step reasoning
-
----
-
-## F. Later / Experimental
-
-Lower-priority ideas that are worth preserving but not scheduled:
-
-- **Home Assistant integration** — sensor graphs, basic device control via chat (currently postponed; low device count)
-- **Deeper email intelligence** — thread grouping, unread badge in navigation, advanced spam classification
+- **Self-Improving Agent** — requires ALL safety phases complete, plus sandbox infrastructure. Earliest: after Phase 5.
+- **Ausbildung / Language Trainer** — spaced repetition, OCR, generative exercises. Valuable but orthogonal to the core architecture.
+- **Home Assistant integration** — sensor graphs, basic device control via chat (postponed; low device count)
+- **Deeper email intelligence** — thread grouping, unread badge, advanced spam classification
 - **Approval-based email auto-filing rules** — user-configured, not autonomous
 - **GitHub integration** — open issues and PRs in morning summary
-- **Finance intelligence** — "Can I afford X?" answers based on real Finance logs; proactive category-limit alerts
-- **Language trainer extensions** — see Phase 5 for primary plan
-- **More autonomous personal planning** — calendar optimization, energy-aware scheduling
-- **Always-on dedicated server** — Raspberry Pi or mini-PC to replace MacBook Air as host
+- **Finance intelligence** — "Can I afford X?" answers based on real Finance logs
 - **Voice in web chat** — microphone button using local whisper.cpp (Telegram voice already works)
 - **Local Text-to-Speech** — Kokoro or Piper TTS for agent response audio
-- **Interactive dashboard widgets** — drag-and-drop resize (Gridstack)
+- **Interactive dashboard widgets** — drag-and-drop resize
 - **UI aesthetics evolution** — Glassmorphism, View Transitions API
 
 ---
 
-## G. Explicit Non-Goals
+## F. Explicit Non-Goals
 
 The following are out of scope by design:
 
@@ -229,5 +220,19 @@ The following are out of scope by design:
 - Plugin marketplace infrastructure
 - Full BPM/workflow engine without a concrete, justified need
 - Unrestricted shell or code execution in production
-- Unsupervised production self-modification (see Phase 6 for the controlled alternative)
+- Unsupervised production self-modification
 - Autonomous high-impact financial or communication actions without explicit human approval
+- Multi-agent architecture without demonstrated need
+- Over-abstraction before understanding real usage patterns
+
+---
+
+## G. Architectural Principles
+
+1. **Model abstraction before model diversity.** Do not add a second model provider until the abstraction layer exists.
+2. **Safety before features.** Do not add new domains (Commitments, RAG) until dry-run and validation exist.
+3. **Services before agents.** Default to a service/module. Only escalate to an agent when isolation boundaries justify it.
+4. **Data protection before schema changes.** Backup/restore must exist before any new schema-migrating feature.
+5. **The LLM never controls permissions.** Enforced in deterministic Python code, not in prompts.
+6. **External content is untrusted.** Email, calendar events, documents — always wrap in `<untrusted_external_content>`.
+7. **Self-improvement must remain sandboxed.** Never modify production code, never bypass approval.

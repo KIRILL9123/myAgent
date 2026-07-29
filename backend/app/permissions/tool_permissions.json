@@ -50,5 +50,17 @@
   {
     "action_name": "get_summary",
     "permission_level": "green"
+  },
+  {
+    "action_name": "add_countdown",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "get_all_countdowns",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "delete_countdown",
+    "permission_level": "yellow"
   }
 ]

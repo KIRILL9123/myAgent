@@ -77,12 +77,17 @@ class ConsolidateRequest(BaseModel):
 async def api_get_consolidation_suggestions():
     try:
         # Use cached results from nightly scheduled job if available
-        from backend.app.memory.memory_service import get_cached_consolidation_suggestions
+        from backend.app.memory.memory_service import (
+            get_cached_consolidation_suggestions,
+            find_consolidation_candidates,
+            set_consolidation_cache
+        )
         cached, cached_at = get_cached_consolidation_suggestions()
         if cached and cached_at:
             return {"suggestions": cached, "cached_at": cached_at.isoformat()}
         # Fallback: compute on demand
         suggestions = await find_consolidation_candidates()
+        set_consolidation_cache(suggestions)
         return {"suggestions": suggestions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

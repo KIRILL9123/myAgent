@@ -110,9 +110,6 @@ async def api_key_auth_middleware(request: Request, call_next):
         return await call_next(request)
 
     if request.url.path.startswith("/api"):
-        if request.url.path == "/health":
-            return await call_next(request)
-
         api_key = os.getenv("HOME_AGENT_API_KEY")
         if not api_key:
             return JSONResponse(
