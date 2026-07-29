@@ -13,7 +13,21 @@ def _get_default_date_range() -> tuple[str, str]:
 def add_transaction(type: str, amount: float, category: str, description: str, transaction_date: str) -> dict[str, Any]:
     if type not in ["income", "expense"]:
         return {"status": "error", "message": "type must be 'income' or 'expense'"}
-        
+
+    from backend.app.core.execution_mode import is_dry_run
+    if is_dry_run():
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "add_transaction",
+                "type": type,
+                "amount": amount,
+                "category": category,
+                "description": description,
+                "date": transaction_date,
+            },
+        }
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
@@ -115,6 +129,16 @@ def get_summary(start_date: str | None = None, end_date: str | None = None) -> d
     }
 
 def delete_transaction(transaction_id: int) -> dict[str, Any]:
+    from backend.app.core.execution_mode import is_dry_run
+    if is_dry_run():
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "delete_transaction",
+                "transaction_id": transaction_id,
+            },
+        }
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM transactions WHERE id = ?", (transaction_id,))
