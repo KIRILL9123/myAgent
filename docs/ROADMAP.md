@@ -197,6 +197,28 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [ ] Max delegation depth (2 levels max)
 - [ ] Circuit breaker for recursive / infinite loops
 
+### Phase 7 — External World and Host Capabilities (Security-Gated)
+
+*These capabilities expand the agent beyond local application data. They must remain
+read-only-first, provenance-aware, budgeted and approval-gated for any side effect.*
+
+**Weather and internet access**
+- [ ] Add a weather connector with city/location resolution, current conditions and forecast
+- [ ] Include provider, observation time, timezone, units and source in every weather response
+- [ ] Add provider timeout, fallback and degraded-mode behavior
+- [ ] Define a controlled web-access layer with domain policy and request budgets
+- [ ] Treat web pages and retrieved text as untrusted content; add prompt-injection defenses
+- [ ] Store provenance and retrieval timestamps for externally sourced answers
+
+**Host computer control**
+- [ ] Define capability levels: read-only diagnostics → preview/dry-run → approved action
+- [ ] Add explicit user approval, scoped capability tokens, audit events and emergency stop
+- [ ] Sandbox process, filesystem and network access; deny by default
+- [ ] Implement a Windows 11 adapter first (processes, services, files and selected apps)
+- [ ] Implement a macOS adapter later for Mac Studio/Mac mini (launchd, processes, files and selected apps)
+- [ ] Add cross-platform capability contracts so the agent does not depend on OS-specific commands
+- [ ] Add adversarial tests for prompt injection, path traversal, destructive commands and privilege escalation
+
 ---
 
 ## E. Later / Experimental

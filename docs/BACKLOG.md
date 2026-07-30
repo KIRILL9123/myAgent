@@ -26,6 +26,9 @@ in [MASTER_VISION_ALIGNMENT.md](MASTER_VISION_ALIGNMENT.md):
 Near-to-medium-term concrete features not yet scheduled. Long-term phase items belong in [ROADMAP.md](ROADMAP.md).
 
 **Agent and proactivity**
+- **Weather and forecast connector**: add a read-only weather tool with location resolution, current conditions, forecast, units, provider timeouts and source/timestamp in the response.
+- **Internet access policy and tools**: design a controlled, read-only-first web access layer with domain policy, request budgets, provenance, caching and prompt-injection defenses.
+- **Host computer control**: design an approval-gated, sandboxed capability for diagnostics and selected actions on the host OS, with separate Windows and macOS adapters.
 - **Trial subscription cancellation reminders**: detect free-trial or renewal dates and remind the user before a paid charge, with an explicit cancellation checklist.
 - **Receipt → Expense proposals**: agent detects a purchase receipt in email and proposes adding it to Finance.
 - **Calendar Conflict Checking**: warn before creating/modifying an event that overlaps with an existing one.

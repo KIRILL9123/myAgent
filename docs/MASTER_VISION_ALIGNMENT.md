@@ -53,6 +53,9 @@ and priorities while requiring human approval for high-impact actions.
 | Observability | **Planned** | Structured logs, correlation IDs, traces, latency, tokens and dashboard metrics |
 | Cost and latency budgets | **Planned** | Per-request time, model-call, tool-call and token budgets |
 | Model Router | **Partially implemented** | Unified `llm.py` provider layer, role config and fallback exist; typed role routing and embeddings remain planned |
+| Weather and forecast access | **Planned** | Add a read-only weather connector with location resolution, source/timestamp and graceful provider failure |
+| Controlled internet access | **Planned / security-gated** | Add policy-constrained web retrieval with domain allow/deny rules, budgets, provenance and prompt-injection defenses |
+| Host computer control | **Planned / security-gated** | Add sandboxed diagnostics and narrowly scoped approved actions through OS-specific Windows/macOS adapters |
 | Hybrid retrieval | **Planned** | SQL filters → vector retrieval → reranking → LLM |
 | Adversarial security testing | **Planned** | Corpus for prompt injection, poisoned memory and malicious tool arguments |
 | Security model | **Partially implemented** | API auth, deny-by-default permissions, untrusted content wrapping, RED confirmations |
