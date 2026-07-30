@@ -20,199 +20,38 @@ def get_db_connection():
     finally:
         conn.close()
 
+MIGRATIONS_DIR = os.path.join(os.path.dirname(__file__), "migrations")
+
 def init_db():
-    """Create the necessary tables if they do not exist."""
+    """Apply pending schema migrations."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
 
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS conversations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT NOT NULL,
-                role TEXT NOT NULL,
-                content TEXT,
-                tool_calls TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+        cursor.execute("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')))")
 
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS pending_actions (
-                session_id TEXT PRIMARY KEY,
-                action_name TEXT NOT NULL,
-                args TEXT,
-                status TEXT DEFAULT 'pending',
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+        applied = {row[0] for row in cursor.execute("SELECT version FROM schema_migrations").fetchall()}
 
-        pending_columns = {
-            row[1] for row in cursor.execute("PRAGMA table_info(pending_actions)")
-        }
-        if "nonce_hash" not in pending_columns:
-            cursor.execute(
-                "ALTER TABLE pending_actions ADD COLUMN nonce_hash TEXT NOT NULL DEFAULT ''"
-            )
-
-# Older databases may have created pending_actions without the
-        # session_id uniqueness constraint required by the upsert below.
-        # Keep the newest pending action for each session before adding it.
-        cursor.execute('''
-            DELETE FROM pending_actions
-            WHERE rowid NOT IN (
-                SELECT MAX(rowid) FROM pending_actions GROUP BY session_id
-            )
-        ''')
-        cursor.execute('''
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_actions_session_id
-            ON pending_actions(session_id)
-        ''')
-
-        # Re-read columns after nonce_hash migration, then add Telegram button columns
-        pending_columns = {
-            row[1] for row in cursor.execute("PRAGMA table_info(pending_actions)")
-        }
-        for col, col_type in [("source_channel", "TEXT DEFAULT 'web'"),
-                               ("chat_id", "TEXT"),
-                               ("telegram_message_id", "INTEGER"),
-                               ("expires_at", "DATETIME")]:
-            if col not in pending_columns:
-                cursor.execute(f"ALTER TABLE pending_actions ADD COLUMN {col} {col_type}")
-
-        cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_pending_nonce_hash
-            ON pending_actions(nonce_hash)
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS mail_sync_state (
-                account TEXT PRIMARY KEY,
-                last_seen_uid INTEGER NOT NULL
-            )
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                type TEXT NOT NULL
-            )
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS transactions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                type TEXT NOT NULL,
-                amount REAL NOT NULL,
-                category TEXT NOT NULL,
-                description TEXT,
-                date DATE NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (category) REFERENCES categories(name)
-            )
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS recurring_templates (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                type TEXT NOT NULL,
-                amount REAL NOT NULL,
-                category TEXT NOT NULL,
-                description TEXT,
-                day_of_month INTEGER NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (category) REFERENCES categories(name)
-            )
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS countdowns (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                target_date DATE NOT NULL,
-                category TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS user_facts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                content TEXT NOT NULL,
-                category TEXT NOT NULL,
-                source_conversation_id INTEGER,
-                confidence REAL NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                status TEXT NOT NULL DEFAULT 'pending_approval',
-                FOREIGN KEY (source_conversation_id) REFERENCES conversations(id)
-            )
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS fact_relations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                fact_a_id INTEGER NOT NULL,
-                fact_b_id INTEGER NOT NULL,
-                relation_type TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (fact_a_id) REFERENCES user_facts(id) ON DELETE CASCADE,
-                FOREIGN KEY (fact_b_id) REFERENCES user_facts(id) ON DELETE CASCADE
-            )
-        ''')
-
-        # Seed default categories if none exist
-        cursor.execute("SELECT COUNT(*) FROM categories")
-        if cursor.fetchone()[0] == 0:
-            default_categories = [
-                ("Еда", "expense"),
-                ("Транспорт/Бензин", "expense"),
-                ("Авто (запчасти/ремонт)", "expense"),
-                ("Гейминг/Хобби", "expense"),
-                ("Подписки", "expense"),
-                ("Разное", "expense"),
-                ("Зарплата/Стипендия", "income"),
-                ("Фриланс/Разработка", "income"),
-                ("Продажа вещей", "income")
-            ]
-            cursor.executemany("INSERT INTO categories (name, type) VALUES (?, ?)", default_categories)
-
-        # Migration: Add merged_into_id column to user_facts if it doesn't exist
-        try:
-            cursor.execute("ALTER TABLE user_facts ADD COLUMN merged_into_id INTEGER REFERENCES user_facts(id)")
-        except sqlite3.OperationalError:
-            # Column already exists
-            pass
-
-        try:
-            cursor.execute("ALTER TABLE conversations ADD COLUMN name TEXT")
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            cursor.execute("ALTER TABLE conversations ADD COLUMN tool_call_id TEXT")
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            cursor.execute("ALTER TABLE user_facts ADD COLUMN last_confirmed_at DATETIME")
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            cursor.execute("ALTER TABLE user_facts ADD COLUMN valid_from DATETIME")
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            cursor.execute("ALTER TABLE user_facts ADD COLUMN valid_to DATETIME")
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            cursor.execute("ALTER TABLE user_facts ADD COLUMN source_type TEXT")
-        except sqlite3.OperationalError:
-            pass
+        files = sorted(f for f in os.listdir(MIGRATIONS_DIR) if f.endswith(".sql"))
+        for fname in files:
+            version = int(fname.split("_", 1)[0])
+            if version in applied:
+                continue
+            path = os.path.join(MIGRATIONS_DIR, fname)
+            sql = open(path, "r", encoding="utf-8").read()
+            for stmt in sql.split(";"):
+                stmt = stmt.strip()
+                if not stmt:
+                    continue
+                try:
+                    cursor.execute(stmt)
+                except sqlite3.OperationalError as e:
+                    # Allow "duplicate column" on ALTER TABLE ADD COLUMN
+                    if "ALTER TABLE" in stmt and "duplicate column" in str(e).lower():
+                        continue
+                    raise
+            cursor.execute("INSERT OR IGNORE INTO schema_migrations (version) VALUES (?)", (version,))
+            conn.commit()
+            print(f"[MIGRATION] Applied {fname}")
 
         conn.commit()
 
@@ -303,7 +142,7 @@ def save_pending_action(session_id: str, action_name: str, args: dict[str, Any],
              source_channel, chat_id, telegram_message_id)
         )
         conn.commit()
-        cursor.execute("SELECT id FROM pending_actions WHERE session_id=?", (session_id,))
+        cursor.execute("SELECT rowid FROM pending_actions WHERE session_id=?", (session_id,))
         row = cursor.fetchone()
         return (row[0], nonce) if row else (0, nonce)
 
@@ -311,7 +150,7 @@ def get_pending_action(session_id: str) -> dict[str, Any] | None:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            """SELECT id, session_id, action_name, args, status, nonce_hash,
+            """SELECT COALESCE(id, rowid) AS id, session_id, action_name, args, status, nonce_hash,
                       source_channel, chat_id, telegram_message_id, expires_at
                FROM pending_actions WHERE session_id = ? AND status = 'pending'""",
             (session_id,)
@@ -332,7 +171,7 @@ def find_pending_by_nonce(nonce: str, chat_id: str = "") -> dict[str, Any] | Non
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            """SELECT id, session_id, action_name, args, status, nonce_hash,
+            """SELECT COALESCE(id, rowid) AS id, session_id, action_name, args, status, nonce_hash,
                       source_channel, chat_id, telegram_message_id, expires_at
                FROM pending_actions
                WHERE nonce_hash = ? AND status = 'pending'
@@ -352,7 +191,7 @@ def claim_pending_action(action_id: int, nonce: str, chat_id: str = "") -> dict[
         cursor = conn.cursor()
         cursor.execute(
             """UPDATE pending_actions SET status='executing'
-               WHERE id=? AND nonce_hash=? AND status='pending'
+               WHERE rowid=? AND nonce_hash=? AND status='pending'
                AND (expires_at IS NULL OR expires_at > datetime('now'))""",
             (action_id, nonce)
         )
@@ -360,9 +199,9 @@ def claim_pending_action(action_id: int, nonce: str, chat_id: str = "") -> dict[
             return None
         conn.commit()
         cursor.execute(
-            """SELECT id, session_id, action_name, args, status, nonce_hash,
+            """SELECT COALESCE(id, rowid) AS id, session_id, action_name, args, status, nonce_hash,
                       source_channel, chat_id, telegram_message_id, expires_at
-               FROM pending_actions WHERE id=?""",
+               FROM pending_actions WHERE rowid=?""",
             (action_id,)
         )
         row = cursor.fetchone()
@@ -372,7 +211,7 @@ def finalize_pending_action(action_id: int, status: str, error: str = ""):
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "UPDATE pending_actions SET status=? WHERE id=?", (status, action_id)
+            "UPDATE pending_actions SET status=? WHERE rowid=?", (status, action_id)
         )
         conn.commit()
 
