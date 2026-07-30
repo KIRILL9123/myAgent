@@ -91,11 +91,11 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
   - Missing permissions for countdown tools in `tool_permissions.json`
   - `delete_countdown` should have explicit permission level
 - [x] Set up test runner (pytest) + CI
-- [ ] Type hints across all backend modules
+- [x] Type hints across all backend modules
 - [x] Regression tests for RED action boundaries and side-effect isolation
 - [x] Fact confidence / temporal validity / provenance — audit + metadata + expired filter + PATCH endpoint (see [design/MEMORY_EVOLUTION.md](design/MEMORY_EVOLUTION.md))
 - [x] Add token counting to prevent silent context window overflow
-- [ ] Fix N+1 LLM calls in memory layer (batch dedup for fact extraction, batch relations for backfill)
+- [x] Fix N+1 LLM calls in memory layer (batch dedup for fact extraction, batch relations for backfill)
 
 ### Phase 2 — Model Abstraction Layer
 
