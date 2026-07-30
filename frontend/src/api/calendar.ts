@@ -4,6 +4,13 @@ export interface CalendarEvent {
   start: string; // date or ISO datetime
   end: string;   // date or ISO datetime
   description?: string;
+  commitments?: Array<{
+    id: string;
+    title: string;
+    status: string;
+    owner: string;
+    deadline_at: string | null;
+  }>;
 }
 
 export interface EventCreateInput {
@@ -11,6 +18,7 @@ export interface EventCreateInput {
   start_datetime: string;
   end_datetime?: string;
   description?: string;
+  commitment_id?: string;
 }
 
 export interface EventUpdateInput {

@@ -2,10 +2,13 @@ import pytest
 
 from backend.app.commitments.commitment_service import (
     create_commitment,
+    commitments_for_calendar_events,
     expire_overdue,
     get_commitment_events,
     list_commitments,
     transition_commitment,
+    link_calendar_event,
+    unlink_calendar_event,
     update_commitment,
 )
 from backend.app.storage import db
@@ -73,3 +76,24 @@ def test_commitment_validation_and_editing(commitment_db):
     transition_commitment(commitment["id"], "complete")
     with pytest.raises(ValueError, match="terminal"):
         update_commitment(commitment["id"], title="Should not change")
+
+
+def test_calendar_links_are_explicit_and_do_not_complete_commitment(commitment_db):
+    commitment = create_commitment("Prepare presentation", source_type="CALENDAR")
+
+    linked = link_calendar_event(
+        commitment["id"], "calendar-event-1", "2030-01-10T10:00:00+00:00"
+    )
+    assert linked["status"] == "PROPOSED"
+    assert linked["related_calendar_event_ids"] == ["calendar-event-1"]
+    assert linked["deadline_at"] == "2030-01-10T10:00:00+00:00"
+
+    grouped = commitments_for_calendar_events(["calendar-event-1", "missing-event"])
+    assert grouped["calendar-event-1"][0]["id"] == commitment["id"]
+    assert "missing-event" not in grouped
+
+    unlinked = unlink_calendar_event(commitment["id"], "calendar-event-1")
+    assert unlinked["related_calendar_event_ids"] == []
+    assert [event["event_type"] for event in get_commitment_events(commitment["id"])] == [
+        "CREATED", "CALENDAR_LINKED", "CALENDAR_UNLINKED"
+    ]
