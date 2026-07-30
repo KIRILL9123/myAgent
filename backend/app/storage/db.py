@@ -46,6 +46,28 @@ def init_db():
             )
         ''')
 
+        pending_columns = {
+            row[1] for row in cursor.execute("PRAGMA table_info(pending_actions)")
+        }
+        if "nonce_hash" not in pending_columns:
+            cursor.execute(
+                "ALTER TABLE pending_actions ADD COLUMN nonce_hash TEXT NOT NULL DEFAULT ''"
+            )
+
+        # Older databases may have created pending_actions without the
+        # session_id uniqueness constraint required by the upsert below.
+        # Keep the newest pending action for each session before adding it.
+        cursor.execute('''
+            DELETE FROM pending_actions
+            WHERE rowid NOT IN (
+                SELECT MAX(rowid) FROM pending_actions GROUP BY session_id
+            )
+        ''')
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_actions_session_id
+            ON pending_actions(session_id)
+        ''')
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS mail_sync_state (
                 account TEXT PRIMARY KEY,
@@ -243,8 +265,8 @@ def save_pending_action(session_id: str, action_name: str, args: dict[str, Any])
         args_json = json.dumps(args)
         cursor.execute(
             """
-            INSERT INTO pending_actions (session_id, action_name, args, status)
-            VALUES (?, ?, ?, 'pending')
+            INSERT INTO pending_actions (session_id, action_name, args, status, nonce_hash)
+            VALUES (?, ?, ?, 'pending', '')
             ON CONFLICT(session_id) DO UPDATE SET 
                 action_name=excluded.action_name,
                 args=excluded.args,

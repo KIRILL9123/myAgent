@@ -7,3 +7,4 @@ pydantic==2.8.0
 apscheduler==3.10.4
 ollama
 openai-whisper
+pytest-asyncio

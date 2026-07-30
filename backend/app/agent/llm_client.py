@@ -2,11 +2,22 @@ import httpx
 import os
 import json
 from typing import Any
+from dotenv import load_dotenv
+from backend.app.agent.model_provider import (
+    ModelProvider,
+    OllamaProvider,
+    OpenAICompatibleProvider,
+)
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:30b-a3b")
+load_dotenv()
+
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:11434").rstrip("/")
+LLM_API_KEY = os.getenv("LLM_API_KEY", "local")
+LLM_MODEL = os.getenv("LLM_MODEL", os.getenv("OLLAMA_MODEL", "qwen3:30b-a3b"))
 
 _http_client: httpx.AsyncClient | None = None
+_provider: ModelProvider | None = None
 
 def get_http_client() -> httpx.AsyncClient:
     """Returns a shared, persistent httpx.AsyncClient to enable connection pooling."""
@@ -20,6 +31,21 @@ async def close_http_client():
     global _http_client
     if _http_client is not None and not _http_client.is_closed:
         await _http_client.aclose()
+    global _provider
+    _provider = None
+
+
+def get_model_provider() -> ModelProvider:
+    global _provider
+    if _provider is None:
+        client = get_http_client()
+        if LLM_PROVIDER == "openai_compatible":
+            _provider = OpenAICompatibleProvider(
+                client, LLM_BASE_URL, LLM_MODEL, LLM_API_KEY
+            )
+        else:
+            _provider = OllamaProvider(client, LLM_BASE_URL, LLM_MODEL)
+    return _provider
 
 async def chat_with_ollama(
     messages: list[dict[str, Any]],
@@ -30,33 +56,7 @@ async def chat_with_ollama(
     Sends a chat request to the local Ollama instance.
     Reuses a global HTTP client for connection pooling.
     """
-    payload = {
-        "model": OLLAMA_MODEL,
-        "messages": messages,
-        "stream": False,
-        "options": {
-            "temperature": 0.0
-        }
-    }
-    
-    if response_format:
-        payload["format"] = response_format
-    
-    if tools:
-        payload["tools"] = tools
-        # Disable parallel tool calls as requested
-        payload["options"]["parallel_tool_calls"] = False
-        # Also add it to the root in case Ollama supports it there
-        payload["parallel_tool_calls"] = False
-
-    client = get_http_client()
     try:
-        response = await client.post(
-            f"{OLLAMA_URL}/api/chat",
-            json=payload,
-            timeout=180.0
-        )
-        response.raise_for_status()
-        return response.json()
+        return await get_model_provider().chat(messages, tools, response_format)
     except Exception as e:
-        return {"status": "error", "message": f"Failed to communicate with Ollama: {str(e)}"}
+        return {"status": "error", "message": f"Failed to communicate with model provider: {str(e)}"}

@@ -425,11 +425,14 @@ async def find_consolidation_candidates() -> list[dict]:
     import json
     
     response = await chat_with_ollama(messages, response_format="json")
-    if "error" in response:
-        print(f"[MemoryService] Consolidation LLM Error: {response['error']}")
+    if response.get("status") == "error" or "error" in response:
+        print(f"[MemoryService] Consolidation LLM Error: {response.get('message', response.get('error'))}")
         return []
         
-    content_str = response.get("message", {}).get("content", "")
+    message = response.get("message", {})
+    if not isinstance(message, dict):
+        return []
+    content_str = message.get("content", "")
     if not content_str:
         return []
         
