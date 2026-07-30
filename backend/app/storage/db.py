@@ -7,12 +7,11 @@ from contextlib import contextmanager
 
 DB_PATH = os.environ.get("DATABASE_PATH") or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "home_agent.db")
 
-def _get_connection():
-    # Check_same_thread=False allows FastAPI to use it across async threads
+def _get_connection() -> sqlite3.Connection:
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 @contextmanager
-def get_db_connection():
+def get_db_connection() -> Any:
     """Context manager for SQLite connections to prevent resource leaks."""
     conn = _get_connection()
     try:
@@ -22,7 +21,7 @@ def get_db_connection():
 
 MIGRATIONS_DIR = os.path.join(os.path.dirname(__file__), "migrations")
 
-def init_db():
+def init_db() -> None:
     """Apply pending schema migrations."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -64,7 +63,7 @@ def save_message(
     tool_calls: list[dict] | None = None,
     name: str | None = None,
     tool_call_id: str | None = None,
-):
+) -> None:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         tool_calls_json = json.dumps(tool_calls) if tool_calls else None
@@ -161,7 +160,7 @@ def get_pending_action(session_id: str) -> dict[str, Any] | None:
         return _pending_row(row)
     return None
 
-def delete_pending_action(session_id: str):
+def delete_pending_action(session_id: str) -> None:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM pending_actions WHERE session_id = ?", (session_id,))
@@ -207,7 +206,7 @@ def claim_pending_action(action_id: int, nonce: str, chat_id: str = "") -> dict[
         row = cursor.fetchone()
     return _pending_row(row) if row else None
 
-def finalize_pending_action(action_id: int, status: str, error: str = ""):
+def finalize_pending_action(action_id: int, status: str, error: str = "") -> None:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -237,7 +236,7 @@ def get_last_seen_uid(account: str) -> int:
         row = cursor.fetchone()
     return row[0] if row else 0
 
-def update_last_seen_uid(account: str, uid: int):
+def update_last_seen_uid(account: str, uid: int) -> None:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(

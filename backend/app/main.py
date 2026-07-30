@@ -1,7 +1,9 @@
 import os
+from typing import Any, AsyncGenerator
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from backend.app.api.chat import router as chat_router
@@ -10,7 +12,7 @@ from backend.app.agent.scheduled_tasks import morning_summary
 scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Setup scheduler
     summary_time = os.getenv("MORNING_SUMMARY_TIME", "08:00")
     try:
@@ -120,7 +122,7 @@ app.add_middleware(
 )
 
 @app.middleware("http")
-async def api_key_auth_middleware(request: Request, call_next):
+async def api_key_auth_middleware(request: Request, call_next: Any) -> Response:
     # Bypass CORS preflight requests
     if request.method == "OPTIONS":
         return await call_next(request)
@@ -167,7 +169,7 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import FileResponse, JSONResponse
 
 @app.exception_handler(StarletteHTTPException)
-async def spa_fallback(request, exc):
+async def spa_fallback(request: Request, exc: StarletteHTTPException) -> Response:
     if exc.status_code == 404:
         if not request.url.path.startswith("/api"):
             index_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "dist", "index.html")
@@ -181,7 +183,7 @@ async def spa_fallback(request, exc):
     return await http_exception_handler(request, exc)
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     return {"status": "ok", "message": "Home Agent is running"}
 
 # Gracefully mount frontend static files if they exist
