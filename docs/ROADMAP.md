@@ -113,8 +113,8 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
   - `memory_service.py` (fact filtering + consolidation)
   - `fact_extractor.py` (extraction + dedup)
   - `relation_builder.py` (relation suggestions)
-- [ ] Model configuration in `.env` / config (per-role model selection, provider choice)
-- [ ] Fallback model support (if main model is unavailable → try fallback → error)
+- [x] Model configuration in `.env` / config (per-role model selection, provider choice)
+- [x] Fallback model support (if main model is unavailable → try fallback → error)
 
 **Expected benefit**: Swap models by changing config, not code. Run different models for different tasks. Add remote APIs without business logic changes.
 

@@ -20,6 +20,19 @@ OPENAI_MODEL = os.getenv("LLM_MODEL", "Ternary-Bonsai-27B-Q2_0")
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "3000"))
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT_SECONDS", "120"))
+LLM_FALLBACK_MODEL = os.getenv("LLM_FALLBACK_MODEL", "")
+
+LLM_ROLE_MAIN = os.getenv("LLM_ROLE_MAIN", OPENAI_MODEL if LLM_PROVIDER == "openai_compatible" else OLLAMA_MODEL)
+LLM_ROLE_EXTRACTOR = os.getenv("LLM_ROLE_EXTRACTOR", OLLAMA_MODEL)
+LLM_ROLE_CLASSIFIER = os.getenv("LLM_ROLE_CLASSIFIER", OLLAMA_MODEL)
+
+
+def get_model_for_role(role: str) -> str:
+    if role == "extractor":
+        return LLM_ROLE_EXTRACTOR
+    if role == "classifier":
+        return LLM_ROLE_CLASSIFIER
+    return LLM_ROLE_MAIN
 
 _http_client: httpx.AsyncClient | None = None
 
@@ -122,6 +135,20 @@ async def _chat_ollama(messages, tools, response_format) -> dict[str, Any]:
 
     _log_error("ollama", OLLAMA_MODEL, last_err)
     _record_error()
+    if LLM_FALLBACK_MODEL:
+        print(f"[LLM] falling back to {LLM_FALLBACK_MODEL}")
+        payload["model"] = LLM_FALLBACK_MODEL
+        try:
+            t0 = time.monotonic()
+            resp = await client.post(f"{OLLAMA_URL}/api/chat", json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            _log_call("ollama", LLM_FALLBACK_MODEL, resp.status_code, time.monotonic() - t0,
+                      bool(data.get("message", {}).get("tool_calls")))
+            _record_success()
+            return {"model": LLM_FALLBACK_MODEL, "message": data.get("message", {})}
+        except Exception as fb_err:
+            _log_error("ollama", LLM_FALLBACK_MODEL, fb_err)
     return {"status": "error",
             "message": f"Failed to communicate with Ollama. Is it running?"}
 
@@ -184,6 +211,27 @@ async def _chat_openai(messages, tools, response_format) -> dict[str, Any]:
 
     _log_error("openai_compatible", OPENAI_MODEL, last_err)
     _record_error()
+    if LLM_FALLBACK_MODEL:
+        print(f"[LLM] falling back to {LLM_FALLBACK_MODEL}")
+        payload["model"] = LLM_FALLBACK_MODEL
+        try:
+            t0 = time.monotonic()
+            resp = await client.post(
+                f"{OPENAI_BASE_URL}/chat/completions",
+                json=payload,
+                headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            choice = data["choices"][0]
+            msg = choice.get("message", {})
+            msg["content"] = msg.get("content") or ""
+            msg["tool_calls"] = _normalize_tool_calls(msg.get("tool_calls"))
+            _log_call("openai_compatible", LLM_FALLBACK_MODEL, resp.status_code, time.monotonic() - t0, bool(msg["tool_calls"]))
+            _record_success()
+            return {"model": LLM_FALLBACK_MODEL, "message": msg}
+        except Exception as fb_err:
+            _log_error("openai_compatible", LLM_FALLBACK_MODEL, fb_err)
     return {"status": "error",
             "message": f"Bonsai/OpenAI server not reachable. "
                        f"Start it via C:\\AI\\start-bonsai.ps1"}
