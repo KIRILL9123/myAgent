@@ -79,9 +79,9 @@ export default function CommitmentsPage() {
   );
 
   return (
-    <div className="h-full w-full flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-900 shrink-0"><div className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-purple-400" /><div><h1 className="text-xl font-bold">Обязательства</h1><p className="text-xs text-zinc-500 mt-1">Единый центр задач, обещаний и сроков</p></div></div><button onClick={load} className="p-2 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900"><RefreshCw className="h-4 w-4" /></button></header>
-      <main className="flex-1 overflow-y-auto p-6 space-y-8">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 text-zinc-100">
+      <header className="flex shrink-0 items-center justify-between border-b border-zinc-900 px-4 py-3 sm:px-6 sm:py-4"><div className="flex min-w-0 items-center gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-purple-400" /><div className="min-w-0"><h1 className="truncate text-lg font-bold sm:text-xl">Обязательства</h1><p className="mt-1 truncate text-xs text-zinc-500">Единый центр задач, обещаний и сроков</p></div></div><button onClick={load} className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"><RefreshCw className="h-4 w-4" /></button></header>
+      <main className="flex-1 space-y-6 overflow-y-auto p-4 sm:space-y-8 sm:p-6">
         {error && <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-xs text-red-200"><AlertCircle className="h-4 w-4" />{error}</div>}
         {loading ? <div className="h-48 flex items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-purple-400" /></div> : <>{renderSection('Требуют подтверждения', proposed, 'text-amber-300', 'Новых предложений нет.')}{renderSection('Активные', active, 'text-blue-300', 'Активных обязательств нет.')}{history.length > 0 && renderSection('История', history, 'text-zinc-500', '')}</>}
       </main>
