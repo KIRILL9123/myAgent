@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime as _dt
 from backend.app.storage.db import get_db_connection
@@ -250,28 +251,30 @@ async def backfill_isolated_relations() -> int:
     isolated_facts = get_isolated_approved_facts()
     if not isolated_facts:
         return 0
-        
+
     all_approved = get_approved_facts()
-    relations_added = 0
     from backend.app.memory.relation_builder import suggest_relations
-    
-    for fact in isolated_facts:
+
+    async def _process_one(fact: dict) -> int:
         other_facts = [f for f in all_approved if f["id"] != fact["id"]]
         if not other_facts:
-            continue
-            
+            return 0
         try:
             suggestions = await suggest_relations(fact, other_facts)
+            added = 0
             for sug in suggestions:
                 fact_b_id = sug.get("fact_b_id")
                 relation_type = sug.get("relation_type")
                 if fact_b_id and relation_type:
                     if save_relation(fact["id"], fact_b_id, relation_type):
-                        relations_added += 1
+                        added += 1
+            return added
         except Exception as e:
             print(f"[MemoryService] Error during backfill suggest_relations for fact #{fact['id']}: {e}")
-            
-    return relations_added
+            return 0
+
+    results = await asyncio.gather(*[_process_one(f) for f in isolated_facts], return_exceptions=True)
+    return sum(r for r in results if isinstance(r, int))
 
 def _filter_facts_by_keyword(approved: list[dict], query: str) -> list[dict]:
     import re

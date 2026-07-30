@@ -1,4 +1,5 @@
 import json
+import asyncio
 from backend.app.agent.llm import chat as chat_with_ollama
 from backend.app.memory.memory_service import (
     save_pending_fact,
@@ -98,6 +99,16 @@ async def extract_facts_from_conversation(conversation_text: str, source_convers
     all_existing = get_all_facts()
     active_existing = [f for f in all_existing if f["status"] in ("approved", "pending_approval")]
     
+    # Gather dedup candidates and run all LLM calls in parallel
+    dedup_tasks = []
+    dedup_items = []
+    existing_facts_str = None
+    if active_existing:
+        existing_facts_str = "\n".join([
+            f"- ID: {f['id']}, Content: '{f['content']}', Category: '{f['category']}'"
+            for f in active_existing
+        ])
+
     for item in raw_facts:
         content = item.get("content")
         category = item.get("category")
@@ -106,43 +117,45 @@ async def extract_facts_from_conversation(conversation_text: str, source_convers
         if not content or not category:
             continue
             
-        # Ensure category is one of the allowed categories
         if category not in ("preference", "habit", "relationship", "project", "other"):
             category = "other"
-            
-        is_duplicate = False
-        duplicate_id = None
-        
-        if active_existing:
-            # Format existing facts for deduplication LLM call
-            existing_facts_str = "\n".join([
-                f"- ID: {f['id']}, Content: '{f['content']}', Category: '{f['category']}'"
-                for f in active_existing
-            ])
-            
-            dedup_messages = [
+
+        if active_existing and existing_facts_str:
+            messages = [
                 {"role": "system", "content": DEDUPLICATION_PROMPT.format(
-                    new_content=content,
-                    new_category=category,
+                    new_content=content, new_category=category,
                     existing_facts_str=existing_facts_str
                 )}
             ]
-            
-            dedup_resp = await chat_with_ollama(dedup_messages, response_format="json")
-            if "error" not in dedup_resp:
-                dedup_content_str = dedup_resp.get("message", {}).get("content", "")
-                print(f"[FactExtractor] Deduplication raw response for '{content}': {dedup_content_str}")
-                try:
-                    dedup_data = json.loads(dedup_content_str)
-                    is_duplicate_raw = dedup_data.get("is_duplicate", False)
-                    is_duplicate = str(is_duplicate_raw).lower() == "true" if not isinstance(is_duplicate_raw, bool) else is_duplicate_raw
-                    
-                    raw_id = dedup_data.get("fact_id")
-                    if raw_id is not None and str(raw_id).lower() != "null":
-                        duplicate_id = int(raw_id)
-                except Exception as e:
-                    print(f"[FactExtractor] Deduplication parse error: {e}")
-                    
+            dedup_tasks.append(chat_with_ollama(messages, response_format="json"))
+            dedup_items.append((content, category, confidence))
+        else:
+            dedup_items.append((content, category, confidence, None, None))
+
+    if dedup_tasks:
+        dedup_responses = await asyncio.gather(*dedup_tasks, return_exceptions=True)
+        for i, resp in enumerate(dedup_responses):
+            content, category, confidence = dedup_items[i]
+            if isinstance(resp, Exception):
+                print(f"[FactExtractor] Dedup call failed for '{content}': {resp}")
+                dedup_items[i] = (content, category, confidence, False, None)
+                continue
+            dedup_content_str = resp.get("message", {}).get("content", "")
+            print(f"[FactExtractor] Deduplication raw response for '{content}': {dedup_content_str}")
+            try:
+                dedup_data = json.loads(dedup_content_str) if dedup_content_str else {}
+                is_duplicate_raw = dedup_data.get("is_duplicate", False)
+                is_duplicate = str(is_duplicate_raw).lower() == "true" if not isinstance(is_duplicate_raw, bool) else is_duplicate_raw
+                raw_id = dedup_data.get("fact_id")
+                duplicate_id = int(raw_id) if raw_id is not None and str(raw_id).lower() != "null" else None
+            except Exception as e:
+                print(f"[FactExtractor] Deduplication parse error for '{content}': {e}")
+                is_duplicate, duplicate_id = False, None
+            dedup_items[i] = (content, category, confidence, is_duplicate, duplicate_id)
+    else:
+        dedup_items = [(c, cat, conf, False, None) for c, cat, conf in dedup_items]
+
+    for content, category, confidence, is_duplicate, duplicate_id in dedup_items:
         if is_duplicate and duplicate_id:
             # Verify the duplicate ID actually exists in our active list
             exists_in_active = any(f["id"] == duplicate_id for f in active_existing)
