@@ -39,7 +39,7 @@ async def process_message(chat_id: str, text: str):
                     from backend.app.storage.db import get_db_connection
                     with get_db_connection() as conn:
                         conn.execute(
-                            "UPDATE pending_actions SET telegram_message_id=? WHERE id=?",
+                            "UPDATE pending_actions SET telegram_message_id=? WHERE rowid=?",
                             (sent["message_id"], action_id)
                         )
                         conn.commit()
