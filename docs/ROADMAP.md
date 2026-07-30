@@ -90,7 +90,7 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
   - `mail_connector.py` `send_email()` uses `{"error": ...}` instead of `{"status": "error", ...}`
   - Missing permissions for countdown tools in `tool_permissions.json`
   - `delete_countdown` should have explicit permission level
-- [ ] Set up test runner (pytest) + CI
+- [x] Set up test runner (pytest) + CI
 - [ ] Type hints across all backend modules
 - [x] Regression tests for RED action boundaries and side-effect isolation
 - [x] Fact confidence / temporal validity / provenance — audit + metadata + expired filter + PATCH endpoint (see [design/MEMORY_EVOLUTION.md](design/MEMORY_EVOLUTION.md))
