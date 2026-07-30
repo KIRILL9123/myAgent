@@ -15,7 +15,7 @@ in [MASTER_VISION_ALIGNMENT.md](MASTER_VISION_ALIGNMENT.md):
 - [ ] Implement Commitment Tracker lifecycle and approval-backed proposals
 - [ ] Define the Unified Approval Control Plane record and API contract
 - [ ] Add observability foundation: correlation IDs, structured events and request budgets
-- [ ] Replace ad-hoc SQLite schema updates with versioned migrations
+- [x] Replace ad-hoc SQLite schema updates with versioned migrations
 
 
 ---
