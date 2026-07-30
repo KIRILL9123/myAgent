@@ -13,6 +13,11 @@ class SearchEventsArgs(BaseModel):
     query: str
 
 
+class GetWeatherArgs(BaseModel):
+    city: str
+    forecast_days: Optional[int] = 5
+
+
 class CreateEventArgs(BaseModel):
     title: str
     start_datetime: str
@@ -96,6 +101,7 @@ class DeleteCountdownArgs(BaseModel):
 TOOL_MODEL_REGISTRY: dict[str, type[BaseModel]] = {
     "list_events": ListEventsArgs,
     "search_events": SearchEventsArgs,
+    "get_weather": GetWeatherArgs,
     "create_event": CreateEventArgs,
     "modify_event": ModifyEventArgs,
     "delete_event": DeleteEventArgs,

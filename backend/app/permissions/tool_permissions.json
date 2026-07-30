@@ -8,6 +8,10 @@
     "permission_level": "green"
   },
   {
+    "action_name": "get_weather",
+    "permission_level": "green"
+  },
+  {
     "action_name": "list_unread_emails",
     "permission_level": "green"
   },

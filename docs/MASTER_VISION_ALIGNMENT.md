@@ -53,7 +53,7 @@ and priorities while requiring human approval for high-impact actions.
 | Observability | **v1 implemented** | Correlation IDs, structured SQLite/JSONL events, backend/model health and Dashboard status widget; token budgets and richer metrics remain planned |
 | Cost and latency budgets | **Planned** | Per-request time, model-call, tool-call and token budgets |
 | Model Router | **Partially implemented** | Unified `llm.py` provider layer, role config and fallback exist; typed role routing and embeddings remain planned |
-| Weather and forecast access | **Planned** | Add a read-only weather connector with location resolution, source/timestamp and graceful provider failure |
+| Weather and forecast access | **Implemented** | Read-only Open-Meteo connector, city resolution, current/5-day forecast, source timestamp and structured chat card |
 | Controlled internet access | **Planned / security-gated** | Add policy-constrained web retrieval with domain allow/deny rules, budgets, provenance and prompt-injection defenses |
 | Host computer control | **Planned / security-gated** | Add sandboxed diagnostics and narrowly scoped approved actions through OS-specific Windows/macOS adapters |
 | Hybrid retrieval | **Planned** | SQL filters → vector retrieval → reranking → LLM |

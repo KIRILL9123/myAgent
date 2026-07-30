@@ -13,6 +13,7 @@ class ChatResponse(BaseModel):
     response: str
     tool_calls: list[str] = []
     requires_confirmation: bool = False
+    weather: dict | None = None
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
@@ -22,6 +23,7 @@ async def chat_endpoint(request: ChatRequest):
             response=result.get("response", ""),
             tool_calls=result.get("tool_calls", []),
             requires_confirmation=result.get("requires_confirmation", False),
+            weather=result.get("weather"),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

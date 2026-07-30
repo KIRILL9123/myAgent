@@ -204,9 +204,9 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 read-only-first, provenance-aware, budgeted and approval-gated for any side effect.*
 
 **Weather and internet access**
-- [ ] Add a weather connector with city/location resolution, current conditions and forecast
-- [ ] Include provider, observation time, timezone, units and source in every weather response
-- [ ] Add provider timeout, fallback and degraded-mode behavior
+- [x] Add a weather connector with city/location resolution, current conditions and forecast
+- [x] Include provider, observation time, timezone, units and source in every weather response
+- [x] Add provider timeout and graceful degraded-mode behavior
 - [ ] Define a controlled web-access layer with domain policy and request budgets
 - [ ] Treat web pages and retrieved text as untrusted content; add prompt-injection defenses
 - [ ] Store provenance and retrieval timestamps for externally sourced answers

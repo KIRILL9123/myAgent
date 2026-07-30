@@ -54,6 +54,21 @@ AVAILABLE_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_weather",
+            "description": "Get current weather and a short forecast for a city. This is a read-only external lookup. Always use this tool for questions about current weather or forecast instead of guessing.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {"type": "string", "description": "City name, optionally with country or region."},
+                    "forecast_days": {"type": "integer", "minimum": 1, "maximum": 7, "description": "Number of forecast days, default 5."},
+                },
+                "required": ["city"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "list_unread_emails",
             "description": "List unread emails from the mailbox.",
             "parameters": {
@@ -250,6 +265,9 @@ def _dispatch_tool(function_name: str, arguments: dict) -> dict:
         return list_events(arguments.get("start_date"), arguments.get("end_date"))
     elif function_name == "search_events":
         return search_events(arguments.get("query"))
+    elif function_name == "get_weather":
+        from backend.app.connectors.weather_connector import get_weather
+        return get_weather(arguments.get("city", ""), arguments.get("forecast_days", 5))
     elif function_name == "create_event":
         return create_event(
             title=arguments.get("title", ""),
@@ -593,7 +611,7 @@ def get_system_prompt() -> str:
         "CRITICAL LANGUAGE RULE: ALWAYS respond in Russian only. Never use Chinese, "
         "English or any other language mid-response, even if uncertain. Never mix languages.\n\n"
         "You are Home Agent, a helpful assistant managing calendar, email, and routines. "
-        "Use tools to fetch information or perform actions when needed. "
+        "Use tools to fetch information or perform actions when needed. For current weather or forecast questions, always call get_weather and never guess or claim that weather access is unavailable. "
         "If a tool returns an error, DO NOT retry the exact same tool call. "
         "Explain the error to the user in plain language instead.\n\n"
         "IMPORTANT MEMORY RULE: If the user states a fact that contradicts or is not present "
@@ -703,6 +721,7 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
             print(f"[CONTEXT] Trimmed {trimmed} messages ({total_chars} -> {sum(len(m.get('content','') or '') for m in messages)} chars)")
 
     executed_tool_calls: list[str] = []
+    weather_data: dict[str, Any] | None = None
     requires_confirmation = False
     json_error_count = 0
     previous_tool_calls_str = None
@@ -735,6 +754,7 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
                 "response": final_response,
                 "tool_calls": executed_tool_calls,
                 "requires_confirmation": requires_confirmation,
+                "weather": weather_data,
             }
 
         # Early Stopping: Check if LLM is repeating the exact same tool calls
@@ -777,6 +797,8 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
                 continue
 
             tool_result = await execute_tool(tool_call, session_id)
+            if func_name == "get_weather" and isinstance(tool_result, dict) and tool_result.get("status") == "success":
+                weather_data = tool_result
             
             # JSON Syntax Retry Loop
             if isinstance(tool_result, dict) and str(tool_result.get("message", "")).startswith("JSON_ERROR:"):

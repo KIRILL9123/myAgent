@@ -265,9 +265,9 @@ class TestDeleteCountdownArgs:
 # ─── Registry completeness ────────────────────────────────────────────────────
 
 
-def test_registry_has_all_14_tools():
+def test_registry_has_all_15_tools():
     expected = {
-        "list_events", "search_events", "create_event", "modify_event", "delete_event",
+        "list_events", "search_events", "get_weather", "create_event", "modify_event", "delete_event",
         "list_unread_emails", "search_emails", "send_email",
         "add_transaction", "get_transactions", "get_summary",
         "add_countdown", "get_all_countdowns", "delete_countdown",

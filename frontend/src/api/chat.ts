@@ -4,6 +4,15 @@ export interface ChatResponse {
   response: string;
   tool_calls: string[];
   requires_confirmation: boolean;
+  weather?: WeatherData | null;
+}
+
+export interface WeatherData {
+  status: 'success';
+  location: { name: string; country: string; timezone: string };
+  current: { observed_at: string; temperature_c: number; apparent_temperature_c: number; precipitation_mm: number; wind_speed_kmh: number; condition: string; weather_code: number };
+  daily: Array<{ date: string; condition: string; temperature_min_c: number; temperature_max_c: number; precipitation_probability_percent: number; weather_code: number }>;
+  source: { provider: string; retrieved_at: string };
 }
 
 const getHeaders = (withJson = false) => {
