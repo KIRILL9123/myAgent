@@ -29,6 +29,7 @@ MAX_CACHE_ITEMS = 64
 CACHE_TTL_SECONDS = 120
 LIGHTPANDA_CDP_URL = os.getenv("WEB_LIGHTPANDA_CDP_URL", "http://127.0.0.1:9222")
 SEARCH_URL = "https://html.duckduckgo.com/html/"
+SEARCH_REGION = os.getenv("WEB_SEARCH_REGION", "de-de")
 
 _cache: dict[str, tuple[float, dict[str, Any]]] = {}
 
@@ -359,7 +360,7 @@ def web_search(query: str, max_results: int = 5) -> dict[str, Any]:
     if len(query) < 2:
         return {"status": "error", "message": "Укажите поисковый запрос."}
     max_results = max(1, min(max_results, 10))
-    search_url = f"{SEARCH_URL}?q={quote_plus(query)}&kl=wt-wt"
+    search_url = f"{SEARCH_URL}?q={quote_plus(query)}&kl={quote_plus(SEARCH_REGION)}"
     try:
         final_url, content_type, body = _download(search_url)
         parser = _SearchParser()

@@ -29,3 +29,38 @@ def test_pseudo_tool_call_from_local_completion_model_is_normalized():
         "url": "https://example.com",
         "render_js": False,
     }
+
+
+def test_openai_messages_serialize_tool_arguments_as_json():
+    serialized = llm._serialize_messages_for_openai([
+        {
+            "role": "assistant",
+            "tool_calls": [{
+                "id": "call-1",
+                "type": "function",
+                "function": {"name": "web_search", "arguments": {"query": "iPhone 17"}},
+            }],
+        }
+    ])
+
+    assert serialized[0]["tool_calls"][0]["function"]["arguments"] == '{"query": "iPhone 17"}'
+
+
+def test_tool_messages_can_be_flattened_for_strict_openai_servers():
+    flattened = llm._flatten_tool_messages([
+        {"role": "user", "content": "find it"},
+        {"role": "assistant", "content": "", "tool_calls": [{"id": "1"}]},
+        {"role": "tool", "name": "web_search", "content": '{"status":"success"}'},
+    ])
+
+    assert [item["role"] for item in flattened] == ["user", "user"]
+    assert "untrusted_external_content" in flattened[-1]["content"]
+
+
+def test_pseudo_tool_syntax_is_not_reparsed_when_tools_are_disabled():
+    content = "<tool_call><function=web_fetch><parameter=url>https://example.com</parameter></function></tool_call>"
+
+    message, tool_calls = llm._normalize_message({"role": "assistant", "content": content}, parse_pseudo_tools=False)
+
+    assert tool_calls == []
+    assert message["content"] == content

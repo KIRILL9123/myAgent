@@ -101,3 +101,11 @@ def test_explicit_web_request_fallback_routes_without_touching_weather():
         "web_fetch",
         {"url": "https://example.com/page"},
     )
+
+
+def test_price_search_uses_default_germany_context(monkeypatch):
+    monkeypatch.delenv("WEB_DEFAULT_LOCATION", raising=False)
+
+    route = _detect_explicit_web_request("цену на айфон 17 проверь")
+
+    assert route == ("web_search", {"query": "цену на айфон 17 Germany", "max_results": 5})

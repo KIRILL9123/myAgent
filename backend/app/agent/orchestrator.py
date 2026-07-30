@@ -1,5 +1,6 @@
 import json
 import re
+import os
 import time
 from datetime import datetime
 from typing import Any
@@ -692,11 +693,36 @@ def _web_source_cards(result: dict[str, Any]) -> list[dict[str, str]]:
     return cards[:10]
 
 
+def _web_fallback_response(sources: list[dict[str, str]]) -> str:
+    if not sources:
+        return "Не удалось получить содержимое веб-источников. Попробуйте повторить запрос позже."
+    lines = ["Нашёл следующие актуальные веб-источники:"]
+    for source in sources[:5]:
+        title = source.get("title") or source.get("url", "Источник")
+        snippet = source.get("snippet", "").strip()
+        lines.append(f"- {title}: {snippet}" if snippet else f"- {title}: {source.get('url', '')}")
+    return "\n".join(lines)
+
+
 _WEB_SEARCH_HINTS = (
     "поищи", "найди", "проверь в интернете", "в интернете", "онлайн",
     "актуальн", "последн", "новост", "что такое", "кто такой", "как работает",
     "search online", "look up", "find online", "latest",
 )
+_PRICE_HINTS = ("цена", "цену", "стоит", "купить", "магазин", "price", "cost", "buy")
+_LOCATION_HINTS = ("германи", "germany", "deutschland", "росси", "russia", "usa", "сша")
+
+
+def _add_default_location_to_search(query: str) -> str:
+    default_location = os.getenv("WEB_DEFAULT_LOCATION", "Germany").strip()
+    lowered = query.lower()
+    if (
+        not default_location
+        or not any(hint in lowered for hint in _PRICE_HINTS)
+        or any(hint in lowered for hint in _LOCATION_HINTS)
+    ):
+        return query
+    return f"{query} {default_location}"
 
 
 def _detect_explicit_web_request(user_message: str) -> tuple[str, dict[str, Any]] | None:
@@ -707,7 +733,9 @@ def _detect_explicit_web_request(user_message: str) -> tuple[str, dict[str, Any]
     urls = re.findall(r"https?://[^\s<>]+", user_message)
     if urls:
         return "web_fetch", {"url": urls[0].rstrip(".,)")}
-    if any(hint in lowered for hint in _WEB_SEARCH_HINTS):
+    if any(hint in lowered for hint in _WEB_SEARCH_HINTS) or any(
+        hint in lowered for hint in _PRICE_HINTS
+    ):
         query = re.sub(
             r"^(?:поищи|найди|проверь|посмотри|search|find|look up)\s+(?:в интернете|онлайн|online)?\s*",
             "",
@@ -715,7 +743,9 @@ def _detect_explicit_web_request(user_message: str) -> tuple[str, dict[str, Any]
             flags=re.IGNORECASE,
         )
         query = re.split(r"\b(?:и дай|с источником|кратко скажи|summarize)\b", query, maxsplit=1, flags=re.IGNORECASE)[0].strip(" .,!?")
-        return "web_search", {"query": query or user_message, "max_results": 5}
+        query = re.sub(r"\s+(?:проверь|please check)$", "", query, flags=re.IGNORECASE).strip()
+        query = _add_default_location_to_search(query or user_message)
+        return "web_search", {"query": query, "max_results": 5}
     return None
 
 
@@ -892,6 +922,13 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
         # If the LLM is NOT requesting tool calls → it's the final text answer
         if not message.get("tool_calls"):
             final_response = message.get("content", "")
+            if pre_route and "<tool_call>" in final_response:
+                cleaned_response = re.sub(
+                    r"<tool_call>.*?</tool_call>", "", final_response, flags=re.DOTALL | re.IGNORECASE
+                ).strip()
+                final_response = cleaned_response or _web_fallback_response(web_sources)
+            elif pre_route and not final_response.strip():
+                final_response = _web_fallback_response(web_sources)
             save_message(session_id, "assistant", final_response)
             
             # ── Background: extract facts from this exchange for the Memory Layer ──
