@@ -10,6 +10,7 @@ import {
   TrendingDown,
   ChevronRight
 } from 'lucide-react';
+import SystemStatusWidget from '../components/SystemStatusWidget';
 import { fetchEvents } from '../api/calendar';
 import { fetchSummary } from '../api/finance';
 import { fetchCountdowns } from '../api/countdown';
@@ -163,6 +164,7 @@ export default function DashboardPage() {
 
       {/* Main Grid View */}
       <main className="flex-1 overflow-y-auto p-6">
+        <SystemStatusWidget />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mt-2">
           
           {/* Card 1: Calendar */}

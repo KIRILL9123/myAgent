@@ -96,6 +96,7 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [x] Fact confidence / temporal validity / provenance — audit + metadata + expired filter + PATCH endpoint (see [design/MEMORY_EVOLUTION.md](design/MEMORY_EVOLUTION.md))
 - [x] Add token counting to prevent silent context window overflow
 - [x] Fix N+1 LLM calls in memory layer (batch dedup for fact extraction, batch relations for backfill)
+- [x] Observability foundation: correlation IDs, structured telemetry events, model/port health checks and Dashboard status widget
 
 ### Phase 2 — Model Abstraction Layer
 

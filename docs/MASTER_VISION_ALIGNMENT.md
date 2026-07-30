@@ -50,7 +50,7 @@ and priorities while requiring human approval for high-impact actions.
 | Sleep-aware bootstrap reconciliation | **Planned** | Startup checks for missed jobs and stale integrations |
 | Backup and disaster recovery | **Partially implemented** | SQLite backup/restore exists; add encrypted config/document strategy and tested restore runbook |
 | Versioned migrations | **Missing / high priority** | Replace ad-hoc `ALTER TABLE` checks with numbered migrations or Alembic |
-| Observability | **Planned** | Structured logs, correlation IDs, traces, latency, tokens and dashboard metrics |
+| Observability | **v1 implemented** | Correlation IDs, structured SQLite/JSONL events, backend/model health and Dashboard status widget; token budgets and richer metrics remain planned |
 | Cost and latency budgets | **Planned** | Per-request time, model-call, tool-call and token budgets |
 | Model Router | **Partially implemented** | Unified `llm.py` provider layer, role config and fallback exist; typed role routing and embeddings remain planned |
 | Weather and forecast access | **Planned** | Add a read-only weather connector with location resolution, source/timestamp and graceful provider failure |
@@ -59,7 +59,7 @@ and priorities while requiring human approval for high-impact actions.
 | Hybrid retrieval | **Planned** | SQL filters → vector retrieval → reranking → LLM |
 | Adversarial security testing | **Planned** | Corpus for prompt injection, poisoned memory and malicious tool arguments |
 | Security model | **Partially implemented** | API auth, deny-by-default permissions, untrusted content wrapping, RED confirmations |
-| Sandboxed diagnostics | **Planned** | Read-only health, process, CPU, memory and disk diagnostics |
+| Sandboxed diagnostics | **Partially implemented** | Read-only backend/model health, ports and host metadata; process, CPU, memory and disk diagnostics remain planned |
 | Self-improvement sandbox | **Planned / deferred** | Branch + isolated environment + tests + evaluation + human approval |
 | Ausbildung learning system | **Deferred** | Separate learning module with RAG, flashcards, tests and progress |
 | Home Assistant | **Deferred** | Long-term integration; not part of the current cycle |

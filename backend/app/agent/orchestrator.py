@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from datetime import datetime
 from typing import Any
 from pydantic import ValidationError
@@ -16,6 +17,7 @@ from backend.app.storage.db import (
     get_pending_action,
     delete_pending_action
 )
+from backend.app.observability.telemetry import elapsed_ms, record_event
 
 # ─── Tool definitions for the LLM ────────────────────────────────────────────
 AVAILABLE_TOOLS = [
@@ -436,6 +438,7 @@ async def execute_tool(tool_call: dict, session_id: str) -> dict:
             source_channel=source_channel, chat_id=chat_id
         )
         log_action(function_name, "PENDING_CONFIRMATION", description)
+        record_event("tool_call", function_name, "pending_confirmation", payload={"permission": "RED"})
         return {
             "requires_confirmation": True,
             "action": function_name,
@@ -447,14 +450,17 @@ async def execute_tool(tool_call: dict, session_id: str) -> dict:
 
     # 3. GREEN / YELLOW → execute immediately
     log_action(function_name, "ALLOWED", f"Executing with args: {arguments}")
+    started = time.monotonic()
     try:
         import asyncio
         result = await asyncio.to_thread(_dispatch_tool, function_name, arguments)
         result = sanitize_tool_result(function_name, result)
         log_action(function_name, "SUCCESS", "Execution completed")
+        record_event("tool_call", function_name, "success", elapsed_ms(started))
         return result
     except Exception as e:
         log_action(function_name, "ERROR", str(e))
+        record_event("tool_call", function_name, "error", elapsed_ms(started), {"error_type": type(e).__name__})
         return {"status": "error", "message": str(e)}
 
 

@@ -5,6 +5,7 @@ import time
 import asyncio
 from typing import Any
 from dotenv import load_dotenv
+from backend.app.observability.telemetry import record_event
 
 load_dotenv()
 
@@ -266,6 +267,13 @@ async def _backoff(attempt: int):
 def _log_call(provider: str, model: str, status: int, latency: float, has_tools: bool):
     print(f"[LLM] provider={provider} model={model} status={status} "
           f"latency={latency:.2f}s tools={has_tools}")
+    record_event(
+        "llm_call", provider, "ok" if status < 400 else "error", latency * 1000,
+        {"model": model, "http_status": status, "has_tools": has_tools},
+    )
 
 def _log_error(provider: str, model: str, err: Any):
     print(f"[LLM] ERROR provider={provider} model={model} type={type(err).__name__}")
+    record_event("llm_call", provider, "error", payload={
+        "model": model, "error_type": type(err).__name__,
+    })

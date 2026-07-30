@@ -1,4 +1,6 @@
 import os
+import time
+from uuid import UUID
 from typing import Any, AsyncGenerator
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -9,6 +11,10 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from backend.app.api.chat import router as chat_router
 from backend.app.agent.scheduled_tasks import morning_summary
+from backend.app.observability.telemetry import (
+    elapsed_ms, new_correlation_id, record_event, reset_correlation_id,
+    set_correlation_id,
+)
 
 scheduler = AsyncIOScheduler()
 
@@ -142,6 +148,36 @@ app.add_middleware(
 )
 
 @app.middleware("http")
+async def observability_middleware(request: Request, call_next: Any) -> Response:
+    incoming = request.headers.get("X-Correlation-ID", "").strip()
+    try:
+        UUID(incoming)
+        correlation_id = incoming
+    except (ValueError, AttributeError):
+        correlation_id = new_correlation_id()
+    token = set_correlation_id(correlation_id)
+    started = time.monotonic()
+    response: Response | None = None
+    status = "success"
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        status = "success" if status_code < 400 else ("4xx" if status_code < 500 else "5xx")
+        return response
+    except Exception:
+        status = "error"
+        raise
+    finally:
+        record_event("http_request", "api", status, elapsed_ms(started),
+                     {"method": request.method, "path": request.url.path,
+                      "status_code": status_code})
+        if response is not None:
+            response.headers["X-Correlation-ID"] = correlation_id
+        reset_correlation_id(token)
+
+
+@app.middleware("http")
 async def api_key_auth_middleware(request: Request, call_next: Any) -> Response:
     # Bypass CORS preflight requests
     if request.method == "OPTIONS":
@@ -186,6 +222,9 @@ app.include_router(commitments_router, prefix="/api/commitments")
 
 from backend.app.api.approvals import router as approvals_router
 app.include_router(approvals_router, prefix="/api/approvals")
+
+from backend.app.api.system import router as system_router
+app.include_router(system_router, prefix="/api/system")
 
 from fastapi.staticfiles import StaticFiles
 

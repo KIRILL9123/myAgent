@@ -57,8 +57,10 @@ Operational records should distinguish normal logs from durable events. The targ
 - scheduler/job events;
 - notification and approval events.
 
-The dashboard should eventually expose request count, failures, RED actions, tool calls
-and average latency for the last 24 hours.
+The Dashboard now exposes the live backend/model status and the API exposes telemetry
+summary and recent events. Request count, failures, RED actions, tool calls and average
+latency are stored in the `observability_events` table and can be queried through
+`/api/system/telemetry` and `/api/system/events`.
 
 ## Request budgets
 
