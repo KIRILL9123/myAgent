@@ -685,6 +685,17 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
     
     messages.extend(history)
 
+    # ponytail: trim context if total chars > 12000 to prevent silent token overflow
+    total_chars = sum(len(m.get("content", "") or "") for m in messages)
+    if total_chars > 12000:
+        # keep system prompt + last 6 messages minimum
+        keep = 6
+        trim = messages[1:-keep] if len(messages) > keep + 1 else []
+        if trim:
+            trimmed = len(trim)
+            messages = [messages[0]] + messages[-keep:]
+            print(f"[CONTEXT] Trimmed {trimmed} messages ({total_chars} -> {sum(len(m.get('content','') or '') for m in messages)} chars)")
+
     executed_tool_calls: list[str] = []
     requires_confirmation = False
     json_error_count = 0
