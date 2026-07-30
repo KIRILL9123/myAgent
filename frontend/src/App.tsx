@@ -10,6 +10,7 @@ import CountdownsPage from './pages/CountdownsPage';
 import DashboardPage from './pages/DashboardPage';
 import CommitmentsPage from './pages/CommitmentsPage';
 import ApprovalsPage from './pages/ApprovalsPage';
+import SystemPage from './pages/SystemPage';
 import { generateSessionId } from './api/chat';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/commitments" element={<CommitmentsPage />} />
           <Route path="/approvals" element={<ApprovalsPage />} />
+          <Route path="/system" element={<SystemPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/mail" element={<MailPage />} />
           <Route path="/finance" element={<FinancePage />} />

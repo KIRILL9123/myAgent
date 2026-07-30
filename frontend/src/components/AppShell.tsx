@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Brain, Calendar, CheckCircle2, Clock, LayoutDashboard, Mail, Menu,
-  MessageSquare, ShieldCheck, Wallet, X,
+  MessageSquare, MonitorCog, ShieldCheck, Wallet, X,
 } from 'lucide-react';
 
 interface AppShellProps { children: React.ReactNode; }
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { path: '/memory', label: 'Память', icon: Brain, mobile: 'Память', primary: false },
   { path: '/commitments', label: 'Обязательства', icon: CheckCircle2, mobile: 'Обязательства', primary: true },
   { path: '/approvals', label: 'Подтверждения', icon: ShieldCheck, mobile: 'Подтверждения', primary: false },
+  { path: '/system', label: 'Система', icon: MonitorCog, mobile: 'Система', primary: false },
 ];
 
 export default function AppShell({ children }: AppShellProps) {

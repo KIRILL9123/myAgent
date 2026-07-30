@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from backend.app.agent import llm
+from backend.app.observability.host_diagnostics import get_host_diagnostics
 
 
 def _check_endpoint(name: str, url: str) -> dict:
@@ -48,6 +49,7 @@ def get_system_status() -> dict:
     parsed = urlparse(model["url"])
     bonsai_parsed = urlparse(bonsai_url)
     ollama_parsed = urlparse(ollama_url)
+    host_metrics = get_host_diagnostics()
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "overall": "ok" if model["status"] == "ok" else "degraded",
@@ -66,4 +68,5 @@ def get_system_status() -> dict:
         ],
         "host": {"platform": platform.platform(), "hostname": socket.gethostname(),
                  "python": platform.python_version()},
+        "host_metrics": host_metrics,
     }

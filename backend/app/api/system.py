@@ -3,6 +3,7 @@ import asyncio
 from fastapi import APIRouter, Query
 
 from backend.app.observability.system_status import get_system_status
+from backend.app.observability.host_diagnostics import get_host_diagnostics
 from backend.app.observability.telemetry import get_recent_events, get_telemetry_summary
 
 router = APIRouter()
@@ -11,6 +12,11 @@ router = APIRouter()
 @router.get("/status")
 async def api_system_status():
     return await asyncio.to_thread(get_system_status)
+
+
+@router.get("/host")
+async def api_host_diagnostics():
+    return await asyncio.to_thread(get_host_diagnostics)
 
 
 @router.get("/telemetry")

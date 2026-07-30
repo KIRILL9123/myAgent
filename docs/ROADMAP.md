@@ -212,6 +212,7 @@ read-only-first, provenance-aware, budgeted and approval-gated for any side effe
 - [ ] Store provenance and retrieval timestamps for externally sourced answers
 
 **Host computer control**
+- [x] Read-only host diagnostics: CPU, RAM, disks, process count and top processes
 - [ ] Define capability levels: read-only diagnostics → preview/dry-run → approved action
 - [ ] Add explicit user approval, scoped capability tokens, audit events and emergency stop
 - [ ] Sandbox process, filesystem and network access; deny by default

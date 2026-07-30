@@ -51,6 +51,7 @@ Near-to-medium-term concrete features not yet scheduled. Long-term phase items b
 - **Dashboard drag-and-drop widgets**: Gridstack-based resize and reorder.
 
 **Infrastructure**
+- **Read-only host diagnostics**: CPU, RAM, disk and top-process metrics are now available through the system API and Dashboard; process control remains explicitly deferred.
 - **Always-on server**: evaluate Raspberry Pi or mini-PC to replace MacBook Air as permanent host.
 - **GitHub Integration**: include open issues/PRs in morning summary.
 - **Finance: source_template_id dedup**: add `source_template_id` to transactions table to fix the known duplicate-template edge case.

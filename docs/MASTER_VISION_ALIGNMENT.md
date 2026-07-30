@@ -59,7 +59,7 @@ and priorities while requiring human approval for high-impact actions.
 | Hybrid retrieval | **Planned** | SQL filters → vector retrieval → reranking → LLM |
 | Adversarial security testing | **Planned** | Corpus for prompt injection, poisoned memory and malicious tool arguments |
 | Security model | **Partially implemented** | API auth, deny-by-default permissions, untrusted content wrapping, RED confirmations |
-| Sandboxed diagnostics | **Partially implemented** | Read-only backend/model health, ports and host metadata; process, CPU, memory and disk diagnostics remain planned |
+| Sandboxed diagnostics | **v1 implemented** | Read-only backend/model health, ports, CPU, memory, disk and top-process diagnostics; sandboxed process control remains planned |
 | Self-improvement sandbox | **Planned / deferred** | Branch + isolated environment + tests + evaluation + human approval |
 | Ausbildung learning system | **Deferred** | Separate learning module with RAG, flashcards, tests and progress |
 | Home Assistant | **Deferred** | Long-term integration; not part of the current cycle |
