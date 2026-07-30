@@ -25,11 +25,11 @@ and priorities while requiring human approval for high-impact actions.
 | Evidence-based answers and citations | **Planned** | Fact/email/document/chunk provenance in responses |
 | Personal State Engine | **Planned** | Aggregate memory, calendar, mail, finance, tasks, projects and commitments |
 | Goals → Projects → Tasks → Actions | **Planned** | Project entities and hierarchy |
-| Commitment Tracker | **Core implemented** | `backend/app/commitments/*`, versioned schema and API; extraction and integrations remain |
+| Commitment Tracker | **Core + first integrations implemented** | Commitment Center, email proposals, calendar links and Telegram reminders; Personal State consumption remains |
 | Decision Journal | **Planned** | Decision, rationale, alternatives, evidence and status |
 | Calendar intelligence | **Partially planned** | Add conflict, density, preference, commitment and project-deadline checks |
 | Email threading and importance detection | **Planned** | Add thread grouping, importance, deadlines and action extraction |
-| Email → Commitment | **Planned** | Propose commitments from email after core tracker |
+| Email → Commitment | **Implemented** | Approval-gated proposals from analyzed email content |
 | Receipt → Expense proposal | **Planned** | Approval-gated Finance proposal |
 | Email auto-filing | **Planned** | Shadow mode → approval → automation |
 | Finance budget advisor and proactive alerts | **Planned** | Balance, recurring costs, goals and spending trend analysis |
@@ -73,7 +73,7 @@ dashboard, a provider abstraction, and live smoke coverage.
 
 The largest missing product layers are:
 
-1. Commitment Tracker.
+1. Unified Approval Control Plane.
 2. Unified Approval Control Plane.
 3. Personal State Engine.
 4. Document Vault / RAG with provenance.
@@ -83,7 +83,7 @@ The largest missing product layers are:
 
 1. Finish safety and infrastructure: versioned migrations, approval unification,
    observability, request budgets and adversarial regression tests.
-2. Implement Commitment Tracker and connect it to calendar, email and Telegram.
+2. Add deeper commitment extraction from chat/documents and Personal State consumption.
 3. Implement Personal State and daily/nightly state briefs.
 4. Add Document Vault / RAG and evidence-based answers.
 5. Add Decision Journal, project entities and finance intelligence.

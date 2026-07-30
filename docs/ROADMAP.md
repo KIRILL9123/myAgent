@@ -138,10 +138,10 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [x] SQLite-backed commitment entity with provenance, owner, source and reminder fields
 - [x] Approval-backed API and lifecycle event history
 - [x] Deadline expiry review operation
-- [ ] Commitment extraction from chat and email
+- [x] Commitment extraction proposals from email (chat extraction remains a follow-up)
 - [x] Calendar / deadline linkage for commitments (explicit event links; events never auto-complete commitments)
-- [ ] Commitment reminders via Telegram
-- [ ] Commitment expiry and review flow
+- [x] Commitment reminders via Telegram
+- [x] Commitment expiry and review flow
 
 **Memory Evolution**
 - [ ] Provenance bundle (source type, source ref, extractor metadata)

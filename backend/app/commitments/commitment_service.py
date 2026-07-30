@@ -159,6 +159,53 @@ def list_commitments(status: str | None = None, owner: str | None = None,
     return [_row_to_dict(row) for row in rows]
 
 
+def list_commitments_by_source_prefix(prefix: str) -> list[dict[str, Any]]:
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            """SELECT id, title, description, status, confidence, provenance_json,
+                       source_type, source_ref, owner, deadline_at, reminder_at,
+                       reminder_sent_at, created_at, updated_at, activated_at,
+                       completed_at, cancelled_at, expired_at, approval_provenance_json,
+                       related_fact_ids_json, related_calendar_event_ids_json,
+                       conflicts_with_ids_json
+                FROM commitments WHERE source_ref LIKE ? ORDER BY created_at""",
+            (f"{prefix}%",),
+        ).fetchall()
+    return [_row_to_dict(row) for row in rows]
+
+
+def get_due_reminders(now: str | None = None) -> list[dict[str, Any]]:
+    cutoff = _validate_datetime(now, "now") if now else _now()
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            """SELECT id, title, description, status, confidence, provenance_json,
+                       source_type, source_ref, owner, deadline_at, reminder_at,
+                       reminder_sent_at, created_at, updated_at, activated_at,
+                       completed_at, cancelled_at, expired_at, approval_provenance_json,
+                       related_fact_ids_json, related_calendar_event_ids_json,
+                       conflicts_with_ids_json
+                FROM commitments
+                WHERE status = 'ACTIVE' AND reminder_at IS NOT NULL
+                  AND reminder_at <= ? AND reminder_sent_at IS NULL
+                ORDER BY reminder_at""",
+            (cutoff,),
+        ).fetchall()
+    return [_row_to_dict(row) for row in rows]
+
+
+def mark_reminder_sent(commitment_id: str, sent_at: str | None = None) -> None:
+    if not _get(commitment_id):
+        raise KeyError("commitment not found")
+    sent_at = _validate_datetime(sent_at, "sent_at") if sent_at else _now()
+    with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE commitments SET reminder_sent_at = ?, updated_at = ? WHERE id = ?",
+            (sent_at, sent_at, commitment_id),
+        )
+        _record_event(conn, commitment_id, "REMINDER_SENT", "ACTIVE", "ACTIVE", {"sent_at": sent_at})
+        conn.commit()
+
+
 def get_commitment(commitment_id: str) -> dict[str, Any] | None:
     return _get(commitment_id)
 

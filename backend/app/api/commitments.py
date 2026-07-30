@@ -14,6 +14,7 @@ from backend.app.commitments.commitment_service import (
     unlink_calendar_event,
     update_commitment,
 )
+from backend.app.commitments.email_extractor import extract_email_commitments
 
 router = APIRouter()
 
@@ -51,6 +52,15 @@ class CalendarLinkRequest(BaseModel):
     deadline_at: str | None = None
 
 
+class EmailCommitmentRequest(BaseModel):
+    account: str
+    sender: str
+    recipient: str = ""
+    subject: str
+    date: str = ""
+    preview: str = ""
+
+
 def _error(exc: Exception, not_found: int = 400) -> HTTPException:
     if isinstance(exc, KeyError):
         return HTTPException(status_code=404, detail=str(exc).strip("'"))
@@ -63,6 +73,15 @@ async def api_create_commitment(req: CommitmentCreateRequest):
         return create_commitment(**req.model_dump())
     except (ValueError, KeyError) as exc:
         raise _error(exc)
+
+
+@router.post("/from-email")
+async def api_extract_email_commitments(req: EmailCommitmentRequest):
+    try:
+        proposals = await extract_email_commitments(**req.model_dump())
+        return {"proposals": proposals}
+    except (ValueError, RuntimeError) as exc:
+        raise _error(exc, 502 if isinstance(exc, RuntimeError) else 400)
 
 
 @router.get("/")

@@ -13,7 +13,7 @@ The current cycle is intentionally focused on the missing product foundations id
 in [MASTER_VISION_ALIGNMENT.md](MASTER_VISION_ALIGNMENT.md):
 
 - [x] Implement Commitment Tracker lifecycle and approval-backed proposals
-- [ ] Connect Commitment Tracker to calendar, email and Telegram reminders
+- [x] Connect Commitment Tracker to calendar, email and Telegram reminders
 - [ ] Define the Unified Approval Control Plane record and API contract
 - [ ] Add observability foundation: correlation IDs, structured events and request budgets
 - [x] Replace ad-hoc SQLite schema updates with versioned migrations
@@ -26,11 +26,12 @@ in [MASTER_VISION_ALIGNMENT.md](MASTER_VISION_ALIGNMENT.md):
 Near-to-medium-term concrete features not yet scheduled. Long-term phase items belong in [ROADMAP.md](ROADMAP.md).
 
 **Agent and proactivity**
+- **Trial subscription cancellation reminders**: detect free-trial or renewal dates and remind the user before a paid charge, with an explicit cancellation checklist.
 - **Receipt → Expense proposals**: agent detects a purchase receipt in email and proposes adding it to Finance.
 - **Calendar Conflict Checking**: warn before creating/modifying an event that overlaps with an existing one.
 - **Calendar × Memory integration**: warn when a new event conflicts with approved user preferences (e.g. "no meetings before 10:00").
 - **Smart Reminders**: reminders based on deadlines extracted from emails and documents.
-- **Commitment Tracker**: full domain per [domain/COMMITMENT_CONTRACT.md](domain/COMMITMENT_CONTRACT.md) (planned Phase 2).
+- **Commitment Center improvements**: richer extraction, rescheduling and notification preferences.
 
 **Notifications**
 - **Quiet hours configuration**: suppress non-urgent Telegram notifications during user-defined hours.

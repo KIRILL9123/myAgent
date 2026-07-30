@@ -4,13 +4,16 @@ from backend.app.commitments.commitment_service import (
     create_commitment,
     commitments_for_calendar_events,
     expire_overdue,
+    get_due_reminders,
     get_commitment_events,
     list_commitments,
     transition_commitment,
     link_calendar_event,
+    mark_reminder_sent,
     unlink_calendar_event,
     update_commitment,
 )
+import backend.app.commitments.email_extractor as email_extractor
 from backend.app.storage import db
 
 
@@ -97,3 +100,44 @@ def test_calendar_links_are_explicit_and_do_not_complete_commitment(commitment_d
     assert [event["event_type"] for event in get_commitment_events(commitment["id"])] == [
         "CREATED", "CALENDAR_LINKED", "CALENDAR_UNLINKED"
     ]
+
+
+@pytest.mark.asyncio
+async def test_email_extraction_creates_proposals_and_is_idempotent(commitment_db, monkeypatch):
+    async def fake_chat(*args, **kwargs):
+        return {
+            "message": {"content": '{"commitments": [{"title": "Cancel the trial before renewal", "owner": "user", "deadline_at": "2030-01-10T12:00:00+00:00", "confidence": 0.9}]}'},
+        }
+
+    monkeypatch.setattr(email_extractor, "chat", fake_chat)
+    email = {
+        "account": "gmail",
+        "sender": "billing@example.com",
+        "recipient": "me@example.com",
+        "subject": "Your trial ends soon",
+        "date": "2030-01-01T12:00:00+00:00",
+        "preview": "Cancel before renewal to avoid a charge.",
+    }
+
+    first = await email_extractor.extract_email_commitments(**email)
+    second = await email_extractor.extract_email_commitments(**email)
+
+    assert len(first) == 1
+    assert first[0]["status"] == "PROPOSED"
+    assert first[0]["source_type"] == "EMAIL"
+    assert [item["id"] for item in second] == [first[0]["id"]]
+
+
+def test_due_reminder_is_selected_once_and_recorded(commitment_db):
+    commitment = create_commitment(
+        "Cancel trial", source_type="EMAIL",
+        deadline_at="2030-01-10T12:00:00+00:00",
+        reminder_at="2030-01-01T12:00:00+00:00",
+    )
+    transition_commitment(commitment["id"], "approve")
+
+    due = get_due_reminders("2030-01-02T12:00:00+00:00")
+    assert [item["id"] for item in due] == [commitment["id"]]
+
+    mark_reminder_sent(commitment["id"], "2030-01-02T12:01:00+00:00")
+    assert get_due_reminders("2030-01-03T12:00:00+00:00") == []

@@ -8,6 +8,7 @@ import MailPage from './pages/MailPage';
 import FinancePage from './pages/FinancePage';
 import CountdownsPage from './pages/CountdownsPage';
 import DashboardPage from './pages/DashboardPage';
+import CommitmentsPage from './pages/CommitmentsPage';
 import { generateSessionId } from './api/chat';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/chat" element={<ChatPage sessionId={sessionId} />} />
           <Route path="/memory" element={<MemoryPage />} />
+          <Route path="/commitments" element={<CommitmentsPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/mail" element={<MailPage />} />
           <Route path="/finance" element={<FinancePage />} />

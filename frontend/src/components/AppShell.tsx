@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MessageSquare, Calendar, Mail, Wallet, Clock, Brain, LayoutDashboard } from 'lucide-react';
+import { MessageSquare, Calendar, Mail, Wallet, Clock, Brain, LayoutDashboard, CheckCircle2 } from 'lucide-react';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { path: '/finance', label: 'Финансы', icon: Wallet },
   { path: '/deadlines', label: 'Дедлайны', icon: Clock },
   { path: '/memory', label: 'Память', icon: Brain },
+  { path: '/commitments', label: 'Commitments', icon: CheckCircle2 },
 ];
 
 export default function AppShell({ children }: AppShellProps) {

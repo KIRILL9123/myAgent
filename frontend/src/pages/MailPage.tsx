@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Mail, 
   Search, 
@@ -21,6 +22,7 @@ import {
   sendEmail
 } from '../api/mail';
 import type { EmailMessage } from '../api/mail';
+import { extractEmailCommitments } from '../api/commitments';
 
 interface MailFormState {
   to: string;
@@ -29,6 +31,7 @@ interface MailFormState {
 }
 
 export default function MailPage() {
+  const navigate = useNavigate();
   const [account, setAccount] = useState<'gmail' | 'ukrnet'>('gmail');
   const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -48,6 +51,7 @@ export default function MailPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const [sending, setSending] = useState<boolean>(false);
   const [sendSuccess, setSendSuccess] = useState<boolean>(false);
+  const [analyzingEmail, setAnalyzingEmail] = useState<number | null>(null);
 
   // Load emails
   const loadEmails = async (searchStr?: string) => {
@@ -82,6 +86,29 @@ export default function MailPage() {
   const handleClearSearch = () => {
     setSearchQuery('');
     loadEmails('');
+  };
+
+  const handleAnalyzeCommitments = async (emailItem: EmailMessage, index: number) => {
+    setAnalyzingEmail(index);
+    try {
+      const result = await extractEmailCommitments({
+        account,
+        sender: emailItem.from,
+        recipient: emailItem.to,
+        subject: emailItem.subject,
+        date: emailItem.date,
+        preview: emailItem.preview,
+      });
+      if (result.proposals.length > 0) {
+        navigate('/commitments');
+      } else {
+        alert('Явных обязательств в письме не найдено.');
+      }
+    } catch (err: any) {
+      alert(`Ошибка анализа письма: ${err.message}`);
+    } finally {
+      setAnalyzingEmail(null);
+    }
   };
 
   const extractEmailAddress = (fromStr: string): string => {
@@ -354,6 +381,14 @@ export default function MailPage() {
 
                   {/* Actions footer */}
                   <div className="flex justify-end gap-2 border-t border-zinc-800/40 pt-4 mt-5">
+                    <button
+                      onClick={() => handleAnalyzeCommitments(emailItem, idx)}
+                      disabled={analyzingEmail === idx}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all border border-transparent hover:border-amber-500/25 cursor-pointer"
+                    >
+                      {analyzingEmail === idx ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                      Обязательства
+                    </button>
                     <button
                       onClick={() => handleReplyClick(emailItem)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-zinc-450 hover:text-blue-400 hover:bg-blue-500/10 transition-all border border-transparent hover:border-blue-500/25 cursor-pointer"

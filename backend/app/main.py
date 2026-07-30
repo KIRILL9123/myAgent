@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from starlette.responses import Response
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from backend.app.api.chat import router as chat_router
 from backend.app.agent.scheduled_tasks import morning_summary
 
@@ -48,6 +49,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         id="recurring_transactions_job",
         replace_existing=True,
         misfire_grace_time=21600
+    )
+
+    async def commitment_reminder_job():
+        from backend.app.commitments.commitment_service import get_due_reminders, mark_reminder_sent
+        from backend.app.notifications.telegram_notifier import send_notification
+
+        for commitment in get_due_reminders():
+            deadline = commitment.get("deadline_at") or "без указанного срока"
+            message = f"Напоминание об обязательстве:\n{commitment['title']}\nСрок: {deadline}"
+            result = await send_notification(message)
+            if result is True:
+                mark_reminder_sent(commitment["id"])
+
+    scheduler.add_job(
+        commitment_reminder_job,
+        trigger=IntervalTrigger(minutes=15),
+        id="commitment_reminder_job",
+        replace_existing=True,
+        misfire_grace_time=3600,
     )
 
     from backend.app.storage.backup import create_backup, apply_retention_policy
