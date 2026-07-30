@@ -14,7 +14,7 @@ import backend.app.agent.llm as llm
 llm_call_count = 0
 original_chat = llm.chat
 
-async def mock_chat(messages, tools=None, response_format=None):
+async def mock_chat(messages, tools=None, response_format=None, role=None):
     global llm_call_count
     llm_call_count += 1
     return {"message": {"content": '{"fact_ids": []}'}}

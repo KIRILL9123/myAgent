@@ -101,13 +101,12 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 
 *Model coupling is the biggest architectural debt. Every model-dependent file imports `chat_with_ollama` directly.*
 
-- [ ] `ModelProvider` abstract base class (unified interface: chat, embed, supports_tools, supports_json)
-- [ ] `OllamaProvider` implementation
-- [ ] `OpenAICompatibleProvider` implementation (OpenAI, OpenRouter, Groq — any REST-compatible API)
+- [x] Unified provider-neutral chat layer in `backend/app/agent/llm.py`
+- [x] Ollama and OpenAI-compatible provider implementations in the unified layer
 - [ ] `MLXProvider` implementation (Apple Silicon native, for future production)
-- [ ] `ModelRegistry` — role-to-model mapping via configuration
+- [ ] `ModelRegistry` — typed role-to-provider/model mapping
 - [ ] Model roles: `main_reasoning`, `extractor`, `fast_classifier`, `embeddings`
-- [ ] Replace all 8 direct `chat_with_ollama` call sites:
+- [x] Replace direct model calls with the unified `llm.chat` facade:
   - `orchestrator.py` (main chat + tool calling)
   - `scheduled_tasks.py` (morning summary)
   - `memory_service.py` (fact filtering + consolidation)
@@ -115,6 +114,7 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
   - `relation_builder.py` (relation suggestions)
 - [x] Model configuration in `.env` / config (per-role model selection, provider choice)
 - [x] Fallback model support (if main model is unavailable → try fallback → error)
+- [x] Regression tests for Ollama and OpenAI-compatible fallback paths
 
 **Expected benefit**: Swap models by changing config, not code. Run different models for different tasks. Add remote APIs without business logic changes.
 

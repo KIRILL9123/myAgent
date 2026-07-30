@@ -48,15 +48,24 @@ def test_send_email_with_account_dry_run():
 def test_send_email_real_mode_calls_smtp(monkeypatch):
     monkeypatch.setenv("EXECUTION_MODE", "real")
 
-    from backend.app.connectors.mail_connector import send_email
+    from backend.app.connectors import mail_connector
 
-    with mock.patch("smtplib.SMTP") as mock_smtp, mock.patch("smtplib.SMTP_SSL") as mock_smtp_ssl:
+    fake_config = {
+        "smtp_host": "smtp.example.com",
+        "smtp_port": 587,
+        "user": "sender@example.com",
+        "pwd": "test-password",
+    }
+    with mock.patch.object(mail_connector, "_get_account_config", return_value=fake_config), \
+         mock.patch("smtplib.SMTP") as mock_smtp, mock.patch("smtplib.SMTP_SSL") as mock_smtp_ssl:
         instance = mock.MagicMock()
         mock_smtp.return_value = instance
 
-        send_email(to="test@test.com", subject="Subj", body="Body")
+        result = mail_connector.send_email(to="test@test.com", subject="Subj", body="Body")
 
-        mock_smtp.assert_called_once()
+    assert result["status"] == "success"
+    mock_smtp.assert_called_once_with("smtp.example.com", 587)
+    mock_smtp_ssl.assert_not_called()
 
 
 # ──────────────────────────────────────────────────────────────────────
