@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Mail, 
@@ -6,38 +6,25 @@ import {
   Send, 
   Loader2, 
   AlertCircle, 
-  CornerUpLeft, 
   Eye, 
   ChevronLeft, 
   CheckCircle,
   Inbox,
-  User,
-  Calendar,
   AlertTriangle,
   X
 } from 'lucide-react';
-import { 
-  fetchUnreadEmails, 
-  searchEmails, 
-  sendEmail
-} from '../api/mail';
+import { sendEmail } from '../api/mail';
 import type { EmailMessage } from '../api/mail';
 import { extractEmailCommitments } from '../api/commitments';
-
-interface MailFormState {
-  to: string;
-  subject: string;
-  body: string;
-}
+import { useMailInbox } from '../hooks/useMailInbox';
+import type { MailAccount, MailFormState } from '../types';
+import EmailCard from '../components/mail/EmailCard';
 
 export default function MailPage() {
   const navigate = useNavigate();
-  const [account, setAccount] = useState<'gmail' | 'ukrnet'>('gmail');
-  const [emails, setEmails] = useState<EmailMessage[]>([]);
+  const [account, setAccount] = useState<MailAccount>('gmail');
+  const { emails, loading, error, isSearching, loadEmails } = useMailInbox(account);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Compose/Reply states
   const [isComposeOpen, setIsComposeOpen] = useState<boolean>(false);
@@ -52,31 +39,6 @@ export default function MailPage() {
   const [sending, setSending] = useState<boolean>(false);
   const [sendSuccess, setSendSuccess] = useState<boolean>(false);
   const [analyzingEmail, setAnalyzingEmail] = useState<number | null>(null);
-
-  // Load emails
-  const loadEmails = async (searchStr?: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      let data: EmailMessage[];
-      if (searchStr && searchStr.trim()) {
-        data = await searchEmails(searchStr.trim(), account);
-        setIsSearching(true);
-      } else {
-        data = await fetchUnreadEmails(account);
-        setIsSearching(false);
-      }
-      setEmails(data);
-    } catch (err: any) {
-      setError(err.message || 'Ошибка при загрузке почты');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadEmails();
-  }, [account]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,66 +300,17 @@ export default function MailPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {emails.map((emailItem, idx) => (
-                <div 
-                  key={idx}
-                  className="bg-zinc-900/40 border border-zinc-900 hover:border-zinc-800/80 rounded-2xl p-5 transition-all flex flex-col justify-between group shadow-md hover:shadow-lg"
-                >
-                  <div className="flex flex-col gap-3.5">
-                    {/* Date and Source */}
-                    <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>{formatEmailDate(emailItem.date)}</span>
-                      </div>
-                      <span className="uppercase text-blue-500/80 font-bold bg-blue-500/5 px-2 py-0.5 rounded-lg border border-blue-500/10">
-                        {account}
-                      </span>
-                    </div>
-
-                    {/* Sender */}
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="p-2 rounded-xl bg-zinc-800/60 text-zinc-400 border border-zinc-800 shrink-0">
-                        <User className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="block text-xs font-semibold text-zinc-300 truncate">
-                          {cleanPreviewText(emailItem.from)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Subject */}
-                    <h2 className="text-sm font-semibold text-zinc-200 tracking-wide line-clamp-2 mt-1">
-                      {cleanPreviewText(emailItem.subject)}
-                    </h2>
-
-                    {/* Preview */}
-                    {emailItem.preview && (
-                      <p className="text-xs text-zinc-550 leading-relaxed font-sans line-clamp-3 mt-1.5 min-h-[3rem]">
-                        {cleanPreviewText(emailItem.preview)}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Actions footer */}
-                  <div className="flex justify-end gap-2 border-t border-zinc-800/40 pt-4 mt-5">
-                    <button
-                      onClick={() => handleAnalyzeCommitments(emailItem, idx)}
-                      disabled={analyzingEmail === idx}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all border border-transparent hover:border-amber-500/25 cursor-pointer"
-                    >
-                      {analyzingEmail === idx ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-                      Обязательства
-                    </button>
-                    <button
-                      onClick={() => handleReplyClick(emailItem)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-zinc-450 hover:text-blue-400 hover:bg-blue-500/10 transition-all border border-transparent hover:border-blue-500/25 cursor-pointer"
-                    >
-                      <CornerUpLeft className="h-3.5 w-3.5" />
-                      Ответить
-                    </button>
-                  </div>
-                </div>
+                <EmailCard
+                  key={`${emailItem.date}-${idx}`}
+                  email={emailItem}
+                  account={account}
+                  index={idx}
+                  analyzing={analyzingEmail === idx}
+                  formatEmailDate={formatEmailDate}
+                  cleanPreviewText={cleanPreviewText}
+                  onAnalyze={handleAnalyzeCommitments}
+                  onReply={handleReplyClick}
+                />
               ))}
             </div>
           )}

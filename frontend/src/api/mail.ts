@@ -1,17 +1,6 @@
-export interface EmailMessage {
-  from: string;
-  to: string;
-  subject: string;
-  date: string;
-  preview: string;
-}
+import type { EmailMessage, EmailSendInput } from '../types';
 
-export interface EmailSendInput {
-  to: string;
-  subject: string;
-  body: string;
-  account?: string;
-}
+export type { EmailMessage, EmailSendInput } from '../types';
 
 const API_BASE = '/api/mail';
 

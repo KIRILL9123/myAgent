@@ -1,39 +1,16 @@
-export interface Transaction {
-  id: number;
-  type: 'income' | 'expense';
-  amount: number;
-  category: string;
-  description: string;
-  date: string;
-}
+import type {
+  FinanceSummary,
+  RecurringTemplate,
+  Transaction,
+  TransactionCreateInput,
+} from '../types';
 
-export interface FinanceSummary {
-  start_date: string;
-  end_date: string;
-  total_income: number;
-  total_expense: number;
-  net_balance: number;
-  expense_breakdown: { category: string; amount: number }[];
-  income_breakdown: { category: string; amount: number }[];
-}
-
-export interface TransactionCreateInput {
-  type: 'income' | 'expense';
-  amount: number;
-  category: string;
-  description?: string;
-  date?: string;
-  is_recurring?: boolean;
-}
-
-export interface RecurringTemplate {
-  id: number;
-  type: 'income' | 'expense';
-  amount: number;
-  category: string;
-  description: string;
-  day_of_month: number;
-}
+export type {
+  FinanceSummary,
+  RecurringTemplate,
+  Transaction,
+  TransactionCreateInput,
+} from '../types';
 
 const API_BASE = '/api/finance';
 
