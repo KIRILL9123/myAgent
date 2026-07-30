@@ -18,7 +18,7 @@ OPENAI_BASE_URL = os.getenv("LLM_BASE_URL", "http://127.0.0.1:8080/v1")
 OPENAI_API_KEY = os.getenv("LLM_API_KEY", "local")
 OPENAI_MODEL = os.getenv("LLM_MODEL", "Ternary-Bonsai-27B-Q2_0")
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
-LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "1200"))
+LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "3000"))
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT_SECONDS", "120"))
 
 _http_client: httpx.AsyncClient | None = None
