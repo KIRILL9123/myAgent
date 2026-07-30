@@ -703,7 +703,7 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
 
     # ── Step 2: Multi-turn tool calling loop ──
     for _round in range(MAX_TOOL_ROUNDS):
-        response = await chat(messages, tools=AVAILABLE_TOOLS)
+        response = await chat(messages, tools=AVAILABLE_TOOLS, role="main")
 
         if isinstance(response, dict) and response.get("status") == "error":
             return {"response": response.get("message"), "tool_calls": executed_tool_calls}

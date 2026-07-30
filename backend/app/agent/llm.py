@@ -78,18 +78,20 @@ async def chat(
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]] | None = None,
     response_format: str | None = None,
+    role: str = "main",
 ) -> dict[str, Any]:
     if _in_cooldown():
         return {"status": "error",
                 "message": "LLM backend is temporarily offline (cooldown after repeated errors). "
                            "It will be retried automatically."}
+    model = get_model_for_role(role)
     if LLM_PROVIDER == "openai_compatible":
-        return await _chat_openai(messages, tools, response_format)
-    return await _chat_ollama(messages, tools, response_format)
+        return await _chat_openai(messages, tools, response_format, model)
+    return await _chat_ollama(messages, tools, response_format, model)
 
-async def _chat_ollama(messages, tools, response_format) -> dict[str, Any]:
+async def _chat_ollama(messages, tools, response_format, model: str) -> dict[str, Any]:
     payload: dict[str, Any] = {
-        "model": OLLAMA_MODEL,
+        "model": model,
         "messages": messages,
         "stream": False,
         "options": {"temperature": LLM_TEMPERATURE},
@@ -110,10 +112,10 @@ async def _chat_ollama(messages, tools, response_format) -> dict[str, Any]:
             latency = time.monotonic() - t0
             resp.raise_for_status()
             data = resp.json()
-            _log_call("ollama", OLLAMA_MODEL, resp.status_code, latency,
+            _log_call("ollama", model, resp.status_code, latency,
                       bool(data.get("message", {}).get("tool_calls")))
             _record_success()
-            return {"model": OLLAMA_MODEL, "message": data.get("message", {})}
+            return {"model": model, "message": data.get("message", {})}
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             last_err = e
             if attempt == 0:
@@ -121,19 +123,19 @@ async def _chat_ollama(messages, tools, response_format) -> dict[str, Any]:
             continue
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
-            _log_call("ollama", OLLAMA_MODEL, status, 0, False)
+            _log_call("ollama", model, status, 0, False)
             if status in (429, 500, 502, 503, 504):
                 return {"status": "error",
                         "message": "Локальная модель (Ollama) временно перегружена. Попробуйте позже."}
             return {"status": "error",
                     "message": f"Ollama rejected the request (HTTP {status})."}
         except Exception as e:
-            _log_error("ollama", OLLAMA_MODEL, e)
+            _log_error("ollama", model, e)
             _record_error()
             return {"status": "error",
                     "message": f"Failed to communicate with Ollama: {type(e).__name__}"}
 
-    _log_error("ollama", OLLAMA_MODEL, last_err)
+    _log_error("ollama", model, last_err)
     _record_error()
     if LLM_FALLBACK_MODEL:
         print(f"[LLM] falling back to {LLM_FALLBACK_MODEL}")
@@ -152,9 +154,9 @@ async def _chat_ollama(messages, tools, response_format) -> dict[str, Any]:
     return {"status": "error",
             "message": f"Failed to communicate with Ollama. Is it running?"}
 
-async def _chat_openai(messages, tools, response_format) -> dict[str, Any]:
+async def _chat_openai(messages, tools, response_format, model: str) -> dict[str, Any]:
     payload: dict[str, Any] = {
-        "model": OPENAI_MODEL,
+        "model": model,
         "messages": messages,
         "temperature": LLM_TEMPERATURE,
         "max_tokens": LLM_MAX_TOKENS,
@@ -186,9 +188,9 @@ async def _chat_openai(messages, tools, response_format) -> dict[str, Any]:
             tool_calls = _normalize_tool_calls(msg.get("tool_calls"))
             msg["content"] = content
             msg["tool_calls"] = tool_calls
-            _log_call("openai_compatible", OPENAI_MODEL, resp.status_code, latency, bool(tool_calls))
+            _log_call("openai_compatible", model, resp.status_code, latency, bool(tool_calls))
             _record_success()
-            return {"model": OPENAI_MODEL, "message": msg}
+            return {"model": model, "message": msg}
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             last_err = e
             if attempt == 0:
@@ -196,7 +198,7 @@ async def _chat_openai(messages, tools, response_format) -> dict[str, Any]:
             continue
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
-            _log_call("openai_compatible", OPENAI_MODEL, status, 0, False)
+            _log_call("openai_compatible", model, status, 0, False)
             if status in (429, 500, 502, 503, 504):
                 return {"status": "error",
                         "message": "Локальная модель временно перегружена. "
@@ -204,12 +206,12 @@ async def _chat_openai(messages, tools, response_format) -> dict[str, Any]:
             return {"status": "error",
                     "message": f"LLM server rejected the request (HTTP {status})."}
         except Exception as e:
-            _log_error("openai_compatible", OPENAI_MODEL, e)
+            _log_error("openai_compatible", model, e)
             _record_error()
             return {"status": "error",
                     "message": f"Failed to communicate with OpenAI-compatible server: {type(e).__name__}"}
 
-    _log_error("openai_compatible", OPENAI_MODEL, last_err)
+    _log_error("openai_compatible", model, last_err)
     _record_error()
     if LLM_FALLBACK_MODEL:
         print(f"[LLM] falling back to {LLM_FALLBACK_MODEL}")

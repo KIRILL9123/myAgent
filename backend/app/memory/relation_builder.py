@@ -45,7 +45,7 @@ async def suggest_relations(new_fact: dict, existing_facts: list[dict]) -> list[
         {"role": "user", "content": prompt_user_content}
     ]
     
-    response = await chat_with_ollama(messages, response_format="json")
+    response = await chat_with_ollama(messages, response_format="json", role="extractor")
     if "error" in response:
         print(f"[RelationBuilder] LLM Error: {response['error']}")
         return []

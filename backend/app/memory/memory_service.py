@@ -366,9 +366,9 @@ async def get_relevant_facts(query: str, limit: int = 5) -> list[dict]:
     
     response = await chat_with_ollama(
         [{"role": "system", "content": filter_prompt}],
-        response_format="json"
+        response_format="json", role="extractor"
     )
-    
+
     if "error" in response:
         print(f"[MEMORY] LLM filter error, falling back to candidates limit: {response['error']}")
         return candidates[:limit]
@@ -427,7 +427,7 @@ async def find_consolidation_candidates() -> list[dict]:
     from backend.app.agent.llm import chat as chat_with_ollama
     import json
     
-    response = await chat_with_ollama(messages, response_format="json")
+    response = await chat_with_ollama(messages, response_format="json", role="extractor")
     if response.get("status") == "error" or "error" in response:
         print(f"[MemoryService] Consolidation LLM Error: {response.get('message', response.get('error'))}")
         return []

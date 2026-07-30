@@ -65,7 +65,7 @@ async def extract_facts_from_conversation(conversation_text: str, source_convers
         {"role": "user", "content": f"Conversation history:\n{conversation_text}"}
     ]
     
-    response = await chat_with_ollama(messages, response_format="json")
+    response = await chat_with_ollama(messages, response_format="json", role="extractor")
     if "error" in response:
         print(f"[FactExtractor] LLM Error: {response['error']}")
         return []
@@ -127,7 +127,7 @@ async def extract_facts_from_conversation(conversation_text: str, source_convers
                     existing_facts_str=existing_facts_str
                 )}
             ]
-            dedup_tasks.append(chat_with_ollama(messages, response_format="json"))
+            dedup_tasks.append(chat_with_ollama(messages, response_format="json", role="extractor"))
             dedup_items.append((content, category, confidence))
         else:
             dedup_items.append((content, category, confidence, None, None))

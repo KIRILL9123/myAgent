@@ -65,7 +65,7 @@ async def morning_summary():
 
     # 4. Generate Summary
     try:
-        response = await chat_with_ollama([{"role": "user", "content": prompt}], tools=[])
+        response = await chat_with_ollama([{"role": "user", "content": prompt}], tools=[], role="main")
         response_text = response.get("message", {}).get("content", "Пустой ответ от ИИ.")
     except Exception as e:
         response_text = f"Произошла ошибка при генерации сводки: {e}"
