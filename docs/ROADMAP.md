@@ -134,7 +134,10 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 *Extract complex domains into maintainable services without turning them into agents.*
 
 **Commitment Tracker**
-- [ ] Commitment entity lifecycle: PROPOSED → ACTIVE → COMPLETED / CANCELLED / EXPIRED
+- [x] Commitment entity lifecycle: PROPOSED → ACTIVE → COMPLETED / CANCELLED / EXPIRED
+- [x] SQLite-backed commitment entity with provenance, owner, source and reminder fields
+- [x] Approval-backed API and lifecycle event history
+- [x] Deadline expiry review operation
 - [ ] Commitment extraction from chat and email
 - [ ] Calendar / deadline linkage for commitments
 - [ ] Commitment reminders via Telegram

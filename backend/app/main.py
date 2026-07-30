@@ -161,6 +161,9 @@ app.include_router(calendar_router, prefix="/api/calendar")
 from backend.app.api.mail import router as mail_router
 app.include_router(mail_router, prefix="/api/mail")
 
+from backend.app.api.commitments import router as commitments_router
+app.include_router(commitments_router, prefix="/api/commitments")
+
 from fastapi.staticfiles import StaticFiles
 
 

@@ -25,11 +25,11 @@ and priorities while requiring human approval for high-impact actions.
 | Evidence-based answers and citations | **Planned** | Fact/email/document/chunk provenance in responses |
 | Personal State Engine | **Planned** | Aggregate memory, calendar, mail, finance, tasks, projects and commitments |
 | Goals → Projects → Tasks → Actions | **Planned** | Project entities and hierarchy |
-| Commitment Tracker | **Specified, not implemented** | `docs/domain/COMMITMENT_CONTRACT.md`; implement lifecycle and extraction |
+| Commitment Tracker | **Core implemented** | `backend/app/commitments/*`, versioned schema and API; extraction and integrations remain |
 | Decision Journal | **Planned** | Decision, rationale, alternatives, evidence and status |
 | Calendar intelligence | **Partially planned** | Add conflict, density, preference, commitment and project-deadline checks |
 | Email threading and importance detection | **Planned** | Add thread grouping, importance, deadlines and action extraction |
-| Email → Commitment | **Planned** | Depends on Commitment Tracker |
+| Email → Commitment | **Planned** | Propose commitments from email after core tracker |
 | Receipt → Expense proposal | **Planned** | Approval-gated Finance proposal |
 | Email auto-filing | **Planned** | Shadow mode → approval → automation |
 | Finance budget advisor and proactive alerts | **Planned** | Balance, recurring costs, goals and spending trend analysis |
