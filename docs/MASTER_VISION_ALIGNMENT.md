@@ -37,7 +37,7 @@ and priorities while requiring human approval for high-impact actions.
 | Daily and nightly state briefs | **Partially implemented** | Morning summary exists; nightly State of Me remains planned |
 | Proactive agent | **Partially implemented** | Scheduler and Telegram exist; trigger scoring, quiet hours and budgets remain |
 | Quiet hours, notification budget, coalescing and interrupt hierarchy | **Planned** | Notification policy service |
-| Unified Approval Control Plane | **Architecturally specified** | Current memory and RED confirmations are isolated; unify records and UI |
+| Unified Approval Control Plane | **v1 implemented** | Unified approval projection, API and web center cover memory facts, commitments and RED actions; deeper event history and policy unification remain planned |
 | Autonomy levels by domain | **Planned policy** | Formalize levels 0–5 and per-domain configuration |
 | Capability tokens | **Planned security feature** | Time-, action- and payload-scoped authorization |
 | Evaluation framework and regression pack | **Partially implemented** | `backend/tests`, E2E smoke test; add evaluation corpus and CI gates |

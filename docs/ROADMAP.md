@@ -50,7 +50,7 @@ The long-term system conceptually manages eight categories of structured knowled
 
 ## C. Unified Approval Control Plane
 
-The long-term design converges on a single **Unified Approval Inbox / Approval Control Plane** as the gateway for all high-impact proposed changes.
+The long-term design converges on a single **Unified Approval Inbox / Approval Control Plane** as the gateway for all high-impact proposed changes. A first implementation now projects memory facts, commitments and RED actions into a shared approval record, API and web center; full event history and policy unification remain future work.
 
 This control plane handles:
 

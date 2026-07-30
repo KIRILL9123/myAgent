@@ -184,6 +184,9 @@ app.include_router(mail_router, prefix="/api/mail")
 from backend.app.api.commitments import router as commitments_router
 app.include_router(commitments_router, prefix="/api/commitments")
 
+from backend.app.api.approvals import router as approvals_router
+app.include_router(approvals_router, prefix="/api/approvals")
+
 from fastapi.staticfiles import StaticFiles
 
 

@@ -14,7 +14,7 @@ in [MASTER_VISION_ALIGNMENT.md](MASTER_VISION_ALIGNMENT.md):
 
 - [x] Implement Commitment Tracker lifecycle and approval-backed proposals
 - [x] Connect Commitment Tracker to calendar, email and Telegram reminders
-- [ ] Define the Unified Approval Control Plane record and API contract
+- [x] Define and implement the Unified Approval Control Plane record and API contract (v1)
 - [ ] Add observability foundation: correlation IDs, structured events and request budgets
 - [x] Replace ad-hoc SQLite schema updates with versioned migrations
 
