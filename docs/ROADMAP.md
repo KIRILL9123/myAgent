@@ -139,7 +139,7 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [x] Approval-backed API and lifecycle event history
 - [x] Deadline expiry review operation
 - [ ] Commitment extraction from chat and email
-- [ ] Calendar / deadline linkage for commitments
+- [x] Calendar / deadline linkage for commitments (explicit event links; events never auto-complete commitments)
 - [ ] Commitment reminders via Telegram
 - [ ] Commitment expiry and review flow
 

@@ -8,8 +8,10 @@ from backend.app.commitments.commitment_service import (
     expire_overdue,
     get_commitment,
     get_commitment_events,
+    link_calendar_event,
     list_commitments,
     transition_commitment,
+    unlink_calendar_event,
     update_commitment,
 )
 
@@ -42,6 +44,11 @@ class CommitmentUpdateRequest(BaseModel):
 
 class ApprovalRequest(BaseModel):
     provenance: dict[str, Any] = Field(default_factory=dict)
+
+
+class CalendarLinkRequest(BaseModel):
+    event_id: str = Field(min_length=1)
+    deadline_at: str | None = None
 
 
 def _error(exc: Exception, not_found: int = 400) -> HTTPException:
@@ -123,6 +130,22 @@ async def api_cancel_commitment(commitment_id: str):
 async def api_reopen_commitment(commitment_id: str):
     try:
         return transition_commitment(commitment_id, "reopen")
+    except (ValueError, KeyError) as exc:
+        raise _error(exc)
+
+
+@router.post("/{commitment_id}/calendar-links")
+async def api_link_calendar_event(commitment_id: str, req: CalendarLinkRequest):
+    try:
+        return link_calendar_event(commitment_id, req.event_id, req.deadline_at)
+    except (ValueError, KeyError) as exc:
+        raise _error(exc)
+
+
+@router.delete("/{commitment_id}/calendar-links/{event_id}")
+async def api_unlink_calendar_event(commitment_id: str, event_id: str):
+    try:
+        return unlink_calendar_event(commitment_id, event_id)
     except (ValueError, KeyError) as exc:
         raise _error(exc)
 

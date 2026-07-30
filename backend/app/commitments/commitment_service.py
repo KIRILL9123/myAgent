@@ -202,6 +202,76 @@ def update_commitment(commitment_id: str, **changes: Any) -> dict[str, Any]:
     return _get(commitment_id)  # type: ignore[return-value]
 
 
+def link_calendar_event(commitment_id: str, event_id: str,
+                        deadline_at: str | None = None) -> dict[str, Any]:
+    """Link a supporting calendar event without changing commitment status."""
+    commitment = _get(commitment_id)
+    if not commitment:
+        raise KeyError("commitment not found")
+    if commitment["status"] in TERMINAL_STATUSES:
+        raise ValueError("terminal commitments cannot be linked to calendar events")
+    event_id = event_id.strip()
+    if not event_id:
+        raise ValueError("event_id must not be empty")
+    linked_events = commitment["related_calendar_event_ids"]
+    if event_id not in linked_events:
+        linked_events = [*linked_events, event_id]
+    new_deadline = _validate_datetime(deadline_at, "deadline_at") if deadline_at else commitment["deadline_at"]
+    if new_deadline and commitment["reminder_at"] and commitment["reminder_at"] > new_deadline:
+        raise ValueError("reminder_at must be before deadline_at")
+    with get_db_connection() as conn:
+        conn.execute(
+            """UPDATE commitments
+               SET related_calendar_event_ids_json = ?, deadline_at = ?, updated_at = ?
+               WHERE id = ?""",
+            (_json(linked_events, []), new_deadline, _now(), commitment_id),
+        )
+        _record_event(conn, commitment_id, "CALENDAR_LINKED", commitment["status"],
+                      commitment["status"], {"event_id": event_id, "deadline_at": new_deadline})
+        conn.commit()
+    return _get(commitment_id)  # type: ignore[return-value]
+
+
+def unlink_calendar_event(commitment_id: str, event_id: str) -> dict[str, Any]:
+    """Remove a calendar relationship; the commitment itself remains unchanged."""
+    commitment = _get(commitment_id)
+    if not commitment:
+        raise KeyError("commitment not found")
+    linked_events = commitment["related_calendar_event_ids"]
+    if event_id not in linked_events:
+        raise KeyError("calendar event link not found")
+    linked_events = [item for item in linked_events if item != event_id]
+    with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE commitments SET related_calendar_event_ids_json = ?, updated_at = ? WHERE id = ?",
+            (_json(linked_events, []), _now(), commitment_id),
+        )
+        _record_event(conn, commitment_id, "CALENDAR_UNLINKED", commitment["status"],
+                      commitment["status"], {"event_id": event_id})
+        conn.commit()
+    return _get(commitment_id)  # type: ignore[return-value]
+
+
+def commitments_for_calendar_events(event_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
+    """Return commitment summaries grouped by calendar event id in one DB pass."""
+    wanted_ids = {event_id for event_id in event_ids if event_id}
+    if not wanted_ids:
+        return {}
+    linked: dict[str, list[dict[str, Any]]] = {event_id: [] for event_id in wanted_ids}
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            """SELECT id, title, status, owner, deadline_at, related_calendar_event_ids_json
+               FROM commitments WHERE related_calendar_event_ids_json != '[]'"""
+        ).fetchall()
+    for commitment_id, title, status, owner, deadline_at, links_json in rows:
+        summary = {"id": commitment_id, "title": title, "status": status,
+                   "owner": owner, "deadline_at": deadline_at}
+        for event_id in _loads(links_json, []):
+            if event_id in wanted_ids:
+                linked[event_id].append(summary)
+    return {event_id: commitments for event_id, commitments in linked.items() if commitments}
+
+
 def transition_commitment(commitment_id: str, action: str,
                           approval_provenance: dict[str, Any] | None = None) -> dict[str, Any]:
     commitment = _get(commitment_id)
