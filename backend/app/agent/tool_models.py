@@ -18,6 +18,17 @@ class GetWeatherArgs(BaseModel):
     forecast_days: Optional[int] = 5
 
 
+class WebSearchArgs(BaseModel):
+    query: str
+    max_results: Optional[int] = 5
+
+
+class WebFetchArgs(BaseModel):
+    url: str
+    render_js: bool = False
+    browser_mode: Literal["auto", "http", "lightpanda", "chromium"] = "auto"
+
+
 class CreateEventArgs(BaseModel):
     title: str
     start_datetime: str
@@ -102,6 +113,8 @@ TOOL_MODEL_REGISTRY: dict[str, type[BaseModel]] = {
     "list_events": ListEventsArgs,
     "search_events": SearchEventsArgs,
     "get_weather": GetWeatherArgs,
+    "web_search": WebSearchArgs,
+    "web_fetch": WebFetchArgs,
     "create_event": CreateEventArgs,
     "modify_event": ModifyEventArgs,
     "delete_event": DeleteEventArgs,

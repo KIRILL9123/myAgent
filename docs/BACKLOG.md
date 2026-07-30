@@ -27,7 +27,9 @@ Near-to-medium-term concrete features not yet scheduled. Long-term phase items b
 
 **Agent and proactivity**
 - [x] **Weather and forecast connector**: read-only weather tool with location resolution, current conditions, forecast, units, provider timeouts, source/timestamp and a structured chat card.
-- **Internet access policy and tools**: design a controlled, read-only-first web access layer with domain policy, request budgets, provenance, caching and prompt-injection defenses.
+- [x] **Internet access MVP**: add read-only `web_search`/`web_fetch` tools with public-network checks, size/time limits, short caching, provenance, untrusted-content wrapping and browser fallback.
+- **Internet access hardening**: add robots-policy coverage, stronger per-session budgets and a broader Lightpanda/Chromium compatibility matrix.
+- [x] **Browser runtime PoC**: compare Lightpanda via Docker/CDP with Playwright/Chromium on a local JavaScript fixture; external-site compatibility and fallback policy remain to be validated.
 - **Host computer control**: design an approval-gated, sandboxed capability for diagnostics and selected actions on the host OS, with separate Windows and macOS adapters.
 - **Trial subscription cancellation reminders**: detect free-trial or renewal dates and remind the user before a paid charge, with an explicit cancellation checklist.
 - **Receipt → Expense proposals**: agent detects a purchase receipt in email and proposes adding it to Finance.

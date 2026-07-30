@@ -5,6 +5,15 @@ export interface ChatResponse {
   tool_calls: string[];
   requires_confirmation: boolean;
   weather?: WeatherData | null;
+  web_sources?: WebSource[] | null;
+}
+
+export interface WebSource {
+  title: string;
+  url: string;
+  snippet?: string;
+  method?: string;
+  retrieved_at?: string;
 }
 
 export interface WeatherData {

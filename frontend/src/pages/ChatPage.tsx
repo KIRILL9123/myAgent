@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { sendChatMessage, fetchChatHistory } from '../api/chat';
 import type { ChatResponse } from '../api/chat';
 import WeatherCard from '../components/WeatherCard';
+import WebSourcesCard from '../components/WebSourcesCard';
 import { Send, AlertTriangle, AlertCircle, Bot, User, Loader2 } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   weather?: ChatResponse['weather'];
+  webSources?: ChatResponse['web_sources'];
 }
 
 interface ChatPageProps {
@@ -65,7 +67,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
 
     try {
       const resp: ChatResponse = await sendChatMessage(textToSend, sessionId);
-      const assistantMsg: Message = { role: 'assistant', content: resp.response, weather: resp.weather };
+      const assistantMsg: Message = { role: 'assistant', content: resp.response, weather: resp.weather, webSources: resp.web_sources };
       setMessages((prev) => [...prev, assistantMsg]);
 
       if (resp.requires_confirmation) {
@@ -89,7 +91,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
 
     try {
       const resp: ChatResponse = await sendChatMessage(reply, sessionId);
-      const assistantMsg: Message = { role: 'assistant', content: resp.response, weather: resp.weather };
+      const assistantMsg: Message = { role: 'assistant', content: resp.response, weather: resp.weather, webSources: resp.web_sources };
       setMessages((prev) => [...prev, assistantMsg]);
 
       if (resp.requires_confirmation) {
@@ -164,6 +166,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
               >
                 {msg.content}
                 {msg.weather && <div className="mt-4"><WeatherCard weather={msg.weather} /></div>}
+                {msg.webSources && <WebSourcesCard sources={msg.webSources} />}
               </div>
             </div>
           );

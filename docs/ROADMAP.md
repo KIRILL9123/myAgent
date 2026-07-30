@@ -207,9 +207,11 @@ read-only-first, provenance-aware, budgeted and approval-gated for any side effe
 - [x] Add a weather connector with city/location resolution, current conditions and forecast
 - [x] Include provider, observation time, timezone, units and source in every weather response
 - [x] Add provider timeout and graceful degraded-mode behavior
-- [ ] Define a controlled web-access layer with domain policy and request budgets
-- [ ] Treat web pages and retrieved text as untrusted content; add prompt-injection defenses
-- [ ] Store provenance and retrieval timestamps for externally sourced answers
+- [x] Define and implement the first controlled web-access layer with domain policy, response/request limits and HTTP-first retrieval
+- [x] Run an initial Lightpanda-vs-Playwright/Chromium browser-runtime PoC; keep production integration pending external compatibility tests
+- [x] Treat web pages and retrieved text as untrusted content; wrap it before the model sees it
+- [x] Store provenance and retrieval timestamps for externally sourced answers
+- [ ] Add robots-policy coverage, stronger per-session budgets and broader browser compatibility tests
 
 **Host computer control**
 - [x] Read-only host diagnostics: CPU, RAM, disks, process count and top processes

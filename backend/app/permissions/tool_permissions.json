@@ -12,6 +12,14 @@
     "permission_level": "green"
   },
   {
+    "action_name": "web_search",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "web_fetch",
+    "permission_level": "green"
+  },
+  {
     "action_name": "list_unread_emails",
     "permission_level": "green"
   },

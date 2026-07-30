@@ -1,6 +1,7 @@
 import httpx
 import os
 import json
+import re
 import time
 import asyncio
 from typing import Any
@@ -113,10 +114,11 @@ async def _chat_ollama(messages, tools, response_format, model: str) -> dict[str
             latency = time.monotonic() - t0
             resp.raise_for_status()
             data = resp.json()
+            normalized_message, normalized_tools = _normalize_message(data.get("message", {}))
             _log_call("ollama", model, resp.status_code, latency,
-                      bool(data.get("message", {}).get("tool_calls")))
+                      bool(normalized_tools))
             _record_success()
-            return {"model": model, "message": data.get("message", {})}
+            return {"model": model, "message": normalized_message}
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             last_err = e
             if attempt == 0:
@@ -146,10 +148,11 @@ async def _chat_ollama(messages, tools, response_format, model: str) -> dict[str
             resp = await client.post(f"{OLLAMA_URL}/api/chat", json=payload)
             resp.raise_for_status()
             data = resp.json()
+            normalized_message, normalized_tools = _normalize_message(data.get("message", {}))
             _log_call("ollama", LLM_FALLBACK_MODEL, resp.status_code, time.monotonic() - t0,
-                      bool(data.get("message", {}).get("tool_calls")))
+                      bool(normalized_tools))
             _record_success()
-            return {"model": LLM_FALLBACK_MODEL, "message": data.get("message", {})}
+            return {"model": LLM_FALLBACK_MODEL, "message": normalized_message}
         except Exception as fb_err:
             _log_error("ollama", LLM_FALLBACK_MODEL, fb_err)
     return {"status": "error",
@@ -184,11 +187,7 @@ async def _chat_openai(messages, tools, response_format, model: str) -> dict[str
             resp.raise_for_status()
             data = resp.json()
             choice = data["choices"][0]
-            msg = choice.get("message", {})
-            content = msg.get("content") or ""
-            tool_calls = _normalize_tool_calls(msg.get("tool_calls"))
-            msg["content"] = content
-            msg["tool_calls"] = tool_calls
+            msg, tool_calls = _normalize_message(choice.get("message", {}))
             _log_call("openai_compatible", model, resp.status_code, latency, bool(tool_calls))
             _record_success()
             return {"model": model, "message": msg}
@@ -227,10 +226,8 @@ async def _chat_openai(messages, tools, response_format, model: str) -> dict[str
             resp.raise_for_status()
             data = resp.json()
             choice = data["choices"][0]
-            msg = choice.get("message", {})
-            msg["content"] = msg.get("content") or ""
-            msg["tool_calls"] = _normalize_tool_calls(msg.get("tool_calls"))
-            _log_call("openai_compatible", LLM_FALLBACK_MODEL, resp.status_code, time.monotonic() - t0, bool(msg["tool_calls"]))
+            msg, normalized_tools = _normalize_message(choice.get("message", {}))
+            _log_call("openai_compatible", LLM_FALLBACK_MODEL, resp.status_code, time.monotonic() - t0, bool(normalized_tools))
             _record_success()
             return {"model": LLM_FALLBACK_MODEL, "message": msg}
         except Exception as fb_err:
@@ -260,6 +257,45 @@ def _normalize_tool_calls(raw_calls) -> list[dict[str, Any]]:
             "function": {"name": func.get("name"), "arguments": args},
         })
     return out
+
+
+def _parse_pseudo_tool_calls(content: str) -> tuple[str, list[dict[str, Any]]]:
+    """Accept the XML-like tool format emitted by some local completion models."""
+    pattern = re.compile(r"<function=([^>]+)>(.*?)</function>", re.DOTALL | re.IGNORECASE)
+    parsed: list[dict[str, Any]] = []
+    for index, match in enumerate(pattern.finditer(content)):
+        function_name = match.group(1).strip()
+        arguments: dict[str, Any] = {}
+        for parameter in re.finditer(
+            r"<parameter=([^>]+)>\s*(.*?)\s*</parameter>", match.group(2), re.DOTALL | re.IGNORECASE
+        ):
+            key = parameter.group(1).strip()
+            raw_value = parameter.group(2).strip()
+            try:
+                value = json.loads(raw_value)
+            except json.JSONDecodeError:
+                value = raw_value
+            arguments[key] = value
+        parsed.append({
+            "id": f"pseudo_tool_{index + 1}",
+            "type": "function",
+            "function": {"name": function_name, "arguments": arguments},
+        })
+    if not parsed:
+        return content, []
+    cleaned = re.sub(r"<tool_call>.*?</tool_call>", "", content, flags=re.DOTALL | re.IGNORECASE).strip()
+    return cleaned, parsed
+
+
+def _normalize_message(message: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    normalized = dict(message or {})
+    content = normalized.get("content") or ""
+    tool_calls = _normalize_tool_calls(normalized.get("tool_calls"))
+    if not tool_calls and content:
+        content, tool_calls = _parse_pseudo_tool_calls(content)
+    normalized["content"] = content
+    normalized["tool_calls"] = tool_calls
+    return normalized, tool_calls
 
 async def _backoff(attempt: int):
     await asyncio.sleep(min(2.0 ** attempt, 2.0))

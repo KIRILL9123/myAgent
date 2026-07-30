@@ -28,6 +28,7 @@ A local AI agent running 24/7 on a Mac as a home server, designed to manage dail
    python3.11 -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
+   python -m playwright install chromium
    ```
 
 3. **Install Ollama Model**:

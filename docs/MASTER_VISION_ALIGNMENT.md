@@ -22,7 +22,7 @@ and priorities while requiring human approval for high-impact actions.
 | SQL-backed knowledge graph | **Partially implemented** | Fact relations exist; entity types and broader links remain planned |
 | Document Vault and document RAG | **Planned** | Separate artifact storage, parsing/OCR, chunks, embeddings, retrieval, reranking |
 | Document deadlines and document-to-memory proposals | **Planned** | Approval-gated document workflow |
-| Evidence-based answers and citations | **Planned** | Fact/email/document/chunk provenance in responses |
+| Evidence-based answers and citations | **Partially implemented** | Web search/fetch source cards now include URL, method and retrieval time; fact/email/document provenance remains planned |
 | Personal State Engine | **Planned** | Aggregate memory, calendar, mail, finance, tasks, projects and commitments |
 | Goals → Projects → Tasks → Actions | **Planned** | Project entities and hierarchy |
 | Commitment Tracker | **Core + first integrations implemented** | Commitment Center, email proposals, calendar links and Telegram reminders; Personal State consumption remains |
@@ -54,7 +54,7 @@ and priorities while requiring human approval for high-impact actions.
 | Cost and latency budgets | **Planned** | Per-request time, model-call, tool-call and token budgets |
 | Model Router | **Partially implemented** | Unified `llm.py` provider layer, role config and fallback exist; typed role routing and embeddings remain planned |
 | Weather and forecast access | **Implemented** | Read-only Open-Meteo connector, city resolution, current/5-day forecast, source timestamp and structured chat card |
-| Controlled internet access | **Planned / security-gated** | Add policy-constrained web retrieval with domain allow/deny rules, budgets, provenance and prompt-injection defenses |
+| Controlled internet access | **v1 implemented / hardening pending** | Read-only web search/fetch with public-network checks, limits, cache, provenance, untrusted-content wrapping and Lightpanda/Chromium fallback; robots and stronger budgets remain planned |
 | Host computer control | **Planned / security-gated** | Add sandboxed diagnostics and narrowly scoped approved actions through OS-specific Windows/macOS adapters |
 | Hybrid retrieval | **Planned** | SQL filters → vector retrieval → reranking → LLM |
 | Adversarial security testing | **Planned** | Corpus for prompt injection, poisoned memory and malicious tool arguments |
