@@ -424,13 +424,25 @@ async def execute_tool(tool_call: dict, session_id: str) -> dict:
                 "Ответьте 'да' или 'подтверждаю' для выполнения, или 'нет'/'отмена' для отклонения."
             )
 
-        save_pending_action(session_id, function_name, arguments)
+        # Detect source channel for inline button support
+        source_channel = "web"
+        chat_id = ""
+        if session_id and session_id.startswith("telegram_"):
+            source_channel = "telegram"
+            chat_id = session_id[len("telegram_"):]
+
+        action_id, nonce = save_pending_action(
+            session_id, function_name, arguments,
+            source_channel=source_channel, chat_id=chat_id
+        )
         log_action(function_name, "PENDING_CONFIRMATION", description)
         return {
             "requires_confirmation": True,
             "action": function_name,
             "details": description,
             "message": message_text,
+            "pending_action_id": action_id,
+            "pending_nonce": nonce,
         }
 
     # 3. GREEN / YELLOW → execute immediately
@@ -802,6 +814,8 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
                 "response": pending_confirmation_msg,
                 "tool_calls": executed_tool_calls,
                 "requires_confirmation": True,
+                "pending_action_id": tool_result.get("pending_action_id"),
+                "pending_nonce": tool_result.get("pending_nonce"),
             }
 
         # Loop continues

@@ -54,7 +54,7 @@ def init_db():
                 "ALTER TABLE pending_actions ADD COLUMN nonce_hash TEXT NOT NULL DEFAULT ''"
             )
 
-        # Older databases may have created pending_actions without the
+# Older databases may have created pending_actions without the
         # session_id uniqueness constraint required by the upsert below.
         # Keep the newest pending action for each session before adding it.
         cursor.execute('''
@@ -66,6 +66,22 @@ def init_db():
         cursor.execute('''
             CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_actions_session_id
             ON pending_actions(session_id)
+        ''')
+
+        # Re-read columns after nonce_hash migration, then add Telegram button columns
+        pending_columns = {
+            row[1] for row in cursor.execute("PRAGMA table_info(pending_actions)")
+        }
+        for col, col_type in [("source_channel", "TEXT DEFAULT 'web'"),
+                               ("chat_id", "TEXT"),
+                               ("telegram_message_id", "INTEGER"),
+                               ("expires_at", "DATETIME")]:
+            if col not in pending_columns:
+                cursor.execute(f"ALTER TABLE pending_actions ADD COLUMN {col} {col_type}")
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_pending_nonce_hash
+            ON pending_actions(nonce_hash)
         ''')
 
         cursor.execute('''
@@ -259,42 +275,51 @@ def get_history(session_id: str, limit: int = 20) -> list[dict[str, Any]]:
 
 # ─── Pending Action Methods ────────────────────────────────────────────────────
 
-def save_pending_action(session_id: str, action_name: str, args: dict[str, Any]):
+import secrets
+
+def save_pending_action(session_id: str, action_name: str, args: dict[str, Any],
+                         source_channel: str = "web", chat_id: str = "",
+                         telegram_message_id: int | None = None) -> tuple[int, str]:
+    nonce = secrets.token_urlsafe(16)
     with get_db_connection() as conn:
         cursor = conn.cursor()
         args_json = json.dumps(args)
         cursor.execute(
             """
-            INSERT INTO pending_actions (session_id, action_name, args, status, nonce_hash)
-            VALUES (?, ?, ?, 'pending', '')
+            INSERT INTO pending_actions (session_id, action_name, args, status, nonce_hash,
+                                         source_channel, chat_id, telegram_message_id)
+            VALUES (?, ?, ?, 'pending', ?, ?, ?, ?)
             ON CONFLICT(session_id) DO UPDATE SET 
                 action_name=excluded.action_name,
                 args=excluded.args,
                 status='pending',
+                nonce_hash=excluded.nonce_hash,
+                source_channel=excluded.source_channel,
+                chat_id=excluded.chat_id,
+                telegram_message_id=excluded.telegram_message_id,
                 created_at=CURRENT_TIMESTAMP
             """,
-            (session_id, action_name, args_json)
+            (session_id, action_name, args_json, nonce,
+             source_channel, chat_id, telegram_message_id)
         )
         conn.commit()
+        cursor.execute("SELECT id FROM pending_actions WHERE session_id=?", (session_id,))
+        row = cursor.fetchone()
+        return (row[0], nonce) if row else (0, nonce)
 
 def get_pending_action(session_id: str) -> dict[str, Any] | None:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT action_name, args FROM pending_actions WHERE session_id = ? AND status = 'pending'",
+            """SELECT id, session_id, action_name, args, status, nonce_hash,
+                      source_channel, chat_id, telegram_message_id, expires_at
+               FROM pending_actions WHERE session_id = ? AND status = 'pending'""",
             (session_id,)
         )
         row = cursor.fetchone()
 
     if row:
-        action_name, args_json = row
-        args = {}
-        if args_json:
-            try:
-                args = json.loads(args_json)
-            except json.JSONDecodeError:
-                pass
-        return {"action": action_name, "args": args}
+        return _pending_row(row)
     return None
 
 def delete_pending_action(session_id: str):
@@ -302,6 +327,67 @@ def delete_pending_action(session_id: str):
         cursor = conn.cursor()
         cursor.execute("DELETE FROM pending_actions WHERE session_id = ?", (session_id,))
         conn.commit()
+
+def find_pending_by_nonce(nonce: str, chat_id: str = "") -> dict[str, Any] | None:
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """SELECT id, session_id, action_name, args, status, nonce_hash,
+                      source_channel, chat_id, telegram_message_id, expires_at
+               FROM pending_actions
+               WHERE nonce_hash = ? AND status = 'pending'
+               AND (expires_at IS NULL OR expires_at > datetime('now'))""",
+            (nonce,)
+        )
+        row = cursor.fetchone()
+    if not row:
+        return None
+    row_dict = _pending_row(row)
+    if chat_id and str(row_dict.get("chat_id", "")) != str(chat_id):
+        return None
+    return row_dict
+
+def claim_pending_action(action_id: int, nonce: str, chat_id: str = "") -> dict[str, Any] | None:
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """UPDATE pending_actions SET status='executing'
+               WHERE id=? AND nonce_hash=? AND status='pending'
+               AND (expires_at IS NULL OR expires_at > datetime('now'))""",
+            (action_id, nonce)
+        )
+        if cursor.rowcount == 0:
+            return None
+        conn.commit()
+        cursor.execute(
+            """SELECT id, session_id, action_name, args, status, nonce_hash,
+                      source_channel, chat_id, telegram_message_id, expires_at
+               FROM pending_actions WHERE id=?""",
+            (action_id,)
+        )
+        row = cursor.fetchone()
+    return _pending_row(row) if row else None
+
+def finalize_pending_action(action_id: int, status: str, error: str = ""):
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE pending_actions SET status=? WHERE id=?", (status, action_id)
+        )
+        conn.commit()
+
+def _pending_row(row) -> dict[str, Any]:
+    args = {}
+    if row[3]:
+        try:
+            args = json.loads(row[3])
+        except json.JSONDecodeError:
+            pass
+    return {
+        "id": row[0], "session_id": row[1], "action": row[2], "args": args,
+        "status": row[4], "nonce_hash": row[5], "source_channel": row[6],
+        "chat_id": row[7], "telegram_message_id": row[8], "expires_at": row[9],
+    }
 
 # ─── Mail Sync State Methods ───────────────────────────────────────────────────
 

@@ -43,3 +43,46 @@ async def send_notification(message: str, chat_id: str = None) -> bool | dict:
     except Exception as e:
         print(f"[NOTIFIER] Failed to send Telegram notification: {e}")
         return False
+
+
+async def send_inline_keyboard(chat_id: str, text: str, buttons: list[list[dict]]) -> dict | None:
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "reply_markup": {"inline_keyboard": buttons},
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, timeout=10.0)
+            response.raise_for_status()
+            return response.json().get("result")
+    except Exception as e:
+        print(f"[NOTIFIER] Failed to send inline keyboard: {e}")
+        return None
+
+
+async def edit_message(chat_id: str, message_id: int, text: str) -> bool:
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText"
+    payload = {"chat_id": chat_id, "message_id": message_id, "text": text}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, timeout=10.0)
+            response.raise_for_status()
+            return True
+    except Exception as e:
+        print(f"[NOTIFIER] Failed to edit message: {e}")
+        return False
+
+
+async def answer_callback(callback_id: str, text: str = "") -> bool:
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery"
+    payload = {"callback_query_id": callback_id, "text": text}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, timeout=10.0)
+            response.raise_for_status()
+            return True
+    except Exception as e:
+        print(f"[NOTIFIER] Failed to answer callback: {e}")
+        return False

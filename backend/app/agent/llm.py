@@ -43,6 +43,7 @@ def _current_model() -> str:
     return OPENAI_MODEL if LLM_PROVIDER == "openai_compatible" else OLLAMA_MODEL
 
 def _in_cooldown() -> bool:
+    global _circuit_consecutive_errors, _circuit_cooldown_until
     if _circuit_consecutive_errors < ERROR_THRESHOLD:
         return False
     if time.monotonic() < _circuit_cooldown_until:

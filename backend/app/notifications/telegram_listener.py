@@ -1,10 +1,13 @@
 import os
 import asyncio
+import json
 import httpx
 from dotenv import load_dotenv
 from backend.app.audit.audit_log import log_action
 from backend.app.agent.orchestrator import run_orchestrator
-from backend.app.notifications.telegram_notifier import send_notification
+from backend.app.notifications.telegram_notifier import (
+    send_notification, send_inline_keyboard, edit_message, answer_callback,
+)
 
 load_dotenv()
 
@@ -12,28 +15,77 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 async def process_message(chat_id: str, text: str):
-    # Verify authorization
     if str(chat_id) != str(TELEGRAM_CHAT_ID):
         log_action("UNAUTHORIZED_TELEGRAM_ACCESS", "REJECTED", f"Attempt from chat_id: {chat_id}, text: {text}")
         return
 
     session_id = f"telegram_{chat_id}"
-    
+
     try:
-        # Run through the orchestrator
         result = await run_orchestrator(text, session_id=session_id)
         response_text = result.get("response", "")
         requires_confirmation = result.get("requires_confirmation", False)
-        
+
         if requires_confirmation:
-            response_text += "\n\n⚠️ Это действие требует подтверждения. Ответьте 'да' или 'нет'."
-            
-        if response_text:
+            nonce = result.get("pending_nonce")
+            action_id = result.get("pending_action_id")
+            if nonce and action_id:
+                buttons = [[
+                    {"text": "✅ Подтвердить", "callback_data": f"confirm:{nonce}:{action_id}"},
+                    {"text": "❌ Отмена", "callback_data": f"cancel:{nonce}:{action_id}"},
+                ]]
+                sent = await send_inline_keyboard(str(chat_id), response_text, buttons)
+                if sent and sent.get("message_id"):
+                    from backend.app.storage.db import get_db_connection
+                    with get_db_connection() as conn:
+                        conn.execute(
+                            "UPDATE pending_actions SET telegram_message_id=? WHERE id=?",
+                            (sent["message_id"], action_id)
+                        )
+                        conn.commit()
+            else:
+                response_text += "\n\n⚠️ Это действие требует подтверждения. Ответьте 'да' или 'нет'."
+                await send_notification(response_text, chat_id=str(chat_id))
+        elif response_text:
             await send_notification(response_text, chat_id=str(chat_id))
-            
+
     except Exception as e:
         print(f"[TELEGRAM_LISTENER] Error processing message: {e}")
         await send_notification("Произошла ошибка при обработке запроса.", chat_id=str(chat_id))
+
+
+async def process_callback_query(callback: dict):
+    cb_id = callback.get("id")
+    data = callback.get("data", "")
+    msg = callback.get("message", {})
+    chat = msg.get("chat", {})
+    chat_id = str(chat.get("id"))
+    message_id = msg.get("message_id")
+
+    if str(chat_id) != str(TELEGRAM_CHAT_ID):
+        await answer_callback(cb_id, "Not authorized")
+        return
+
+    parts = data.split(":", 2)
+    if len(parts) != 3:
+        await answer_callback(cb_id, "Invalid request")
+        return
+
+    action, nonce, action_id = parts
+    from backend.app.agent.confirmation import confirm_callback, cancel_callback
+
+    if action == "confirm":
+        result = await confirm_callback(nonce, chat_id)
+    elif action == "cancel":
+        result = await cancel_callback(nonce, chat_id)
+    else:
+        await answer_callback(cb_id, "Unknown action")
+        return
+
+    await answer_callback(cb_id, result.get("message", "Done"))
+    if message_id:
+        status_icon = "✅" if result.get("status") == "ok" else "❌"
+        await edit_message(chat_id, message_id, f"{status_icon} {result.get('message', 'Done')}")
 
 async def process_voice_message(chat_id: str, file_id: str):
     if str(chat_id) != str(TELEGRAM_CHAT_ID):
@@ -108,10 +160,12 @@ async def start_polling():
                 if data.get("ok"):
                     for update in data.get("result", []):
                         offset = update["update_id"] + 1
-                        
-                        if "message" in update:
+
+                        if "callback_query" in update:
+                            asyncio.create_task(process_callback_query(update["callback_query"]))
+                        elif "message" in update:
                             chat_id = str(update["message"]["chat"]["id"])
-                            
+
                             if "text" in update["message"]:
                                 text = update["message"]["text"]
                                 asyncio.create_task(process_message(chat_id, text))
