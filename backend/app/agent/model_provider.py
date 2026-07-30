@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import os
 from abc import ABC, abstractmethod
 from typing import Any
 
 import httpx
+
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
+LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "3000"))
 
 
 class ModelProvider(ABC):
@@ -34,7 +38,7 @@ class OllamaProvider(ModelProvider):
             "model": self.model,
             "messages": messages,
             "stream": False,
-            "options": {"temperature": 0.0},
+            "options": {"temperature": LLM_TEMPERATURE},
         }
         if response_format:
             payload["format"] = response_format
@@ -60,7 +64,8 @@ class OpenAICompatibleProvider(ModelProvider):
             "model": self.model,
             "messages": messages,
             "stream": False,
-            "temperature": 0.0,
+            "temperature": LLM_TEMPERATURE,
+            "max_tokens": LLM_MAX_TOKENS,
         }
         if tools:
             payload["tools"] = tools
