@@ -8,7 +8,7 @@ import pytest
 def _mock_llm(monkeypatch):
     async def fake_chat(*args, **kwargs):
         return {"message": {"content": '[]'}}
-    monkeypatch.setattr("backend.app.agent.llm_client.chat_with_ollama", fake_chat)
+    monkeypatch.setattr("backend.app.agent.llm.chat", fake_chat)
 
 
 @pytest.fixture

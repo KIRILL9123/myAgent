@@ -9,7 +9,13 @@
 
 Maximum 4 tasks. These are the only items actively worked on in the current cycle. Everything else lives in the parking lot below.
 
-_Cycle complete — awaiting next selection._
+The current cycle is intentionally focused on the missing product foundations identified
+in [MASTER_VISION_ALIGNMENT.md](MASTER_VISION_ALIGNMENT.md):
+
+- [ ] Implement Commitment Tracker lifecycle and approval-backed proposals
+- [ ] Define the Unified Approval Control Plane record and API contract
+- [ ] Add observability foundation: correlation IDs, structured events and request budgets
+- [ ] Replace ad-hoc SQLite schema updates with versioned migrations
 
 
 ---

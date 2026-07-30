@@ -29,8 +29,8 @@
 - **Reliability & Tool Cycle Limit (Priority 3)**: Implemented multiple safeguards to prevent infinite tool calling loops and hallucinations with Qwen2.5:
   1. **Early Stopping**: `orchestrator.py` tracks tool calls per round. If the agent repeats the exact same tool calls twice in a row, the loop breaks with a user-friendly error.
   2. **System Prompt Rules**: Added explicit instruction to NEVER retry the same tool call upon error, but explain it to the user.
-  3. **Linear Tool Execution**: Disabled parallel tool calls (`parallel_tool_calls=False`) in `llm_client.py` payload to force linear reasoning.
-  4. **JSON Retry Loop**: If the LLM generates invalid JSON for a tool call, the orchestrator returns the error back to the LLM (up to 2 times) to self-correct before giving up.
+  3. **Linear Tool Execution**: Disabled parallel tool calls (`parallel_tool_calls=False`) in the LLM request payload (now in `llm.py`) to force linear reasoning.
+  4. **JSON Retry Loop**: If the LLM generates invalid JSON for a tool call, `execute_tool` (orchestrator.py) returns a `JSON_ERROR:` back to the orchestrator, which feeds it back to the LLM (up to 2 times) to self-correct before giving up. Works uniformly for both Ollama and OpenAI-compatible providers (the normalizer in `llm.py` preserves unparseable JSON as a raw string rather than coercing to `{}`).
 
 ## Memory Layer (July 7, 2026)
 
@@ -164,6 +164,12 @@ send_email должен вызываться ТОЛЬКО в рамках инт
 
 ---
 
+## Правило: тесты RED-действий не должны иметь реальных внешних последствий
+
+При regression-тестировании send_email (и любых других RED-действий с внешними эффектами) НИКОГДА не использовать реальные адреса из истории переписки/памяти пользователя. Использовать либо: (а) собственный тестовый email как получатель, (б) явный dry-run флаг, если он появится в будущем, (в) mock/заглушку на уровне коннектора для тестового окружения. Инцидент 2026-07-19: тест отправил реальное письмо на mom@icloud.com во время regression-тестирования новой модели — не критично по содержанию, но это не должно повторяться.
+
+---
+
 ## Backlog Ideas (2026-07-09 brainstorm)
 
 Идеи для дальнейшего развития и автоматизации:
@@ -203,7 +209,7 @@ send_email должен вызываться ТОЛЬКО в рамках инт
 
 По итогам аудита долгоживущего (24/7) процесса устранены утечки и повышена стабильность:
 1. **SQLite Connection Leak Fix**: В `db.py` внедрен контекст-менеджер `get_db_connection()`. Все SQL-запросы в `db.py`, `countdown_service.py`, `finance_service.py` и `memory_service.py` переписаны на использование `with get_db_connection() as conn:`. Это гарантирует закрытие дескрипторов файлов базы данных даже при возникновении непредвиденных исключений во время транзакций.
-2. **Ollama Connection Pooling**: Создан единый модуль-level `httpx.AsyncClient` с таймаутом 60 секунд. Все вызовы `chat_with_ollama` используют этот кэшируемый клиент вместо создания нового `httpx.AsyncClient()` при каждом запросе. Это сохраняет TCP-соединения активными (pooling) и убирает CPU-overhead. Клиент корректно закрывается (`await client.aclose()`) при выключении бэкенда в FastAPI `lifespan`.
+2. **LLM Connection Pooling**: Создан единый модуль-level `httpx.AsyncClient` с таймаутом `LLM_TIMEOUT_SECONDS` в `llm.py`. Все вызовы через `chat()` (Ollama и OpenAI-compatible) используют этот кэшируемый клиент вместо создания нового `httpx.AsyncClient()` при каждом запросе. Это сохраняет TCP-соединения активными (pooling) и убирает CPU-overhead. Клиент корректно закрывается (`await client.aclose()`) при выключении бэкенда в FastAPI `lifespan`.
 3. **Ротация логов (RotatingFileHandler)**: Логи аудита (`logs/audit.log`) и лог утренних сводок (`logs/summaries.log`) переведены на ротацию с помощью `RotatingFileHandler`. Установлен лимит размера в 5 МБ и хранение последних 3 архивных копий, что исключает бесконтрольный рост файлов на диске.
 
 
@@ -213,7 +219,7 @@ send_email должен вызываться ТОЛЬКО в рамках инт
 
 По результатам аудита бэкенда проведен рефакторинг для повышения качества кода и исправления накопившихся архитектурных несоответствий:
 1. **Восстановление автотестов**: Исправлен файл `test_api_endpoints.py`. Теперь тест-клиент корректно загружает API-ключ из окружения (`HOME_AGENT_API_KEY`) и передает его в заголовке `X-API-Key` во все REST-запросы. Оба тест-сьюта (`test_api_endpoints.py` и `test_memory_flow.py`) стали полностью работоспособными и успешными.
-2. **Унификация формата ошибок (status/message)**: Все сервисы (`countdown_service.py`, `finance_service.py`) и коннекторы (`caldav_connector.py`, `mail_connector.py`), а также клиент LLM (`llm_client.py`) переведены на единый формат возврата ошибок: `{"status": "error", "message": "текст ошибки"}`. Соответствующие разборы ответов в `orchestrator.py` обновлены на проверку `result.get("status") == "error"`.
+2. **Унификация формата ошибок (status/message)**: Все сервисы (`countdown_service.py`, `finance_service.py`) и коннекторы (`caldav_connector.py`, `mail_connector.py`), а также клиент LLM (`llm.py`) переведены на единый формат возврата ошибок: `{"status": "error", "message": "текст ошибки"}`. Соответствующие разборы ответов в `orchestrator.py` обновлены на проверку `result.get("status") == "error"`.
 3. **Безопасность API и HTTP статус-коды**:
    - Внедрена утилита-обертка `run_api_tool` в `api/utils.py`. Она запускает блокирующие операции в пуле потоков (`asyncio.to_thread`) и автоматически транслирует внутренние словари ошибок `{"status": "error"}` в полноценные FastAPI `HTTPException`.
    - В роутере `finance.py` эндпоинты `transactions` и `summary` обернуты в обработку исключений. При неверном формате даты (например, `start_date=invalid`) возвращается структурированный ответ `400 Bad Request` вместо сырой ошибки сервера `500`.

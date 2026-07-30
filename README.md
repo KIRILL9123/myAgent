@@ -89,15 +89,14 @@ If you are developing the React interface and want Hot Module Replacement (HMR):
 ## Architecture & Design
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ROADMAP.md](docs/ROADMAP.md) for deeper details.
 
-## Planning Documents (Issue #1)
+## Project Documents
 
-- [Architecture status snapshot](docs/ARCHITECTURE_STATUS.md)
-- [Repository cleanup candidates](docs/REPOSITORY_CLEANUP.md)
-- [Engineering rules](docs/ENGINEERING_RULES.md)
-- [Dry-run architecture](docs/DRY_RUN_ARCHITECTURE.md)
+- [Master vision alignment](docs/MASTER_VISION_ALIGNMENT.md)
+- [Operations and reliability](docs/OPERATIONS.md)
+- [Security and safety](docs/SECURITY_AND_SAFETY.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Long-term roadmap](docs/ROADMAP.md)
+- [Active backlog](docs/BACKLOG.md)
 - [Commitment contract](docs/domain/COMMITMENT_CONTRACT.md)
-- [Tool validation plan](docs/TOOL_VALIDATION_PLAN.md)
-- [Backup/restore plan](docs/BACKUP_RESTORE_PLAN.md)
-- [Memory evolution roadmap](docs/MEMORY_EVOLUTION.md)
-- [Development dependencies](docs/DEVELOPMENT_DEPENDENCIES.md)
-- [Testing gaps](docs/TESTING_GAPS.md)
+- [Memory evolution design](docs/design/MEMORY_EVOLUTION.md)
+- [Decision log](docs/decisions/DECISION_LOG.md)

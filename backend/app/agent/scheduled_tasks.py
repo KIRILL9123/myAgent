@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 from datetime import datetime, date, timedelta
 from backend.app.connectors.caldav_connector import list_events
 from backend.app.connectors.mail_connector import list_unread_emails
-from backend.app.agent.llm_client import chat_with_ollama
+from backend.app.agent.llm import chat as chat_with_ollama
 from backend.app.audit.audit_log import log_action
 from backend.app.notifications.telegram_notifier import send_notification
 

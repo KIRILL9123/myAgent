@@ -1,5 +1,5 @@
 import json
-from backend.app.agent.llm_client import chat_with_ollama
+from backend.app.agent.llm import chat as chat_with_ollama
 from backend.app.memory.memory_service import (
     save_pending_fact,
     get_all_facts,

@@ -1,5 +1,5 @@
 import json
-from backend.app.agent.llm_client import chat_with_ollama
+from backend.app.agent.llm import chat as chat_with_ollama
 
 RELATION_PROMPT = """You are a semantic relationship builder. Analyze the connection between a newly approved fact about the user and a list of existing approved facts.
 Identify if there are any meaningful semantic relationships between the new fact and the existing facts.

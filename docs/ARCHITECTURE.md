@@ -1,6 +1,6 @@
 # Architecture
 
-> For the current implementation status (what is implemented, partial, or planned), see [ARCHITECTURE_STATUS.md](ARCHITECTURE_STATUS.md).
+> Runtime guidance lives in [OPERATIONS.md](OPERATIONS.md). Feature coverage is tracked in [MASTER_VISION_ALIGNMENT.md](MASTER_VISION_ALIGNMENT.md). The former status snapshot is preserved in `docs/archive/`.
 
 ## Overview
 
@@ -11,7 +11,7 @@ The Home Agent is structured with a FastAPI backend driving an orchestration loo
 1. **Input**: User sends a request via `/chat` endpoint (REST/WebSocket) or via Telegram Bot message.
 2. **Listener**: `telegram_listener.py` intercepts Telegram messages using long-polling, validating `TELEGRAM_CHAT_ID` before routing.
 3. **Orchestrator**: The central agent loop receives the request and builds a system prompt containing the available tools and conversation history.
-3. **LLM**: The system prompt and user input are sent to the local Ollama instance via `llm_client.py`.
+3. **LLM**: The system prompt and user input are sent to the configured LLM provider (Ollama or OpenAI-compatible Bonsai) via `llm.py`.
 4. **Tool Selection**: The LLM decides if a tool call is needed and returns a structured response.
 5. **Permission Check**: The orchestrator intercepts the tool call and passes it to `permission_checker.py`.
     - **Green/Yellow**: Execution proceeds immediately.

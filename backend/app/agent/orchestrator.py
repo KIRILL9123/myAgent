@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 from typing import Any
 from pydantic import ValidationError
-from backend.app.agent.llm_client import chat_with_ollama
+from backend.app.agent.llm import chat
 from backend.app.permissions.permission_checker import check_permission, PermissionLevel
 from backend.app.connectors.caldav_connector import (
     list_events, search_events, create_event, delete_event, modify_event,
@@ -680,7 +680,7 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
 
     # ── Step 2: Multi-turn tool calling loop ──
     for _round in range(MAX_TOOL_ROUNDS):
-        response = await chat_with_ollama(messages, tools=AVAILABLE_TOOLS)
+        response = await chat(messages, tools=AVAILABLE_TOOLS)
 
         if isinstance(response, dict) and response.get("status") == "error":
             return {"response": response.get("message"), "tool_calls": executed_tool_calls}

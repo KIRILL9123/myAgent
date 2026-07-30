@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     print("[SCHEDULER] Shutdown.")
     
-    from backend.app.agent.llm_client import close_http_client
+    from backend.app.agent.llm import close_http_client
     await close_http_client()
     print("[LLM CLIENT] Closed HTTP client pool.")
 

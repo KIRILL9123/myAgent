@@ -1,8 +1,9 @@
 # myAgent — Long-Term Roadmap and Product Vision
 
 > **Responsibility**: Complete long-term vision, phased roadmap, and product direction.
-> For what is currently implemented, see [ARCHITECTURE_STATUS.md](ARCHITECTURE_STATUS.md).
+> For runtime and current implementation guidance, see [ARCHITECTURE.md](ARCHITECTURE.md) and [OPERATIONS.md](OPERATIONS.md).
 > For the active work cycle, see [BACKLOG.md](BACKLOG.md).
+> For the complete comparison with the product vision brief, see [MASTER_VISION_ALIGNMENT.md](MASTER_VISION_ALIGNMENT.md).
 
 ---
 
@@ -81,9 +82,9 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 
 *Prerequisites for all future work. The system must be safe to test, safe to run, and maintainable.*
 
-- [x] Dry-run / side-effect isolation (see [DRY_RUN_ARCHITECTURE.md](DRY_RUN_ARCHITECTURE.md))
-- [x] Pydantic tool argument validation (see [TOOL_VALIDATION_PLAN.md](TOOL_VALIDATION_PLAN.md))
-- [x] SQLite backup and restore (see [BACKUP_RESTORE_PLAN.md](BACKUP_RESTORE_PLAN.md))
+- [x] Dry-run / side-effect isolation (see [SECURITY_AND_SAFETY.md](SECURITY_AND_SAFETY.md))
+- [x] Pydantic tool argument validation (see [SECURITY_AND_SAFETY.md](SECURITY_AND_SAFETY.md))
+- [x] SQLite backup and restore (see [OPERATIONS.md](OPERATIONS.md))
 - [x] Fix known contract inconsistencies:
   - `scheduled_tasks.py` parses connector outputs as JSON strings (connectors return Python objects)
   - `mail_connector.py` `send_email()` uses `{"error": ...}` instead of `{"status": "error", ...}`
@@ -92,7 +93,7 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [ ] Set up test runner (pytest) + CI
 - [ ] Type hints across all backend modules
 - [x] Regression tests for RED action boundaries and side-effect isolation
-- [x] Fact confidence / temporal validity / provenance — audit + metadata + expired filter + PATCH endpoint (see [MEMORY_EVOLUTION.md](MEMORY_EVOLUTION.md))
+- [x] Fact confidence / temporal validity / provenance — audit + metadata + expired filter + PATCH endpoint (see [design/MEMORY_EVOLUTION.md](design/MEMORY_EVOLUTION.md))
 - [ ] Add token counting to prevent silent context window overflow
 - [ ] Fix N+1 LLM calls in memory layer (batch dedup for fact extraction, batch relations for backfill)
 

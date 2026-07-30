@@ -8,20 +8,19 @@ from backend.app.memory.memory_service import (
     get_relevant_facts,
     _filter_facts_by_keyword
 )
-import backend.app.agent.llm_client as llm_client
+import backend.app.agent.llm as llm
 
 # Keep track of LLM calls
 llm_call_count = 0
-original_chat = llm_client.chat_with_ollama
+original_chat = llm.chat
 
-async def mock_chat_with_ollama(messages, tools=None, response_format=None):
+async def mock_chat(messages, tools=None, response_format=None):
     global llm_call_count
     llm_call_count += 1
-    # Return empty fact_ids
     return {"message": {"content": '{"fact_ids": []}'}}
 
 # Monkeypatch
-llm_client.chat_with_ollama = mock_chat_with_ollama
+llm.chat = mock_chat
 
 async def test_filter():
     global llm_call_count

@@ -358,7 +358,7 @@ async def get_relevant_facts(query: str, limit: int = 5) -> list[dict]:
         f"If no facts are relevant, return: {{\"fact_ids\": []}}"
     )
     
-    from backend.app.agent.llm_client import chat_with_ollama
+    from backend.app.agent.llm import chat as chat_with_ollama
     import json
     
     response = await chat_with_ollama(
@@ -421,7 +421,7 @@ async def find_consolidation_candidates() -> list[dict]:
         {"role": "user", "content": f"Here is the list of user facts:\n{facts_str}"}
     ]
     
-    from backend.app.agent.llm_client import chat_with_ollama
+    from backend.app.agent.llm import chat as chat_with_ollama
     import json
     
     response = await chat_with_ollama(messages, response_format="json")
