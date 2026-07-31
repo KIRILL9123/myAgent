@@ -43,6 +43,10 @@ than relying only on APScheduler misfire handling.
 ## Testing
 
 - Unit and API suite: `pytest backend/tests -q`.
+- Deterministic release gate: `python dev-tools/release_gate.py` (use `--backend-only` or
+  `--frontend-only` for focused checks). It runs backend tests and frontend lint/build,
+  returns a failing exit code on regression and appends a compact verdict to
+  `logs/release_gate.jsonl`.
 - Live E2E suite is opt-in because it contacts local running services.
 - Every production-relevant regression becomes a permanent test.
 - External side effects are prohibited in CI and sandbox runs.
@@ -74,9 +78,19 @@ Operational records should distinguish normal logs from durable events. The targ
 - notification and approval events.
 
 The Dashboard now exposes the live backend/model status and the API exposes telemetry
-summary and recent events. Request count, failures, RED actions, tool calls and average
-latency are stored in the `observability_events` table and can be queried through
-`/api/system/telemetry` and `/api/system/events`.
+summary and recent events. Request count, failures, RED actions, tool calls, average
+latency and one content-free `agent_turn` aggregate per orchestrator turn are stored in
+the `observability_events` table and can be queried through `/api/system/telemetry` and
+`/api/system/events`. The aggregate includes Retrieval Gate decision/reason, loop
+iterations, memory hit/miss, token estimates and final outcome without persisting user
+message content. The v1 gate is deterministic and skips clearly operational requests;
+if its code fails, the orchestrator retrieves memory as a safe fallback.
+
+Procedural skills are stored separately from factual memory in `procedural_skills`.
+Built-in safety workflows are approved by default; user-created skills start as `draft`,
+appear in the Approval Center as `SKILL`, and become selectable only after approval.
+The runtime selects skills by deterministic trigger overlap and treats their steps as
+workflow guidance, never as a way to bypass permissions or confirmations.
 
 ## Request budgets
 

@@ -69,6 +69,7 @@ async def api_backfill_relations():
         raise HTTPException(status_code=500, detail=str(e))
 
 from backend.app.memory.memory_service import find_consolidation_candidates, consolidate_facts
+from backend.app.memory.skill_service import list_skills, create_skill, disable_skill
 
 class NoteCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
@@ -86,9 +87,39 @@ class FactUpdateRequest(BaseModel):
     category: str | None = None
     is_pinned: bool | None = None
 
+
+class SkillCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str = Field(default="", max_length=2000)
+    triggers: list[str] = Field(min_length=1, max_length=20)
+    steps: list[str] = Field(min_length=1, max_length=20)
+    category: str = Field(default="general", min_length=1, max_length=60)
+
 @router.get("/overview")
 async def api_memory_overview():
     return get_memory_overview()
+
+
+@router.get("/skills")
+async def api_list_skills(status: str = "all"):
+    if status not in {"all", "draft", "approved", "disabled"}:
+        raise HTTPException(status_code=400, detail="Invalid skill status")
+    return {"skills": list_skills(status)}
+
+
+@router.post("/skills")
+async def api_create_skill(req: SkillCreateRequest):
+    try:
+        return create_skill(req.name, req.description, req.triggers, req.steps, req.category)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/skills/{skill_id}/disable")
+async def api_disable_skill(skill_id: int):
+    if not disable_skill(skill_id):
+        raise HTTPException(status_code=404, detail="Skill not found or already disabled")
+    return {"status": "disabled", "skill_id": skill_id}
 
 @router.get("/notes")
 async def api_list_notes(query: str = "", status: str = "active"):

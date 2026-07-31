@@ -125,6 +125,12 @@ def _reconcile_resolved() -> None:
                     resolved_status = "APPROVED"
                 elif source[0] != "pending":
                     resolved_status = "REJECTED"
+            elif kind == "SKILL":
+                source = conn.execute(
+                    "SELECT status FROM procedural_skills WHERE id = ?", (int(source_id),)
+                ).fetchone()
+                if source and source[0] != "draft":
+                    resolved_status = "APPROVED" if source[0] == "approved" else "REJECTED"
             if resolved_status:
                 conn.execute(
                     """UPDATE approval_requests
@@ -154,6 +160,10 @@ def sync_pending_approvals() -> None:
         actions = conn.execute(
             """SELECT rowid, session_id, action_name, args, source_channel, created_at
                FROM pending_actions WHERE status = 'pending'"""
+        ).fetchall()
+        skills = conn.execute(
+            """SELECT id, name, description, category, created_at
+               FROM procedural_skills WHERE status = 'draft'"""
         ).fetchall()
 
     for fact_id, content, category, confidence, source_type, created_at in facts:
@@ -187,6 +197,12 @@ def sync_pending_approvals() -> None:
             json.dumps(args, ensure_ascii=False),
             {"action_id": action_id, "session_id": session_id, "action_name": action_name, "args": args,
              "created_at": created_at}, source_channel or "web",
+        )
+    for skill_id, name, description, category, created_at in skills:
+        _upsert_request(
+            "SKILL", str(skill_id), f"Подтвердить навык: {name}",
+            description or "Новый процедурный навык требует подтверждения.",
+            {"skill_id": skill_id, "name": name, "category": category, "created_at": created_at},
         )
     _reconcile_resolved()
 
@@ -246,6 +262,10 @@ async def resolve_approval(approval_id: str, decision: str,
                 delete_pending_action(action["session_id"])
         elif kind == "SANDBOX_APPLY":
             pass
+        elif kind == "SKILL":
+            from backend.app.memory.skill_service import disable_skill
+            if not disable_skill(int(source_id)):
+                raise ValueError("skill is no longer pending")
         status = "REJECTED"
     else:
         if kind == "FACT":
@@ -284,6 +304,10 @@ async def resolve_approval(approval_id: str, decision: str,
                 await asyncio.to_thread(apply_sandbox_plan, plan, operation_id=approval_id)
             except SandboxError as exc:
                 raise ValueError(str(exc)) from exc
+        elif kind == "SKILL":
+            from backend.app.memory.skill_service import approve_skill
+            if not approve_skill(int(source_id)):
+                raise ValueError("skill is no longer pending")
         status = "APPROVED"
 
     now = _now()

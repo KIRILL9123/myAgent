@@ -47,10 +47,10 @@ Near-to-medium-term concrete features not yet scheduled. Long-term phase items b
 - **Commitment Center improvements**: richer extraction, rescheduling and notification preferences.
 
 **Agent brain / Waku-inspired ideas**
-- **Retrieval Gate**: decide whether personal memory is needed before querying it; use a cheap local decision and fail open on errors.
-- **Procedural Memory / Skills**: store editable persona guidance and reusable, approval-aware workflows selected by task.
-- **Evaluation Release Gate**: keep deterministic behavior tests separate from optional LLM quality judging and record each verdict.
-- **Per-turn Agent Trace**: make memory decisions, tool calls, loop iterations, latency and token/cost estimates visible in Ops.
+- [x] **Retrieval Gate v1**: cheap deterministic routing skips irrelevant operational turns, records the decision/reason in `agent_turn` and fails open on gate errors; improve ambiguous semantic cases later.
+- [x] **Procedural Memory / Skills v1**: separate skill storage, built-in safe workflows, deterministic trigger selection, draft/approved/disabled lifecycle and Approval Center integration; richer editing remains future work.
+- [x] **Evaluation Release Gate v1**: `python dev-tools/release_gate.py` runs backend tests plus frontend lint/build, exits non-zero on regression and appends verdicts to ignored `logs/release_gate.jsonl`; optional LLM quality judging remains future work.
+- [x] **Per-turn Agent Trace v1**: `agent_turn` aggregates memory decisions, tool calls, loop iterations, latency, token estimates and final outcome without storing message content.
 
 **Notifications**
 - [x] **Quiet hours configuration**: suppress non-urgent Telegram notifications during user-defined hours.

@@ -160,7 +160,7 @@ async def _chat_ollama(messages, tools, response_format, model: str) -> dict[str
             data = resp.json()
             normalized_message, normalized_tools = _normalize_message(data.get("message", {}), parse_pseudo_tools=bool(tools))
             _log_call("ollama", model, resp.status_code, latency,
-                      bool(normalized_tools))
+                      bool(normalized_tools), _usage_payload(data, messages, normalized_message))
             _record_success()
             return {"model": model, "message": normalized_message}
         except (httpx.ConnectError, httpx.TimeoutException) as e:
@@ -194,7 +194,7 @@ async def _chat_ollama(messages, tools, response_format, model: str) -> dict[str
             data = resp.json()
             normalized_message, normalized_tools = _normalize_message(data.get("message", {}), parse_pseudo_tools=bool(tools))
             _log_call("ollama", LLM_FALLBACK_MODEL, resp.status_code, time.monotonic() - t0,
-                      bool(normalized_tools))
+                      bool(normalized_tools), _usage_payload(data, messages, normalized_message))
             _record_success()
             return {"model": LLM_FALLBACK_MODEL, "message": normalized_message}
         except Exception as fb_err:
@@ -237,7 +237,8 @@ async def _chat_openai(messages, tools, response_format, model: str) -> dict[str
             data = resp.json()
             choice = data["choices"][0]
             msg, tool_calls = _normalize_message(choice.get("message", {}), parse_pseudo_tools=bool(tools))
-            _log_call("openai_compatible", model, resp.status_code, latency, bool(tool_calls))
+            _log_call("openai_compatible", model, resp.status_code, latency, bool(tool_calls),
+                      _usage_payload(data, messages, msg))
             _record_success()
             return {"model": model, "message": msg}
         except (httpx.ConnectError, httpx.TimeoutException) as e:
@@ -267,7 +268,8 @@ async def _chat_openai(messages, tools, response_format, model: str) -> dict[str
                     retry_message, retry_tools = _normalize_message(
                         retry_data["choices"][0].get("message", {}), parse_pseudo_tools=False
                     )
-                    _log_call("openai_compatible", model, retry_response.status_code, 0, bool(retry_tools))
+                    _log_call("openai_compatible", model, retry_response.status_code, 0, bool(retry_tools),
+                              _usage_payload(retry_data, fallback_payload["messages"], retry_message))
                     _record_success()
                     return {"model": model, "message": retry_message}
                 except Exception as retry_error:
@@ -300,7 +302,8 @@ async def _chat_openai(messages, tools, response_format, model: str) -> dict[str
             data = resp.json()
             choice = data["choices"][0]
             msg, normalized_tools = _normalize_message(choice.get("message", {}), parse_pseudo_tools=bool(tools))
-            _log_call("openai_compatible", LLM_FALLBACK_MODEL, resp.status_code, time.monotonic() - t0, bool(normalized_tools))
+            _log_call("openai_compatible", LLM_FALLBACK_MODEL, resp.status_code, time.monotonic() - t0,
+                      bool(normalized_tools), _usage_payload(data, messages, msg))
             _record_success()
             return {"model": LLM_FALLBACK_MODEL, "message": msg}
         except Exception as fb_err:
@@ -375,12 +378,42 @@ def _normalize_message(
 async def _backoff(attempt: int):
     await asyncio.sleep(min(2.0 ** attempt, 2.0))
 
-def _log_call(provider: str, model: str, status: int, latency: float, has_tools: bool):
+def _usage_payload(data: dict[str, Any], messages: list[dict[str, Any]], message: dict[str, Any]) -> dict[str, Any]:
+    """Extract provider usage or make a transparent chars/4 estimate."""
+    usage = data.get("usage") or {}
+    input_tokens = usage.get("prompt_tokens") or usage.get("input_tokens") or data.get("prompt_eval_count")
+    output_tokens = usage.get("completion_tokens") or usage.get("output_tokens") or data.get("eval_count")
+    source = "provider" if input_tokens is not None or output_tokens is not None else "estimate"
+    if input_tokens is None:
+        input_tokens = max(1, round(sum(len(str(item.get("content") or "")) for item in messages) / 4))
+    if output_tokens is None:
+        output_tokens = max(1, round(len(str(message.get("content") or "")) / 4))
+    input_tokens = int(input_tokens)
+    output_tokens = int(output_tokens)
+    input_rate = float(os.getenv("LLM_INPUT_COST_PER_1K_USD", "0"))
+    output_rate = float(os.getenv("LLM_OUTPUT_COST_PER_1K_USD", "0"))
+    estimated_cost = (input_tokens / 1000 * input_rate) + (output_tokens / 1000 * output_rate)
+    return {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "token_source": source,
+        "estimated_cost_usd": round(estimated_cost, 8) if estimated_cost else None,
+    }
+
+
+def _log_call(
+    provider: str,
+    model: str,
+    status: int,
+    latency: float,
+    has_tools: bool,
+    usage: dict[str, Any] | None = None,
+):
     print(f"[LLM] provider={provider} model={model} status={status} "
           f"latency={latency:.2f}s tools={has_tools}")
     record_event(
         "llm_call", provider, "ok" if status < 400 else "error", latency * 1000,
-        {"model": model, "http_status": status, "has_tools": has_tools},
+        {"model": model, "http_status": status, "has_tools": has_tools, **(usage or {})},
     )
 
 def _log_error(provider: str, model: str, err: Any):

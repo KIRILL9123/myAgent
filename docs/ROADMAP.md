@@ -171,10 +171,10 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [ ] Auto-weight retrieval by confidence + recency
 
 **Agent Brain — ideas inspired by Waku Agent**
-- [ ] Retrieval Gate: decide whether a message needs personal-memory retrieval before searching; fail open if the gate is unavailable
-- [ ] Procedural Memory / Skills: editable persona and reusable approved workflows that can be selected by task
-- [ ] Deterministic Evaluation + Release Gate: separate tool-behavior tests from optional LLM-judge quality checks and persist verdict history
-- [ ] Per-turn Agent Trace: expose gate decision, loop iterations, tool calls, latency, token/cost estimates and final outcome in System/Ops
+- [x] Retrieval Gate v1: deterministic pre-retrieval routing skips irrelevant operational turns, records the reason in `agent_turn` and fails open if the gate itself errors; semantic/LLM routing remains future work
+- [x] Procedural Memory / Skills v1: separate approved workflows with deterministic trigger selection, draft/approved/disabled lifecycle and Approval Center integration; richer editing and semantic selection remain future work
+- [x] Deterministic Evaluation + Release Gate v1: backend/frontend checks are reproducible, fail the command on regression and persist verdict history; optional LLM-judge quality checks remain future work
+- [x] Per-turn Agent Trace v1: aggregate turn event records loop iterations, tool calls, latency, memory usage, token estimates and final outcome; gate decisions remain future work
 
 **Notifications**
 - [x] Quiet hours configuration

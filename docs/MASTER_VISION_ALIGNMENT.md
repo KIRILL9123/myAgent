@@ -16,8 +16,8 @@ and priorities while requiring human approval for high-impact actions.
 | Vision area | Current status | Canonical location / next step |
 |---|---|---|
 | Memory facts and approval | **Implemented** | `backend/app/memory/*`, Memory UI |
-| Retrieval Gate | **Planned** | Add a cheap pre-retrieval decision so irrelevant turns do not query personal memory; fail open on gate errors |
-| Procedural memory and skills | **Planned** | Add editable persona and reusable approved workflows without mixing them into factual memory |
+| Retrieval Gate | **Implemented v1** | `backend/app/memory/retrieval_gate.py` skips irrelevant operational turns, logs decision/reason in `agent_turn` and fails open on gate errors; semantic routing remains planned |
+| Procedural memory and skills | **Implemented v1** | `backend/app/memory/skill_service.py` stores separate workflows, selects approved skills deterministically and routes user-created skills through the Approval Center; semantic selection and richer editing remain planned |
 | Temporal validity, confidence, provenance metadata | **Partially implemented** | `docs/design/MEMORY_EVOLUTION.md`; add source references and user-visible citations |
 | Fact decay and reconfirmation | **Planned** | Memory Evolution backlog |
 | Poisoned-memory quarantine | **Planned** | Add contradiction/review state before deletion |
@@ -43,8 +43,8 @@ and priorities while requiring human approval for high-impact actions.
 | Unified Approval Control Plane | **v1 implemented** | Unified approval projection, API and web center cover memory facts, commitments, subscription proposals and RED actions; deeper event history and policy unification remain planned |
 | Autonomy levels by domain | **Planned policy** | Formalize levels 0–5 and per-domain configuration |
 | Capability tokens | **Planned security feature** | Time-, action- and payload-scoped authorization |
-| Evaluation framework and regression pack | **Partially implemented** | `backend/tests`, E2E smoke test; add Waku-inspired deterministic release gate, optional LLM judge and verdict history |
-| Per-turn agent trace | **Partially implemented** | Structured observability events exist; expose gate decision, loop iterations and cost/latency evidence in Ops |
+| Evaluation framework and regression pack | **Implemented v1** | `python dev-tools/release_gate.py` runs deterministic backend/frontend checks and persists verdict history; optional LLM judge remains planned |
+| Per-turn agent trace | **Implemented v1** | `agent_turn` aggregate includes memory, loop, tool, latency, token estimate and outcome metadata; expose gate decision and richer cost policy later |
 | Shadow mode | **Partially implemented** | Dry-run exists; add intent observation and comparison reports |
 | Self-improvement workflow | **MVP implemented / hardening pending** | Bounded Code Sandbox, Docker runner, agent tools, explicit write confirmation, allowlisted checks, diff/baseline preview, approval-gated apply and `/sandbox` UI; broader evaluation/history remain future |
 | Central Tool Registry | **Planned** | Unify schema, handler, permission, validation, risk and audit metadata |
@@ -54,7 +54,7 @@ and priorities while requiring human approval for high-impact actions.
 | Sleep-aware bootstrap reconciliation | **Planned** | Startup checks for missed jobs and stale integrations |
 | Backup and disaster recovery | **Partially implemented** | SQLite backup/restore exists; add encrypted config/document strategy and tested restore runbook |
 | Versioned migrations | **Missing / high priority** | Replace ad-hoc `ALTER TABLE` checks with numbered migrations or Alembic |
-| Observability | **v1 implemented** | Correlation IDs, structured SQLite/JSONL events, backend/model health and Dashboard status widget; token budgets and richer metrics remain planned |
+| Observability | **v1 implemented** | Correlation IDs, structured SQLite/JSONL events, per-turn trace, backend/model health and Dashboard status widget; token budgets and richer metrics remain planned |
 | Cost and latency budgets | **Planned** | Per-request time, model-call, tool-call and token budgets |
 | Model Router | **Partially implemented** | Unified `llm.py` provider layer, role config and fallback exist; typed role routing and embeddings remain planned |
 | Weather and forecast access | **Implemented** | Read-only Open-Meteo connector, city resolution, current/5-day forecast, source timestamp and structured chat card |

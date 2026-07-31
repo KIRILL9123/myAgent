@@ -19,7 +19,8 @@ from backend.app.storage.db import (
     claim_pending_action,
     finalize_pending_action,
 )
-from backend.app.observability.telemetry import elapsed_ms, record_event
+from backend.app.observability.telemetry import elapsed_ms, record_event, trace_agent_turn
+from backend.app.memory.retrieval_gate import RetrievalDecision, decide_retrieval
 
 # ─── Tool definitions for the LLM ────────────────────────────────────────────
 AVAILABLE_TOOLS = [
@@ -961,6 +962,7 @@ def _log_task_exception(task):
     except Exception:
         pass
 
+@trace_agent_turn
 async def run_orchestrator(user_message: str, session_id: str = "default") -> dict:
     """
     The main agent loop with multi-turn tool calling.
@@ -982,10 +984,34 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
     # Save user message to history
     save_message(session_id, "user", user_message)
 
-    # ── Step 0.5: Custom Memory Layer Integration ──
-    from backend.app.memory.memory_service import get_relevant_memory
-    
-    relevant_memory = await get_relevant_memory(user_message)
+    # ── Step 0.5: Retrieval Gate + Custom Memory Layer Integration ──
+    gate_error: BaseException | None = None
+    try:
+        retrieval_decision = decide_retrieval(user_message)
+    except Exception as exc:
+        # Memory routing is an optimization, never a hard dependency for chat.
+        gate_error = exc
+        retrieval_decision = RetrievalDecision("retrieve", "gate_error_fail_open", "low")
+
+    record_event(
+        "retrieval_gate", "memory", retrieval_decision.decision,
+        payload={
+            "reason": retrieval_decision.reason,
+            "confidence": retrieval_decision.confidence,
+            "query_chars": len(user_message),
+            "error_type": type(gate_error).__name__ if gate_error else None,
+        },
+    )
+
+    relevant_memory: list[dict[str, Any]] = []
+    if retrieval_decision.should_retrieve:
+        from backend.app.memory.memory_service import get_relevant_memory
+
+        relevant_memory = await get_relevant_memory(user_message)
+        record_event(
+            "memory_retrieval", "memory", "hit" if relevant_memory else "miss",
+            payload={"items": len(relevant_memory), "query_chars": len(user_message)},
+        )
     
     if relevant_memory:
         facts_block = "\n".join([
@@ -1000,12 +1026,35 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
         facts_block = None
         print(f'[MEMORY] No relevant memory found for query: "{user_message}"')
 
+    selected_skills: list[dict[str, Any]] = []
+    skill_error: BaseException | None = None
+    render_skills_prompt = lambda _: ""
+    try:
+        from backend.app.memory.skill_service import mark_skills_used, select_skills, skills_prompt
+        render_skills_prompt = skills_prompt
+        selected_skills = select_skills(user_message)
+        if selected_skills:
+            mark_skills_used(selected_skills)
+    except Exception as exc:
+        # Procedural guidance is optional and must never block the core agent.
+        skill_error = exc
+    record_event(
+        "skill_selection", "skills", "selected" if selected_skills else "none",
+        payload={
+            "names": ",".join(skill["name"] for skill in selected_skills)[:500],
+            "count": len(selected_skills),
+            "error_type": type(skill_error).__name__ if skill_error else None,
+        },
+    )
+
     # ── Step 1: Build messages from history ──
     history = get_history(session_id, limit=20)
     messages = []
     
     # Prepend System Prompt
     current_system_prompt = get_system_prompt()
+    if selected_skills:
+        current_system_prompt += render_skills_prompt(selected_skills)
     if facts_block:
         current_system_prompt += (
             "\n\nИзвестные факты о пользователе (учитывай при ответе, но не упоминай "
@@ -1063,6 +1112,10 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
 
     # ── Step 2: Multi-turn tool calling loop ──
     for _round in range(MAX_TOOL_ROUNDS):
+        record_event(
+            "agent_iteration", "orchestrator", "started",
+            payload={"round": _round + 1, "has_pre_route": bool(pre_route)},
+        )
         # After deterministic web routing, ask the model only to summarize the
         # already retrieved result; this prevents duplicate search calls from
         # completion models that do not reliably follow tool-call contracts.
@@ -1070,6 +1123,7 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
 
         if isinstance(response, dict) and response.get("status") == "error":
             return {
+                "status": "error",
                 "response": response.get("message"),
                 "tool_calls": executed_tool_calls,
                 "web_sources": web_sources or None,

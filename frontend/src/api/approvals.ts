@@ -2,7 +2,7 @@ import { apiRequest } from './client';
 
 const API_BASE = '/api/approvals/';
 
-export type ApprovalKind = 'FACT' | 'COMMITMENT' | 'SUBSCRIPTION' | 'ACTION' | 'SANDBOX_APPLY';
+export type ApprovalKind = 'FACT' | 'COMMITMENT' | 'SUBSCRIPTION' | 'ACTION' | 'SANDBOX_APPLY' | 'SKILL';
 
 export interface ApprovalRequest {
   id: string;
