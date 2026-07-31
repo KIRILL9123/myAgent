@@ -10,6 +10,8 @@ const MemoryPage = lazy(() => import('./pages/MemoryPage'));
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
 const CommitmentsPage = lazy(() => import('./pages/CommitmentsPage'));
 const ApprovalsPage = lazy(() => import('./pages/ApprovalsPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const NotificationPreferencesPage = lazy(() => import('./pages/NotificationPreferencesPage'));
 const SystemPage = lazy(() => import('./pages/SystemPage'));
 const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const MailPage = lazy(() => import('./pages/MailPage'));
@@ -45,6 +47,8 @@ function App() {
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/commitments" element={<CommitmentsPage />} />
             <Route path="/approvals" element={<ApprovalsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/notifications/preferences" element={<NotificationPreferencesPage />} />
             <Route path="/system" element={<SystemPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/mail" element={<MailPage />} />

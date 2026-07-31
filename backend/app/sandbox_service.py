@@ -18,7 +18,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 from uuid import uuid4
 
@@ -87,8 +87,21 @@ def _safe_path(session_id: str, relative_path: str, *, create_parent: bool = Fal
     if not isinstance(relative_path, str) or not relative_path.strip():
         raise SandboxError("A relative file path is required.")
 
-    candidate_input = Path(relative_path)
-    if candidate_input.is_absolute() or any(part == ".." for part in candidate_input.parts):
+    # Normalize both separator styles before validating.  The sandbox can
+    # receive a Windows path from a client even when the server runs on Linux
+    # (and vice versa), so relying only on the host OS's Path semantics would
+    # treat values such as ``..\\outside.py`` or ``C:\\outside.py`` as safe
+    # relative filenames on POSIX.
+    portable_path = relative_path.replace("\\", "/")
+    candidate_input = Path(portable_path)
+    windows_input = PureWindowsPath(relative_path)
+    if (
+        candidate_input.is_absolute()
+        or windows_input.is_absolute()
+        or windows_input.drive
+        or any(part == ".." for part in candidate_input.parts)
+        or any(part == ".." for part in windows_input.parts)
+    ):
         raise SandboxError("Only relative paths inside the sandbox workspace are allowed.")
     if candidate_input.name in {"", ".", ".."}:
         raise SandboxError("A file path is required.")

@@ -189,7 +189,7 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [x] Notification budget and priority scoring
 - [x] Notification coalescing and deduplication for Telegram delivery
 - [x] Shared Action Center delivery layer for Telegram
-- [ ] Notification preferences UI and future mobile-client delivery
+- [x] Notification preferences UI; future mobile-client delivery remains planned
 
 **Cross-domain**
 - [ ] Calendar × Memory conflict detection (flag when new event conflicts with known preferences)
@@ -272,6 +272,23 @@ read-only-first, provenance-aware, budgeted and approval-gated for any side effe
 ## E. Later / Experimental
 
 These are worth preserving but not scheduled. Do not plan implementation time for them.
+
+### Selected Product Ideas Preserved for Future Scheduling
+
+The selected ideas are mirrored in [BACKLOG.md](BACKLOG.md). The Notification Center is the next priority; the remaining items stay unscheduled until the current foundation is stable.
+
+- Subscription → Finance recurring-transaction proposals, always approval-gated.
+- Security-backlog reminders and a monthly security report.
+- Focus mode layered on top of Quiet Hours.
+- Archive/recovery instead of destructive deletion.
+- Document links to commitments, calendar events and Personal State.
+- OCR for scans and photos.
+- Version-to-version document comparison.
+- Clearly marked unverified external data with provenance and freshness.
+- Unified Notification Center for approvals, reminders, errors and proposals.
+- Mobile four-action mode for Chat, Tasks, Notifications and File Upload.
+- Safe cleanup of temporary sandbox, log, upload and cache artifacts.
+- Persistent error reporting with correlation context and a fix lifecycle: new → fixing → fixed → verified → closed.
 
 - **Self-Improving Agent** — requires ALL safety phases complete, plus sandbox infrastructure. Earliest: after Phase 5.
 - **Ausbildung / Language Trainer** — spaced repetition, OCR, generative exercises. Valuable but orthogonal to the core architecture.
