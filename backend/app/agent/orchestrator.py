@@ -16,7 +16,8 @@ from backend.app.storage.db import (
     get_history,
     save_pending_action,
     get_pending_action,
-    delete_pending_action
+    delete_pending_action,
+    finalize_pending_action,
 )
 from backend.app.observability.telemetry import elapsed_ms, record_event
 
@@ -653,7 +654,7 @@ async def _check_confirmation(user_message: str, session_id: str) -> dict | None
 
     elif is_cancel:
         action_name = pending["action"]
-        delete_pending_action(session_id)
+        finalize_pending_action(pending["id"], "cancelled")
         log_action(action_name, "CANCELLED", "User cancelled the action")
         return {
             "response": f"Действие '{action_name}' отменено.",

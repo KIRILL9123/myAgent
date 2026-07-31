@@ -36,3 +36,35 @@ async def test_unified_center_rejects_commitment(approval_db):
     resolved = await resolve_approval(pending[0]["id"], "reject", "Неактуально")
     assert resolved["status"] == "REJECTED"
     assert list_approvals() == []
+
+
+@pytest.mark.asyncio
+async def test_cancel_in_chat_marks_action_rejected_not_approved(approval_db):
+    action_id, _ = db.save_pending_action("session-1", "send_email", {"to": "a@b.c"})
+
+    pending = list_approvals()
+    assert len(pending) == 1
+    assert pending[0]["kind"] == "ACTION"
+
+    db.finalize_pending_action(action_id, "cancelled")
+
+    rejected = list_approvals("REJECTED")
+    assert any(item["kind"] == "ACTION" and item["source_id"] == str(action_id) for item in rejected)
+    approved = list_approvals("APPROVED")
+    assert all(item["kind"] != "ACTION" for item in approved)
+
+
+@pytest.mark.asyncio
+async def test_telegram_complete_marks_action_approved_not_rejected(approval_db):
+    action_id, _ = db.save_pending_action("session-2", "send_email", {"to": "a@b.c"})
+
+    pending = list_approvals()
+    assert len(pending) == 1
+    assert pending[0]["kind"] == "ACTION"
+
+    db.finalize_pending_action(action_id, "completed")
+
+    approved = list_approvals("APPROVED")
+    assert any(item["kind"] == "ACTION" and item["source_id"] == str(action_id) for item in approved)
+    rejected = list_approvals("REJECTED")
+    assert all(item["kind"] != "ACTION" for item in rejected)

@@ -83,9 +83,15 @@ def _reconcile_resolved() -> None:
                     "SELECT status FROM pending_actions WHERE rowid = ?", (int(source_id),)
                 ).fetchone()
                 if not source:
+                    resolved_status = None
+                elif source[0] == "cancelled":
+                    resolved_status = "REJECTED"
+                elif source[0] == "completed":
+                    resolved_status = "APPROVED"
+                elif source[0] in {"executing", "executed"}:
                     resolved_status = "APPROVED"
                 elif source[0] != "pending":
-                    resolved_status = "APPROVED" if source[0] in {"executing", "executed"} else "REJECTED"
+                    resolved_status = "REJECTED"
             if resolved_status:
                 conn.execute(
                     """UPDATE approval_requests
