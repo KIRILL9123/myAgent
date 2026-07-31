@@ -1,6 +1,6 @@
 import { apiRequest } from './client';
 
-export type ActionKind = 'approval' | 'commitment' | 'subscription' | 'deadline' | 'mail';
+export type ActionKind = 'approval' | 'commitment' | 'subscription' | 'deadline' | 'mail' | 'error';
 export type ActionPriority = 'critical' | 'high' | 'medium' | 'low';
 export type ActionMode = 'attention' | 'all';
 

@@ -70,3 +70,19 @@ def test_action_center_all_mode_includes_planned_items(action_db):
 
     assert attention["actions"] == []
     assert any(item["source_id"] == commitment["id"] for item in all_actions["actions"])
+
+
+def test_action_center_includes_open_error_reports(action_db):
+    from backend.app.action_center_service import build_action_center
+    from backend.app.observability.error_reports import create_error_report, update_error_report
+
+    report = create_error_report("Calendar timeout", "Calendar did not respond.", severity="high", correlation_id="corr-error")
+    result = build_action_center(include_external=False)
+    error_action = next(item for item in result["actions"] if item["kind"] == "error")
+    assert error_action["source_id"] == str(report["id"])
+    assert error_action["target"] == "/errors"
+    assert error_action["priority"] == "high"
+
+    update_error_report(report["id"], "fixing")
+    all_actions = build_action_center(mode="all", include_external=False)
+    assert any(item["id"] == f"error:{report['id']}" for item in all_actions["actions"])

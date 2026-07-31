@@ -26,6 +26,7 @@ Action Center — единый read-only слой над существующи�
 - `subscriptions` — ближайшие списания и окончания trial;
 - `countdowns` — дедлайны;
 - `approvals` — предложения из фактов, обязательств, подписок и pending actions;
+- `error reports` — открытые технические ошибки из `/api/errors`, пока они не достигли статуса `closed`;
 - почта — только агрегированный unread-сигнал при явном `include_external=true`.
 
 ## Правила
