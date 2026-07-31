@@ -158,9 +158,6 @@ export default function DashboardPage() {
             Обзор Системы
           </h1>
         </div>
-        <div className="text-xs text-zinc-550 font-mono hidden md:block">
-          Home Agent Hub v2.0
-        </div>
       </header>
 
       {/* Main Grid View */}
@@ -168,7 +165,7 @@ export default function DashboardPage() {
         <SystemStatusWidget />
         <PersonalStateWidget />
         <section className="mx-auto mt-8 max-w-5xl" aria-labelledby="dashboard-domains-title">
-          <div className="mb-3 flex items-end justify-between gap-3"><div><h2 id="dashboard-domains-title" className="text-xs font-bold uppercase tracking-widest text-zinc-400">Центр управления</h2><p className="mt-1 text-xs text-zinc-600">Быстрый обзор ключевых областей агента</p></div><span className="text-[10px] text-zinc-600">4 раздела</span></div>
+          <div className="mb-3"><h2 id="dashboard-domains-title" className="text-xs font-bold uppercase tracking-widest text-zinc-400">Центр управления</h2></div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           
           {/* Card 1: Calendar */}

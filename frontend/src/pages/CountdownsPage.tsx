@@ -124,9 +124,6 @@ export default function CountdownsPage() {
           </h1>
         </div>
 
-        <div className="text-xs text-zinc-500 font-mono hidden md:block">
-          Home Agent Deadlines API
-        </div>
       </header>
 
       {/* Main Container */}

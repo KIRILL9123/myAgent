@@ -333,6 +333,9 @@ app.include_router(approvals_router, prefix="/api/approvals")
 from backend.app.api.notifications import router as notifications_router
 app.include_router(notifications_router, prefix="/api/notifications")
 
+from backend.app.api.sandbox import router as sandbox_router
+app.include_router(sandbox_router, prefix="/api/sandbox")
+
 from backend.app.api.system import router as system_router
 app.include_router(system_router, prefix="/api/system")
 

@@ -18,7 +18,7 @@ export default function PersonalStateWidget() {
   return (
     <section className="mx-auto mb-6 max-w-5xl rounded-3xl border border-purple-500/15 bg-gradient-to-br from-purple-500/10 via-zinc-900/40 to-zinc-900/30 p-5 shadow-lg sm:p-6">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3"><div className="rounded-2xl border border-purple-400/20 bg-purple-500/10 p-3 text-purple-300"><Sparkles className="h-5 w-5" /></div><div><h2 className="text-sm font-bold text-zinc-100 sm:text-base">Текущее состояние</h2><p className="mt-1 text-xs text-zinc-500">Сводка сигналов из основных разделов</p></div></div>
+        <div className="flex items-center gap-3"><div className="rounded-2xl border border-purple-400/20 bg-purple-500/10 p-3 text-purple-300"><Sparkles className="h-5 w-5" /></div><h2 className="text-sm font-bold text-zinc-100 sm:text-base">Текущее состояние</h2></div>
         <button onClick={() => query.refetch()} disabled={query.isFetching} aria-label="Обновить состояние" className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-900/70 hover:text-zinc-200 disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${query.isFetching ? 'animate-spin' : ''}`} /></button>
       </div>
       {query.isLoading ? <div className="flex h-20 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-purple-400" /></div> : query.isError ? <div className="mt-4 flex items-center justify-between gap-3 text-xs text-zinc-500"><span>Не удалось собрать сводку состояния.</span><button onClick={() => query.refetch()} className="text-purple-300 hover:text-purple-200">Повторить</button></div> : snapshot && (

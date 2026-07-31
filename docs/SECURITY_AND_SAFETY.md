@@ -34,9 +34,10 @@ executing it. Automation may be enabled only after evaluation and explicit appro
 
 ## Approval direction
 
-The current system has memory approval and RED-action confirmation as separate flows.
-The target architecture is one Approval Control Plane containing operation type,
-description, risk, source, payload, expiry, approve/reject/snooze state and provenance.
+The Approval Control Plane now covers memory, commitments, subscriptions, RED actions
+and reviewed sandbox-apply requests. A sandbox apply is still two-step: a RED request
+may create the proposal, and the final repository mutation requires a separate approval
+record with conflict checks and rollback backup.
 
 ## Required test coverage
 
@@ -52,5 +53,5 @@ description, risk, source, payload, expiry, approve/reject/snooze state and prov
 - Capability tokens scoped by action, payload and expiry.
 - Per-domain autonomy levels.
 - Adversarial corpus for prompt injection, poisoned memory and malicious tool arguments.
-- Sandboxed diagnostics and self-improvement execution.
+- Broader adversarial evaluation of sandboxed diagnostics and self-improvement execution.
 - Encrypted backup/export strategy.

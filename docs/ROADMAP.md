@@ -170,6 +170,12 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [ ] Decay scoring (advisory only)
 - [ ] Auto-weight retrieval by confidence + recency
 
+**Agent Brain — ideas inspired by Waku Agent**
+- [ ] Retrieval Gate: decide whether a message needs personal-memory retrieval before searching; fail open if the gate is unavailable
+- [ ] Procedural Memory / Skills: editable persona and reusable approved workflows that can be selected by task
+- [ ] Deterministic Evaluation + Release Gate: separate tool-behavior tests from optional LLM-judge quality checks and persist verdict history
+- [ ] Per-turn Agent Trace: expose gate decision, loop iterations, tool calls, latency, token/cost estimates and final outcome in System/Ops
+
 **Notifications**
 - [x] Quiet hours configuration
 - [x] Notification budget and priority scoring
@@ -237,9 +243,10 @@ read-only-first, provenance-aware, budgeted and approval-gated for any side effe
 
 **Host computer control**
 - [x] Read-only host diagnostics: CPU, RAM, disks, process count and top processes
+- [x] Code Sandbox MVP: bounded workspace, safe relative paths, explicit write confirmation, Docker runner, allowlisted checks, diff/baseline preview and approval-gated conflict-safe apply (see [design/CODE_SANDBOX.md](design/CODE_SANDBOX.md))
 - [ ] Define capability levels: read-only diagnostics → preview/dry-run → approved action
-- [ ] Add explicit user approval, scoped capability tokens, audit events and emergency stop
-- [ ] Sandbox process, filesystem and network access; deny by default
+- [ ] Add scoped capability tokens, richer sandbox audit history, emergency stop and adversarial evaluation coverage
+- [x] Docker execution boundary with no network, read-only root, dropped capabilities and resource limits; VM-level isolation and broader adversarial coverage remain planned
 - [ ] Implement a Windows 11 adapter first (processes, services, files and selected apps)
 - [ ] Implement a macOS adapter later for Mac Studio/Mac mini (launchd, processes, files and selected apps)
 - [ ] Add cross-platform capability contracts so the agent does not depend on OS-specific commands

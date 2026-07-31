@@ -288,6 +288,113 @@ AVAILABLE_TOOLS = [
             },
         },
     },
+    # ── Code sandbox: bounded workspace and allowlisted checks ──
+    {
+        "type": "function",
+        "function": {
+            "name": "sandbox_list_files",
+            "description": "List files in the agent's isolated code workspace. The workspace is separate from the project and supports only small text files.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string", "description": "Stable workspace ID for this experiment (letters, numbers, '_' or '-')."},
+                },
+                "required": ["session_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "sandbox_read_file",
+            "description": "Read a UTF-8 text file from the isolated code workspace. Never use this to access the main project or system files.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string"},
+                    "path": {"type": "string", "description": "Relative path inside the sandbox workspace."},
+                },
+                "required": ["session_id", "path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "sandbox_write_file",
+            "description": "Write or replace a small text file in the isolated code workspace. Requires explicit user confirmation before it is applied.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string"},
+                    "path": {"type": "string", "description": "Relative path inside the sandbox workspace."},
+                    "content": {"type": "string", "description": "UTF-8 source or text content, maximum 256 KB."},
+                    "overwrite": {"type": "boolean", "description": "Set true only when intentionally replacing an existing file."},
+                },
+                "required": ["session_id", "path", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "sandbox_run_check",
+            "description": "Run one allowlisted check inside the isolated workspace: python, pytest, node, or compile_python. No arbitrary shell commands are accepted.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string"},
+                    "check": {"type": "string", "enum": ["python", "pytest", "node", "compile_python"]},
+                    "path": {"type": "string", "description": "Relative source or test file path inside the sandbox workspace."},
+                    "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 120},
+                },
+                "required": ["session_id", "check", "path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "sandbox_get_diff",
+            "description": "Show the safe unified diff between the sandbox workspace and its saved baseline. This is read-only and never changes the main project.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string", "description": "Stable workspace ID for this experiment (letters, numbers, '_' or '-')."},
+                },
+                "required": ["session_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "sandbox_delete_file",
+            "description": "Delete a file from the isolated sandbox workspace. Requires explicit user confirmation and never deletes files from the main project.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string"},
+                    "path": {"type": "string", "description": "Relative path inside the sandbox workspace."},
+                },
+                "required": ["session_id", "path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "sandbox_request_apply",
+            "description": "Request review of the current sandbox diff for applying it to the main project. This only creates an Approval Center request; it never applies code directly and requires approval there.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string"},
+                },
+                "required": ["session_id"],
+            },
+        },
+    },
 ]
 
 # ─── Tool dispatcher ─────────────────────────────────────────────────────────
@@ -376,6 +483,37 @@ def _dispatch_tool(function_name: str, arguments: dict) -> dict:
     elif function_name == "delete_countdown":
         from backend.app.countdown.countdown_service import delete_countdown
         return delete_countdown(arguments.get("countdown_id"))
+    elif function_name == "sandbox_list_files":
+        from backend.app.sandbox_service import list_files
+        return list_files(arguments.get("session_id", ""))
+    elif function_name == "sandbox_read_file":
+        from backend.app.sandbox_service import read_file
+        return read_file(arguments.get("session_id", ""), arguments.get("path", ""))
+    elif function_name == "sandbox_write_file":
+        from backend.app.sandbox_service import write_file
+        return write_file(
+            arguments.get("session_id", ""),
+            arguments.get("path", ""),
+            arguments.get("content", ""),
+            overwrite=arguments.get("overwrite", False),
+        )
+    elif function_name == "sandbox_run_check":
+        from backend.app.sandbox_service import run_check
+        return run_check(
+            arguments.get("session_id", ""),
+            arguments.get("check", "python"),
+            arguments.get("path", ""),
+            timeout_seconds=arguments.get("timeout_seconds", 30),
+        )
+    elif function_name == "sandbox_get_diff":
+        from backend.app.sandbox_service import diff_workspace
+        return diff_workspace(arguments.get("session_id", ""))
+    elif function_name == "sandbox_delete_file":
+        from backend.app.sandbox_service import delete_file
+        return delete_file(arguments.get("session_id", ""), arguments.get("path", ""))
+    elif function_name == "sandbox_request_apply":
+        from backend.app.sandbox_service import request_apply
+        return request_apply(arguments.get("session_id", ""))
     else:
         return {"status": "error", "message": f"Function '{function_name}' is not implemented yet."}
 

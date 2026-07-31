@@ -16,6 +16,8 @@ and priorities while requiring human approval for high-impact actions.
 | Vision area | Current status | Canonical location / next step |
 |---|---|---|
 | Memory facts and approval | **Implemented** | `backend/app/memory/*`, Memory UI |
+| Retrieval Gate | **Planned** | Add a cheap pre-retrieval decision so irrelevant turns do not query personal memory; fail open on gate errors |
+| Procedural memory and skills | **Planned** | Add editable persona and reusable approved workflows without mixing them into factual memory |
 | Temporal validity, confidence, provenance metadata | **Partially implemented** | `docs/design/MEMORY_EVOLUTION.md`; add source references and user-visible citations |
 | Fact decay and reconfirmation | **Planned** | Memory Evolution backlog |
 | Poisoned-memory quarantine | **Planned** | Add contradiction/review state before deletion |
@@ -41,9 +43,10 @@ and priorities while requiring human approval for high-impact actions.
 | Unified Approval Control Plane | **v1 implemented** | Unified approval projection, API and web center cover memory facts, commitments, subscription proposals and RED actions; deeper event history and policy unification remain planned |
 | Autonomy levels by domain | **Planned policy** | Formalize levels 0–5 and per-domain configuration |
 | Capability tokens | **Planned security feature** | Time-, action- and payload-scoped authorization |
-| Evaluation framework and regression pack | **Partially implemented** | `backend/tests`, E2E smoke test; add evaluation corpus and CI gates |
+| Evaluation framework and regression pack | **Partially implemented** | `backend/tests`, E2E smoke test; add Waku-inspired deterministic release gate, optional LLM judge and verdict history |
+| Per-turn agent trace | **Partially implemented** | Structured observability events exist; expose gate decision, loop iterations and cost/latency evidence in Ops |
 | Shadow mode | **Partially implemented** | Dry-run exists; add intent observation and comparison reports |
-| Self-improvement workflow | **Documented, not implemented** | `docs/design/SELF_IMPROVING_AGENT.md`; sandbox and approval pipeline remain future |
+| Self-improvement workflow | **MVP implemented / hardening pending** | Bounded Code Sandbox, Docker runner, agent tools, explicit write confirmation, allowlisted checks, diff/baseline preview, approval-gated apply and `/sandbox` UI; broader evaluation/history remain future |
 | Central Tool Registry | **Planned** | Unify schema, handler, permission, validation, risk and audit metadata |
 | Pydantic tool validation | **Implemented** | `backend/app/agent/tool_models.py` |
 | Audit log | **Partially implemented** | Tool audit exists; add correlation IDs and complete provenance |
@@ -61,7 +64,7 @@ and priorities while requiring human approval for high-impact actions.
 | Adversarial security testing | **Planned** | Corpus for prompt injection, poisoned memory and malicious tool arguments |
 | Security model | **Partially implemented** | API auth, deny-by-default permissions, untrusted content wrapping, RED confirmations |
 | Sandboxed diagnostics | **v1 implemented** | Read-only backend/model health, ports, CPU, memory, disk and top-process diagnostics; sandboxed process control remains planned |
-| Self-improvement sandbox | **Planned / deferred** | Branch + isolated environment + tests + evaluation + human approval |
+| Self-improvement sandbox | **MVP implemented / hardening pending** | `docs/design/CODE_SANDBOX.md`; Docker isolation, workspace checks, diff/baseline preview, conflict-safe backup/apply and UI exist, while broader evaluation and task history remain planned |
 | Ausbildung learning system | **Deferred** | Separate learning module with RAG, flashcards, tests and progress |
 | Home Assistant | **Deferred** | Long-term integration; not part of the current cycle |
 | Personal ontology versioning | **Planned** | Version entity, relation and category types with migrations |

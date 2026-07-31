@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Brain, Calendar, CheckCircle2, ChevronDown, Clock, CreditCard,
+  Brain, Calendar, CheckCircle2, ChevronDown, Clock, Code2, CreditCard,
   LayoutDashboard, ListTodo, Mail, Menu, MessageSquare, MonitorCog,
   ShieldCheck, Sparkles, Wallet, X,
 } from 'lucide-react';
@@ -61,6 +61,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { path: '/approvals', label: 'Подтверждения', mobile: 'Подтверждения', icon: ShieldCheck },
       { path: '/system', label: 'Система', mobile: 'Система', icon: MonitorCog },
+      { path: '/sandbox', label: 'Песочница', mobile: 'Песочница', icon: Code2 },
     ],
   },
 ];
@@ -129,14 +130,14 @@ export default function AppShell({ children }: AppShellProps) {
     <div className="flex h-[100dvh] min-h-[100dvh] w-screen flex-col overflow-hidden bg-zinc-950 font-sans text-zinc-100 sm:flex-row">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900 p-5 select-none sm:flex">
         <div className="flex items-center gap-3 px-2 py-3">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-purple-650 text-xs font-bold text-white shadow-[0_0_12px_#a855f7]">HA</div>
-          <span className="font-mono text-sm font-bold uppercase tracking-wide text-zinc-200">Home Agent</span>
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-purple-650 text-xs font-bold text-white shadow-[0_0_12px_#a855f7]">MA</div>
+          <span className="font-mono text-sm font-bold uppercase tracking-wide text-zinc-200">MyAgent</span>
         </div>
         <nav className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
           <div className="space-y-1">{navLink(HOME)}{navLink(CHAT)}</div>
           {NAV_GROUPS.map(groupNav)}
         </nav>
-        <div className="mt-4 border-t border-zinc-800 px-4 py-3 font-mono text-[10px] text-zinc-500">v0.2.0 · Active Session</div>
+        <div className="mt-4 border-t border-zinc-800 px-4 py-3 font-mono text-[10px] text-zinc-500">Локальный режим</div>
       </aside>
 
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">

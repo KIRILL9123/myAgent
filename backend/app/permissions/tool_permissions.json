@@ -74,5 +74,33 @@
   {
     "action_name": "delete_countdown",
     "permission_level": "yellow"
+  },
+  {
+    "action_name": "sandbox_list_files",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "sandbox_read_file",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "sandbox_write_file",
+    "permission_level": "red"
+  },
+  {
+    "action_name": "sandbox_run_check",
+    "permission_level": "yellow"
+  },
+  {
+    "action_name": "sandbox_get_diff",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "sandbox_delete_file",
+    "permission_level": "red"
+  },
+  {
+    "action_name": "sandbox_request_apply",
+    "permission_level": "red"
   }
 ]

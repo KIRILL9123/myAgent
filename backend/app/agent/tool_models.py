@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Any, Literal, Optional
 
 
@@ -107,6 +107,26 @@ class DeleteCountdownArgs(BaseModel):
     countdown_id: int
 
 
+# ─── Code sandbox models ─────────────────────────────────────────────
+
+class SandboxSessionArgs(BaseModel):
+    session_id: str = Field(min_length=1, max_length=64)
+
+
+class SandboxReadFileArgs(SandboxSessionArgs):
+    path: str = Field(min_length=1, max_length=240)
+
+
+class SandboxWriteFileArgs(SandboxReadFileArgs):
+    content: str = Field(max_length=256 * 1024)
+    overwrite: bool = False
+
+
+class SandboxRunCheckArgs(SandboxReadFileArgs):
+    check: Literal["python", "pytest", "node", "compile_python"] = "python"
+    timeout_seconds: int = Field(default=30, ge=1, le=120)
+
+
 # ─── Registry ─────────────────────────────────────────────────────────────────
 
 TOOL_MODEL_REGISTRY: dict[str, type[BaseModel]] = {
@@ -127,4 +147,11 @@ TOOL_MODEL_REGISTRY: dict[str, type[BaseModel]] = {
     "add_countdown": AddCountdownArgs,
     "get_all_countdowns": GetAllCountdownsArgs,
     "delete_countdown": DeleteCountdownArgs,
+    "sandbox_list_files": SandboxSessionArgs,
+    "sandbox_read_file": SandboxReadFileArgs,
+    "sandbox_write_file": SandboxWriteFileArgs,
+    "sandbox_run_check": SandboxRunCheckArgs,
+    "sandbox_get_diff": SandboxSessionArgs,
+    "sandbox_delete_file": SandboxReadFileArgs,
+    "sandbox_request_apply": SandboxSessionArgs,
 }

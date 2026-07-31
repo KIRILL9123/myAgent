@@ -16,6 +16,7 @@ const FinancePage = lazy(() => import('./pages/FinancePage'));
 const CountdownsPage = lazy(() => import('./pages/CountdownsPage'));
 const SubscriptionsPage = lazy(() => import('./pages/SubscriptionsPage'));
 const StatePage = lazy(() => import('./pages/StatePage'));
+const SandboxPage = lazy(() => import('./pages/SandboxPage'));
 
 function PageFallback() {
   return (
@@ -49,6 +50,7 @@ function App() {
             <Route path="/deadlines" element={<CountdownsPage />} />
             <Route path="/subscriptions" element={<SubscriptionsPage />} />
             <Route path="/state" element={<StatePage />} />
+            <Route path="/sandbox" element={<SandboxPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>

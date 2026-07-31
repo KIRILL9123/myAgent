@@ -5,8 +5,8 @@ import type { ApprovalKind, ApprovalRequest } from '../api/approvals';
 import { Button, Card, Dialog, EmptyState, ErrorState, LoadingState, PageHeader } from '../components/ui';
 import { useState } from 'react';
 
-const KIND_LABELS: Record<ApprovalKind, string> = { FACT: 'Факт памяти', COMMITMENT: 'Обязательство', SUBSCRIPTION: 'Подписка', ACTION: 'Действие агента' };
-const KIND_STYLES: Record<ApprovalKind, string> = { FACT: 'text-purple-300 bg-purple-500/10 border-purple-500/20', COMMITMENT: 'text-amber-300 bg-amber-500/10 border-amber-500/20', SUBSCRIPTION: 'text-blue-300 bg-blue-500/10 border-blue-500/20', ACTION: 'text-rose-300 bg-rose-500/10 border-rose-500/20' };
+const KIND_LABELS: Record<ApprovalKind, string> = { FACT: 'Факт памяти', COMMITMENT: 'Обязательство', SUBSCRIPTION: 'Подписка', ACTION: 'Действие агента', SANDBOX_APPLY: 'Изменения кода' };
+const KIND_STYLES: Record<ApprovalKind, string> = { FACT: 'text-purple-300 bg-purple-500/10 border-purple-500/20', COMMITMENT: 'text-amber-300 bg-amber-500/10 border-amber-500/20', SUBSCRIPTION: 'text-blue-300 bg-blue-500/10 border-blue-500/20', ACTION: 'text-rose-300 bg-rose-500/10 border-rose-500/20', SANDBOX_APPLY: 'text-cyan-300 bg-cyan-500/10 border-cyan-500/20' };
 
 function formatDate(value: string): string { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }); }
 

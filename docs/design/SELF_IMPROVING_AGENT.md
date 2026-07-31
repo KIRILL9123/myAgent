@@ -1,6 +1,34 @@
 # Архитектурный дизайн: Самосовершенствующийся Агент (Self-Improving Agent Loop)
 
+> **Статус на 2026-07-31:** реализован MVP bounded Code Sandbox с Docker
+> runner, diff/baseline, конфликтной проверкой, резервной копией и двухшаговым
+> approval-gated применением в основной проект. Автоматический PR и более
+> глубокий evaluation loop остаются будущими слоями. Детали: [CODE_SANDBOX.md](CODE_SANDBOX.md).
+
 Этот документ описывает концепцию и шаги по реализации автономного контура самокодинга и самоотладки для **Home Agent**. Цель — позволить локальному ИИ-агенту самостоятельно писать новые фичи, чинить баги и развивать собственный код.
+
+## Идеи, которые сохраняем из Waku Agent
+
+Waku Agent полезен для нас как компактный reference-проект, а не как шаблон
+для копирования. Его четыре сильные идеи добавлены в roadmap MyAgent:
+
+1. **Retrieval Gate** — перед обращением к памяти отдельное дешёвое решение
+   определяет, нужна ли память этому запросу. Ошибка gate должна приводить к
+   поиску, а не к потере полезного контекста.
+2. **Procedural Memory / Skills** — persona и повторяемые рабочие сценарии
+   хранятся отдельно от фактов и подключаются по задаче.
+3. **Deterministic Eval + Release Gate** — проверка того, вызван ли правильный
+   tool, не смешивается с субъективной оценкой качества ответа; итог gate
+   сохраняется в историю.
+4. **Per-turn Trace** — каждый проход должен показывать решение памяти,
+   итерации loop, вызванные tools, latency и оценку token/cost.
+
+Источник идей: [ShenSeanChen/waku-agent](https://github.com/ShenSeanChen/waku-agent),
+в частности его [retrieval gate](https://github.com/ShenSeanChen/waku-agent/blob/main/waku/memory/retrieval_gate.py),
+[loop](https://github.com/ShenSeanChen/waku-agent/blob/main/waku/loop/agent.py) и
+[release gate](https://github.com/ShenSeanChen/waku-agent/blob/main/waku/ops/release_gate.py).
+Мы сохраняем локальность и прозрачность, но оставляем собственные доменные
+модули, Approval Center и Docker Sandbox.
 
 ---
 
@@ -30,7 +58,8 @@ graph TD
     Sandbox --> Test[5. Запуск сборки: npm run build / pytest]
     Test -- Ошибка компиляции/тестов --> Debug[6. Чтение логов ошибок и авто-исправление]
     Debug --> Code
-    Test -- Сборка успешна --> Commit[7. Фиксация изменений в Git]
+    Test -- Сборка успешна --> Review[7. Diff и Approval Center]
+    Review -- Подтверждено --> Commit[8. Применение с backup и conflict check]
     Commit --> UserReport([Отчет пользователю в Telegram/Чат])
 ```
 
@@ -50,4 +79,7 @@ graph TD
 *   Написание агента на базе LangGraph или Smolagents, который умеет делать запросы к Ollama, анализировать логи ошибок и переписывать код в случае сбоев сборки.
 
 ### Этап 4: Веб-интерфейс управления
-*   Создание вкладки «Эволюция» (или «System») на дашборде, где в реальном времени отображается лог мыслей агента, измененные файлы и статус компиляции.
+*   Вкладка `/sandbox` уже показывает workspace, Docker runtime, проверки, diff,
+    baseline и запрос применения в Центр подтверждений.
+*   Следующий слой — история sandbox-задач, richer test evidence и capability
+    tokens; production Git commit/PR остаётся отдельным явно управляемым действием.

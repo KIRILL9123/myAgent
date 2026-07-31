@@ -123,9 +123,6 @@ export default function FinancePage() {
           </h1>
         </div>
 
-        <div className="text-xs text-zinc-500 font-mono hidden md:block">
-          Home Agent Finance API
-        </div>
       </header>
 
       {/* Main Container */}

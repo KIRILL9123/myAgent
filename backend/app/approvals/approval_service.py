@@ -35,8 +35,9 @@ def _row_to_dict(row: tuple[Any, ...]) -> dict[str, Any]:
 
 
 def _upsert_request(kind: str, source_id: str, title: str, summary: str,
-                    payload: dict[str, Any], source_channel: str = "web") -> None:
+                    payload: dict[str, Any], source_channel: str = "web") -> str:
     now = _now()
+    request_id = str(uuid.uuid4())
     with get_db_connection() as conn:
         conn.execute(
             """INSERT INTO approval_requests
@@ -50,10 +51,36 @@ def _upsert_request(kind: str, source_id: str, title: str, summary: str,
                  source_channel=excluded.source_channel,
                  updated_at=excluded.updated_at
                WHERE approval_requests.status = 'PENDING'""",
-            (str(uuid.uuid4()), kind, source_id, title, summary, _json(payload),
+            (request_id, kind, source_id, title, summary, _json(payload),
              source_channel, now, now),
         )
+        row = conn.execute(
+            "SELECT id FROM approval_requests WHERE kind = ? AND source_id = ?",
+            (kind, source_id),
+        ).fetchone()
         conn.commit()
+    return str(row[0]) if row else request_id
+
+
+def create_sandbox_apply_request(plan: dict[str, Any], source_channel: str = "web") -> dict[str, Any]:
+    session_id = str(plan.get("session_id", ""))
+    source_id = f"{session_id}:{plan.get('baseline_at', '')}:{plan.get('workspace_digest', '')[:24]}"
+    approval_id = _upsert_request(
+        "SANDBOX_APPLY",
+        source_id,
+        "Применить изменения из песочницы",
+        f"Изменения файлов: {plan.get('summary', {}).get('changed_files', 0)}. Перед применением будет проверен конфликт с основным проектом.",
+        {"sandbox_plan": plan},
+        source_channel,
+    )
+    return {
+        "status": "pending_approval",
+        "approval_id": approval_id,
+        "kind": "SANDBOX_APPLY",
+        "session_id": session_id,
+        "summary": plan.get("summary", {}),
+        "message": "Запрос на применение создан. Подтвердите его в Центре подтверждений.",
+    }
 
 
 def _reconcile_resolved() -> None:
@@ -217,6 +244,8 @@ async def resolve_approval(approval_id: str, decision: str,
             action = get_pending_action(request["payload"].get("session_id", ""))
             if action:
                 delete_pending_action(action["session_id"])
+        elif kind == "SANDBOX_APPLY":
+            pass
         status = "REJECTED"
     else:
         if kind == "FACT":
@@ -246,6 +275,15 @@ async def resolve_approval(approval_id: str, decision: str,
                 finalize_pending_action(action["id"], "failed", result.get("message", ""))
                 raise ValueError(result.get("message", "action failed"))
             finalize_pending_action(action["id"], "executed")
+        elif kind == "SANDBOX_APPLY":
+            from backend.app.sandbox_service import SandboxError, apply_sandbox_plan
+            plan = request["payload"].get("sandbox_plan")
+            if not isinstance(plan, dict):
+                raise ValueError("sandbox apply plan is missing")
+            try:
+                await asyncio.to_thread(apply_sandbox_plan, plan, operation_id=approval_id)
+            except SandboxError as exc:
+                raise ValueError(str(exc)) from exc
         status = "APPROVED"
 
     now = _now()

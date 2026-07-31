@@ -131,7 +131,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
           <div className="h-full flex flex-col items-center justify-center text-center text-zinc-500 max-w-sm mx-auto p-8 gap-4 select-none">
             <Bot className="h-10 w-10 text-purple-500/80 animate-bounce" />
             <div>
-              <p className="font-semibold text-zinc-300">Добро пожаловать в Home Agent!</p>
+              <p className="font-semibold text-zinc-300">Добро пожаловать в MyAgent!</p>
               <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed">
                 Я могу управлять вашим календарем, читать почту, вести учет финансов и напоминать о дедлайнах. Напишите что-нибудь!
               </p>

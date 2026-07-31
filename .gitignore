@@ -53,6 +53,11 @@ frontend/dist/
 # Backups and archives
 frontend_backup/
 
+# Agent Code Sandbox workspaces
+sandbox/
+.sandbox_metadata/
+.sandbox_backups/
+
 # OS-specific files
 .DS_Store
 .DS_Store?
