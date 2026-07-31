@@ -1,5 +1,7 @@
 import pytest
 
+import backend.app.agent.orchestrator as orchestrator
+from backend.app.agent.orchestrator import _check_confirmation
 from backend.app.approvals.approval_service import list_approvals, resolve_approval
 from backend.app.commitments.commitment_service import create_commitment
 from backend.app.memory.memory_service import save_pending_fact
@@ -68,3 +70,22 @@ async def test_telegram_complete_marks_action_approved_not_rejected(approval_db)
     assert any(item["kind"] == "ACTION" and item["source_id"] == str(action_id) for item in approved)
     rejected = list_approvals("REJECTED")
     assert all(item["kind"] != "ACTION" for item in rejected)
+
+
+@pytest.mark.asyncio
+async def test_chat_confirm_marks_action_approved_not_stale_pending(approval_db, monkeypatch):
+    monkeypatch.setattr(
+        orchestrator, "_dispatch_tool",
+        lambda action, args: {"status": "success", "message": "Mocked execution"},
+    )
+
+    action_id, _ = db.save_pending_action("session-3", "send_email", {"to": "a@b.c"})
+    assert list_approvals("PENDING")[0]["kind"] == "ACTION"
+
+    result = await _check_confirmation("да", "session-3")
+    assert result is not None
+    assert "подтверждено" in result["response"]
+
+    approved = list_approvals("APPROVED")
+    assert any(item["kind"] == "ACTION" and item["source_id"] == str(action_id) for item in approved)
+    assert list_approvals("PENDING") == []

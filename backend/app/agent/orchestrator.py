@@ -16,7 +16,7 @@ from backend.app.storage.db import (
     get_history,
     save_pending_action,
     get_pending_action,
-    delete_pending_action,
+    claim_pending_action,
     finalize_pending_action,
 )
 from backend.app.observability.telemetry import elapsed_ms, record_event
@@ -611,7 +611,12 @@ async def _check_confirmation(user_message: str, session_id: str) -> dict | None
         # Execute the pending action
         action_name = pending["action"]
         arguments = pending["args"]
-        delete_pending_action(session_id)
+        claimed = claim_pending_action(pending["id"], pending["nonce_hash"], pending.get("chat_id", ""))
+        if not claimed:
+            return {
+                "response": "Действие уже обработано или истекло.",
+                "tool_calls": [],
+            }
 
         log_action(action_name, "CONFIRMED", f"User confirmed pending action")
         try:
@@ -628,11 +633,13 @@ async def _check_confirmation(user_message: str, session_id: str) -> dict | None
             # Check if the tool itself returned an error
             if isinstance(result, dict) and result.get("status") == "error":
                 error_msg = result.get("message", "Unknown error")
+                finalize_pending_action(pending["id"], "failed", error_msg)
                 log_action(action_name, "ERROR", error_msg)
                 return {
                     "response": f"Ошибка при выполнении '{action_name}': {error_msg}",
                     "tool_calls": [action_name],
                 }
+            finalize_pending_action(pending["id"], "executed")
             log_action(action_name, "EXECUTED", f"Execution completed after confirmation: {result}")
             return {
                 "response": f"Действие '{action_name}' подтверждено и выполнено.",
@@ -640,6 +647,7 @@ async def _check_confirmation(user_message: str, session_id: str) -> dict | None
                 "tool_calls": [action_name],
             }
         except Exception as e:
+            finalize_pending_action(pending["id"], "failed", str(e))
             log_action(action_name, "ERROR", str(e))
             save_message(
                 session_id,
