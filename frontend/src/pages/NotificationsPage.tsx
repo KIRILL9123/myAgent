@@ -188,7 +188,7 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-    {query.isError && <ErrorState message={query.error instanceof Error ? query.error.message : 'Не удалось загрузить центр уведомлений'} onRetry={() => query.refetch()} />}
+        {query.isError && <ErrorState message={query.error instanceof Error ? query.error.message : 'Не удалось загрузить центр уведомлений'} onRetry={() => query.refetch()} />}
         {!query.isError && (query.isLoading ? <LoadingState label="Загружаю сигналы…" /> : actions.length === 0 ? <EmptyState title={kind === 'all' ? (mode === 'attention' ? 'Срочных сигналов нет' : 'Сигналов пока нет') : 'Для этого фильтра сигналов нет'} description="Новые подтверждения, напоминания и предложения появятся здесь автоматически." /> : <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">{actions.map(item => <ActionCard key={item.id} item={item} />)}</div>)}
 
         {query.data && <p className="flex items-center justify-end gap-1.5 text-[11px] text-zinc-600"><Clock3 className="h-3.5 w-3.5" />Обновлено: {formatDate(query.data.generated_at)}</p>}
