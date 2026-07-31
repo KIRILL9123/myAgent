@@ -40,6 +40,7 @@ Near-to-medium-term concrete features not yet scheduled. Long-term phase items b
 - [x] **Subscription Tracker MVP**: detect free-trial or renewal dates in unread email, keep approval-gated proposals with provenance, project them into the shared Approval Center, and remind the user before a known paid charge. Provider cancellation remains a manual user action; see [SUBSCRIPTION_TRACKER.md](design/SUBSCRIPTION_TRACKER.md).
 - [x] **Personal State Engine v1**: aggregate current commitments, subscriptions, deadlines and finance into a read-only priority snapshot; see `/api/state` and [ROADMAP.md](ROADMAP.md).
 - [x] **Action Center v1**: normalize priorities, due dates, reminders and approval-required actions into `/api/actions`; delivery preferences and Telegram coalescing remain future work.
+- [x] **Notification Center v1**: add `/notifications` web view over Action Center with attention/all modes, type filters, summary counters and links to source modules; error history remains part of the selected error-reporting idea.
 - **Receipt → Expense proposals**: agent detects a purchase receipt in email and proposes adding it to Finance.
 - **Calendar Conflict Checking**: warn before creating/modifying an event that overlaps with an existing one.
 - **Calendar × Memory integration**: warn when a new event conflicts with approved user preferences (e.g. "no meetings before 10:00").
@@ -53,6 +54,24 @@ Near-to-medium-term concrete features not yet scheduled. Long-term phase items b
 - [x] **Per-turn Agent Trace v1**: `agent_turn` aggregates memory decisions, tool calls, loop iterations, latency, token estimates and final outcome without storing message content.
 - [x] **Document Vault + RAG v1**: separate local artifact storage, bounded extraction/chunking, SQLite FTS5 retrieval, document-related chat context, provenance and `/documents` UI; embeddings, OCR and document proposals remain future work.
 - [x] **Computer Control v1 + always-on Windows foundation**: allowlisted URL/path opening behind RED confirmation, host capability endpoint, watchdog, healthcheck and Scheduled Task installer; process control, HTTPS/VPN automation and macOS adapter remain future work.
+
+**Selected Product Ideas**
+
+Only the following ideas from the latest ideation pass are retained. They are not all active tasks yet; item 23 is the next product-priority candidate.
+
+- [ ] **Subscription → Finance linking**: approval-gated proposal to create a recurring Finance transaction when a subscription becomes active.
+- [ ] **Security backlog reminders**: periodic reminder for non-critical open security debts, with owner, severity and next action.
+- [ ] **Focus mode**: one-tap temporary mode layered on Quiet Hours that suppresses everything except RED/urgent notifications.
+- [ ] **Archive instead of delete**: soft-delete/archive behavior for facts, subscriptions, commitments and documents, with recovery where possible.
+- [ ] **Document-to-domain links**: connect a document to a commitment, calendar event or related state item while preserving provenance.
+- [ ] **OCR for scanned documents**: extract searchable text from photos and scanned PDFs.
+- [ ] **Document comparison**: compare two versions of a document and explain meaningful changes in plain language.
+- [ ] **Unverified external data area**: clearly separate web prices, news and other external results from trusted local facts, with source, retrieval date and freshness.
+- [ ] **Unified Notification Center** *(next priority)*: one place for approvals, reminders, errors, subscription warnings and agent proposals instead of multiple fragmented surfaces.
+- [ ] **Mobile four-action mode**: optimize the phone experience around Chat, Tasks, Notifications and File Upload; place the remaining sections under “More”.
+- [ ] **Monthly security report**: summarize open security findings, active permissions, failed checks and stale configuration.
+- [ ] **Temporary-file cleanup**: automatically clean sandbox artifacts, transient logs and expired upload/cache files according to safe retention rules.
+- [ ] **Error reporting with lifecycle**: save error reports inside the project with correlation ID and context; track `new → fixing → fixed → verified → closed` and preserve the fix reference and verification result.
 
 **Notifications**
 - [x] **Quiet hours configuration**: suppress non-urgent Telegram notifications during user-defined hours.
