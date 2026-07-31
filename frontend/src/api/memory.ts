@@ -1,134 +1,30 @@
-export interface FactNode {
-  id: number;
-  content: string;
-  category: 'preference' | 'habit' | 'relationship' | 'project' | 'other';
-  confidence?: number;
-  // react-force-graph coordinates populated during rendering
-  x?: number;
-  y?: number;
-}
+import { apiRequest } from './client';
 
-export interface FactEdge {
-  source: number | FactNode;
-  target: number | FactNode;
-  relation_type: 'related_to' | 'contradicts' | 'clarifies' | 'causes';
-}
-
-export interface MemoryGraphData {
-  nodes: FactNode[];
-  edges: FactEdge[];
-}
-
-export interface PendingFact {
-  id: number;
-  content: string;
-  category: 'preference' | 'habit' | 'relationship' | 'project' | 'other';
-  confidence: number;
-  source_conversation_id: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
+export type FactCategory = 'preference' | 'habit' | 'relationship' | 'project' | 'other';
+export interface FactNode { id: number; content: string; category: FactCategory; confidence?: number; x?: number; y?: number; }
+export interface FactEdge { source: number | FactNode; target: number | FactNode; relation_type: 'related_to' | 'contradicts' | 'clarifies' | 'causes'; }
+export interface MemoryGraphData { nodes: FactNode[]; edges: FactEdge[]; }
+export interface PendingFact extends FactNode { confidence: number; source_conversation_id: number | null; created_at: string; updated_at: string; }
+export interface MemoryFact extends FactNode { confidence: number; status: string; source_conversation_id: number | null; created_at: string; updated_at: string; last_confirmed_at: string | null; valid_from: string | null; valid_to: string | null; source_type: string; approval_mode: string; provenance: Record<string, unknown>; is_pinned: boolean; }
+export interface MemoryNote { id: number; title: string; content: string; tags: string[]; status: 'active' | 'archived'; created_at: string; updated_at: string; }
+export interface MemoryOverview { notes: number; approved_facts: number; pending_facts: number; stale_facts: number; }
+export interface ConsolidationSuggestion { fact_ids: number[]; source_facts: FactNode[]; suggested_merged_content: string; category: FactCategory; }
 const API_BASE = '/api/memory';
 
-const getHeaders = (withJson = false) => {
-  const apiKey = (import.meta.env.VITE_API_KEY as string) || '';
-  const headers: Record<string, string> = {
-    'X-API-Key': apiKey,
-  };
-  if (withJson) {
-    headers['Content-Type'] = 'application/json';
-  }
-  return headers;
-};
-
-export async function fetchMemoryGraph(): Promise<MemoryGraphData> {
-  const resp = await fetch(`${API_BASE}/graph`, {
-    headers: getHeaders(),
-  });
-  if (!resp.ok) {
-    throw new Error(`Failed to fetch memory graph: ${resp.statusText}`);
-  }
-  return resp.json();
-}
-
-export async function fetchPendingFacts(): Promise<{ facts: PendingFact[] }> {
-  const resp = await fetch(`${API_BASE}/pending`, {
-    headers: getHeaders(),
-  });
-  if (!resp.ok) {
-    throw new Error(`Failed to fetch pending facts: ${resp.statusText}`);
-  }
-  return resp.json();
-}
-
-export async function approveFact(factId: number): Promise<{ status: string; message: string }> {
-  const resp = await fetch(`${API_BASE}/${factId}/approve`, {
-    method: 'POST',
-    headers: getHeaders(),
-  });
-  if (!resp.ok) {
-    throw new Error(`Failed to approve fact: ${resp.statusText}`);
-  }
-  return resp.json();
-}
-
-export async function rejectFact(factId: number): Promise<{ status: string; message: string }> {
-  const resp = await fetch(`${API_BASE}/${factId}/reject`, {
-    method: 'POST',
-    headers: getHeaders(),
-  });
-  if (!resp.ok) {
-    throw new Error(`Failed to reject fact: ${resp.statusText}`);
-  }
-  return resp.json();
-}
-
-export async function backfillRelations(): Promise<{ status: string; message: string; relations_added: number }> {
-  const resp = await fetch(`${API_BASE}/backfill-relations`, {
-    method: 'POST',
-    headers: getHeaders(),
-  });
-  if (!resp.ok) {
-    throw new Error(`Failed to backfill relations: ${resp.statusText}`);
-  }
-  return resp.json();
-}
-
-export interface ConsolidationSuggestion {
-  fact_ids: number[];
-  source_facts: FactNode[];
-  suggested_merged_content: string;
-  category: 'preference' | 'habit' | 'relationship' | 'project' | 'other';
-}
-
-export async function fetchConsolidationSuggestions(): Promise<{ suggestions: ConsolidationSuggestion[] }> {
-  const resp = await fetch(`${API_BASE}/consolidation-suggestions`, {
-    method: 'POST',
-    headers: getHeaders(),
-  });
-  if (!resp.ok) {
-    throw new Error(`Failed to fetch consolidation suggestions: ${resp.statusText}`);
-  }
-  return resp.json();
-}
-
-export async function consolidateFacts(
-  factIds: number[],
-  mergedContent: string,
-  category: string
-): Promise<{ status: string; message: string; new_fact_id: number }> {
-  const resp = await fetch(`${API_BASE}/consolidate`, {
-    method: 'POST',
-    headers: getHeaders(true),
-    body: JSON.stringify({
-      fact_ids: factIds,
-      merged_content: mergedContent,
-      category,
-    }),
-  });
-  if (!resp.ok) {
-    throw new Error(`Failed to consolidate facts: ${resp.statusText}`);
-  }
-  return resp.json();
-}
+export const fetchMemoryGraph = () => apiRequest<MemoryGraphData>(`${API_BASE}/graph`);
+export const fetchPendingFacts = () => apiRequest<{ facts: PendingFact[] }>(`${API_BASE}/pending`);
+export const approveFact = (factId: number) => apiRequest<{ status: string; message: string }>(`${API_BASE}/${factId}/approve`, { method: 'POST' });
+export const rejectFact = (factId: number) => apiRequest<{ status: string; message: string }>(`${API_BASE}/${factId}/reject`, { method: 'POST' });
+export const backfillRelations = () => apiRequest<{ status: string; message: string; relations_added: number }>(`${API_BASE}/backfill-relations`, { method: 'POST' });
+export const fetchConsolidationSuggestions = () => apiRequest<{ suggestions: ConsolidationSuggestion[] }>(`${API_BASE}/consolidation-suggestions`, { method: 'POST' });
+export const consolidateFacts = (factIds: number[], mergedContent: string, category: string) => apiRequest<{ status: string; message: string; new_fact_id: number }>(`${API_BASE}/consolidate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fact_ids: factIds, merged_content: mergedContent, category }) });
+export const fetchMemoryOverview = () => apiRequest<MemoryOverview>(`${API_BASE}/overview`);
+export const fetchNotes = (query = '', status = 'active') => apiRequest<{ notes: MemoryNote[] }>(`${API_BASE}/notes?${new URLSearchParams({ query, status })}`);
+export const createNote = (input: { title: string; content: string; tags: string[] }) => apiRequest<MemoryNote>(`${API_BASE}/notes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+export const updateNote = (id: number, input: Partial<Pick<MemoryNote, 'title' | 'content' | 'tags' | 'status'>>) => apiRequest<MemoryNote>(`${API_BASE}/notes/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+export const extractNoteFacts = (id: number) => apiRequest<{ facts: Array<{ id: number; status: string }> }>(`${API_BASE}/notes/${id}/extract`, { method: 'POST' });
+export const fetchFacts = (query = '', category = '', status = 'approved') => apiRequest<{ facts: MemoryFact[] }>(`${API_BASE}/facts?${new URLSearchParams({ query, category, status })}`);
+export const updateFact = (id: number, input: { content?: string; category?: FactCategory; is_pinned?: boolean }) => apiRequest<MemoryFact>(`${API_BASE}/facts/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+export const confirmFact = (id: number) => apiRequest<MemoryFact>(`${API_BASE}/facts/${id}/confirm`, { method: 'POST' });
+export const setFactValidity = (id: number, valid_to: string | null) => apiRequest(`${API_BASE}/facts/${id}/validity`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valid_to }) });
+export const searchMemory = (query: string) => apiRequest<{ results: Array<{ type: 'fact' | 'note'; item: MemoryFact | MemoryNote }> }>(`${API_BASE}/search?${new URLSearchParams({ query })}`);

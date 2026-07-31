@@ -17,6 +17,7 @@ import { fetchCountdowns } from '../api/countdown';
 import { fetchUnreadEmails } from '../api/mail';
 import type { CalendarEvent } from '../api/calendar';
 import type { FinanceSummary } from '../api/finance';
+import PersonalStateWidget from '../components/PersonalStateWidget';
 
 // Helper to format date as YYYY-MM-DD in local time
 function getLocalDateString(d: Date = new Date()) {
@@ -135,7 +136,7 @@ export default function DashboardPage() {
   }, []);
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 }).format(val);
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(val);
   };
 
   const getEventTime = (event: CalendarEvent) => {
@@ -163,14 +164,17 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Grid View */}
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <SystemStatusWidget />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mt-2">
+        <PersonalStateWidget />
+        <section className="mx-auto mt-8 max-w-5xl" aria-labelledby="dashboard-domains-title">
+          <div className="mb-3 flex items-end justify-between gap-3"><div><h2 id="dashboard-domains-title" className="text-xs font-bold uppercase tracking-widest text-zinc-400">Центр управления</h2><p className="mt-1 text-xs text-zinc-600">Быстрый обзор ключевых областей агента</p></div><span className="text-[10px] text-zinc-600">4 раздела</span></div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           
           {/* Card 1: Calendar */}
           <div 
             onClick={() => navigate('/calendar')}
-            className="group bg-zinc-900/30 border border-zinc-900 hover:border-zinc-800/80 rounded-3xl p-6 transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg shadow-md min-h-[170px]"
+            role="button" tabIndex={0} aria-label="Открыть календарь" onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') navigate('/calendar'); }} className="group bg-zinc-900/30 border border-zinc-900 hover:border-zinc-800/80 rounded-2xl p-5 transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg shadow-md min-h-[170px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
           >
             <div>
               <div className="flex justify-between items-center mb-4">
@@ -220,7 +224,7 @@ export default function DashboardPage() {
           {/* Card 2: Finance */}
           <div 
             onClick={() => navigate('/finance')}
-            className="group bg-zinc-900/30 border border-zinc-900 hover:border-zinc-800/80 rounded-3xl p-6 transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg shadow-md min-h-[170px]"
+            role="button" tabIndex={0} aria-label="Открыть финансы" onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') navigate('/finance'); }} className="group bg-zinc-900/30 border border-zinc-900 hover:border-zinc-800/80 rounded-2xl p-5 transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg shadow-md min-h-[170px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
           >
             <div>
               <div className="flex justify-between items-center mb-4">
@@ -274,7 +278,7 @@ export default function DashboardPage() {
           {/* Card 3: Countdowns */}
           <div 
             onClick={() => navigate('/deadlines')}
-            className="group bg-zinc-900/30 border border-zinc-900 hover:border-zinc-800/80 rounded-3xl p-6 transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg shadow-md min-h-[170px]"
+            role="button" tabIndex={0} aria-label="Открыть дедлайны" onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') navigate('/deadlines'); }} className="group bg-zinc-900/30 border border-zinc-900 hover:border-zinc-800/80 rounded-2xl p-5 transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg shadow-md min-h-[170px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/70"
           >
             <div>
               <div className="flex justify-between items-center mb-4">
@@ -323,7 +327,7 @@ export default function DashboardPage() {
           {/* Card 4: Mail */}
           <div 
             onClick={() => navigate('/mail')}
-            className="group bg-zinc-900/30 border border-zinc-900 hover:border-zinc-800/80 rounded-3xl p-6 transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg shadow-md min-h-[170px]"
+            role="button" tabIndex={0} aria-label="Открыть почту" onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') navigate('/mail'); }} className="group bg-zinc-900/30 border border-zinc-900 hover:border-zinc-800/80 rounded-2xl p-5 transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg shadow-md min-h-[170px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70"
           >
             <div>
               <div className="flex justify-between items-center mb-4">
@@ -365,7 +369,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-        </div>
+        </div></section>
       </main>
     </div>
   );

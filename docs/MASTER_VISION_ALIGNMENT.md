@@ -23,9 +23,10 @@ and priorities while requiring human approval for high-impact actions.
 | Document Vault and document RAG | **Planned** | Separate artifact storage, parsing/OCR, chunks, embeddings, retrieval, reranking |
 | Document deadlines and document-to-memory proposals | **Planned** | Approval-gated document workflow |
 | Evidence-based answers and citations | **Partially implemented** | Web search/fetch source cards now include URL, method and retrieval time; fact/email/document provenance remains planned |
-| Personal State Engine | **Planned** | Aggregate memory, calendar, mail, finance, tasks, projects and commitments |
+| Personal State Engine | **First persistent layer implemented** | Deterministic snapshot, daily history, State of Me report, priority signals, Dashboard/`/state` view and morning-summary input; projects, decisions and policy-driven notifications remain |
 | Goals → Projects → Tasks → Actions | **Planned** | Project entities and hierarchy |
 | Commitment Tracker | **Core + first integrations implemented** | Commitment Center, email proposals, calendar links and Telegram reminders; Personal State consumption remains |
+| Subscription Tracker | **MVP + unified approvals implemented** | `/subscriptions`, IMAP unread-email proposals, provenance, shared `SUBSCRIPTION` approvals, reminders and manual entry; historical-mail search, Calendar/Personal State links and provider cancellation workflows remain |
 | Decision Journal | **Planned** | Decision, rationale, alternatives, evidence and status |
 | Calendar intelligence | **Partially planned** | Add conflict, density, preference, commitment and project-deadline checks |
 | Email threading and importance detection | **Planned** | Add thread grouping, importance, deadlines and action extraction |
@@ -36,8 +37,8 @@ and priorities while requiring human approval for high-impact actions.
 | Chief of Staff experience | **Vision / partially supported** | Morning summary exists; Personal State and priority synthesis remain |
 | Daily and nightly state briefs | **Partially implemented** | Morning summary exists; nightly State of Me remains planned |
 | Proactive agent | **Partially implemented** | Scheduler and Telegram exist; trigger scoring, quiet hours and budgets remain |
-| Quiet hours, notification budget, coalescing and interrupt hierarchy | **Planned** | Notification policy service |
-| Unified Approval Control Plane | **v1 implemented** | Unified approval projection, API and web center cover memory facts, commitments and RED actions; deeper event history and policy unification remain planned |
+| Quiet hours, notification budget and Telegram coalescing | **Implemented v1** | `/api/notifications/preferences`, Action Center delivery policy and deduplication; interrupt hierarchy and mobile preferences remain |
+| Unified Approval Control Plane | **v1 implemented** | Unified approval projection, API and web center cover memory facts, commitments, subscription proposals and RED actions; deeper event history and policy unification remain planned |
 | Autonomy levels by domain | **Planned policy** | Formalize levels 0–5 and per-domain configuration |
 | Capability tokens | **Planned security feature** | Time-, action- and payload-scoped authorization |
 | Evaluation framework and regression pack | **Partially implemented** | `backend/tests`, E2E smoke test; add evaluation corpus and CI gates |
@@ -76,11 +77,10 @@ dashboard, a provider abstraction, and live smoke coverage.
 
 The largest missing product layers are:
 
-1. Unified Approval Control Plane.
-2. Unified Approval Control Plane.
-3. Personal State Engine.
-4. Document Vault / RAG with provenance.
-5. Durable observability and event history.
+1. Deeper cross-domain use of the Approval Control Plane, including subscriptions.
+2. Personal State history, decisions and project hierarchy.
+3. Document Vault / RAG with provenance.
+4. Durable observability and event history.
 
 ## Recommended order
 

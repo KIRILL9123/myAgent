@@ -144,6 +144,25 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [x] Commitment reminders via Telegram
 - [x] Commitment expiry and review flow
 
+**Subscription Tracker**
+- [x] Separate SQLite entity for trials and recurring subscriptions with provenance
+- [x] Email-derived proposals with deduplication and explicit user approval
+- [x] Manual subscription entry and cancellation/stop-tracking state
+- [x] Trial-end / next-charge dates and configurable reminder lead time
+- [x] Telegram reminders for approved active subscriptions
+- [ ] Search historical mail and project subscription signals into Calendar / Personal State
+- [x] Unified Approval Control Plane projection for subscription proposals
+
+**Personal State Engine**
+- [x] Deterministic read-only state snapshot aggregating commitments, subscriptions, deadlines and monthly finance
+- [x] Priority signals for overdue items, near-term charges and pending approvals
+- [x] Dashboard widget and full `/state` view
+- [x] Morning summary receives the current state signal
+- [x] Daily state snapshots, history and deterministic "State of Me" report
+- [x] Unified Action Center read model for priorities, deadlines, reminders and approval-required actions (see [design/ACTION_CENTER.md](design/ACTION_CENTER.md))
+- [ ] Calendar and email state history, quiet hours and notification budgets
+- [ ] Decision Journal and project/goal hierarchy
+
 **Memory Evolution**
 - [ ] Provenance bundle (source type, source ref, extractor metadata)
 - [ ] `last_confirmed_at` field
@@ -152,9 +171,11 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [ ] Auto-weight retrieval by confidence + recency
 
 **Notifications**
-- [ ] Quiet hours configuration
-- [ ] Notification budget and priority scoring
-- [ ] Notification coalescing (batch low-priority alerts)
+- [x] Quiet hours configuration
+- [x] Notification budget and priority scoring
+- [x] Notification coalescing and deduplication for Telegram delivery
+- [x] Shared Action Center delivery layer for Telegram
+- [ ] Notification preferences UI and future mobile-client delivery
 
 **Cross-domain**
 - [ ] Calendar × Memory conflict detection (flag when new event conflicts with known preferences)

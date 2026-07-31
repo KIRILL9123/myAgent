@@ -164,7 +164,10 @@ def _run_integrity_check(db_path: str) -> str:
 
 
 def _count_tables(db_path: str) -> dict[str, int]:
-    tables = ("conversations", "user_facts", "transactions", "countdowns")
+    tables = (
+        "conversations", "user_facts", "memory_notes", "transactions", "countdowns",
+        "notification_preferences", "notification_deliveries",
+    )
     counts = {}
     conn = sqlite3.connect(db_path)
     try:

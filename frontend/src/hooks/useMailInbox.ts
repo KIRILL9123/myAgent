@@ -1,33 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { fetchUnreadEmails, searchEmails } from '../api/mail';
 import type { EmailMessage, MailAccount } from '../types';
 
 export function useMailInbox(account: MailAccount) {
-  const [emails, setEmails] = useState<EmailMessage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
+  const [search, setSearch] = useState('');
+  useEffect(() => { setSearch(''); }, [account]);
 
-  const loadEmails = useCallback(async (searchStr?: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const trimmedSearch = searchStr?.trim();
-      const data = trimmedSearch
-        ? await searchEmails(trimmedSearch, account)
-        : await fetchUnreadEmails(account);
-      setIsSearching(Boolean(trimmedSearch));
-      setEmails(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Ошибка при загрузке почты');
-    } finally {
-      setLoading(false);
-    }
-  }, [account]);
+  const query = useQuery({ queryKey: ['mail', account, search], queryFn: () => search ? searchEmails(search, account) : fetchUnreadEmails(account), staleTime: 30_000 });
+  const loadEmails = (value = '') => setSearch(value.trim());
 
-  useEffect(() => {
-    void loadEmails();
-  }, [loadEmails]);
-
-  return { emails, loading, error, isSearching, loadEmails, reload: loadEmails };
+  return { emails: query.data ?? ([] as EmailMessage[]), loading: query.isLoading, error: query.error instanceof Error ? query.error.message : null, isSearching: Boolean(search), loadEmails, reload: query.refetch };
 }

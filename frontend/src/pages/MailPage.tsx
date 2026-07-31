@@ -39,6 +39,7 @@ export default function MailPage() {
   const [sending, setSending] = useState<boolean>(false);
   const [sendSuccess, setSendSuccess] = useState<boolean>(false);
   const [analyzingEmail, setAnalyzingEmail] = useState<number | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,10 +65,10 @@ export default function MailPage() {
       if (result.proposals.length > 0) {
         navigate('/commitments');
       } else {
-        alert('Явных обязательств в письме не найдено.');
+        setNotice({ tone: 'info', text: 'Явных обязательств в письме не найдено.' });
       }
-    } catch (err: any) {
-      alert(`Ошибка анализа письма: ${err.message}`);
+    } catch (err: unknown) {
+      setNotice({ tone: 'error', text: err instanceof Error ? `Ошибка анализа письма: ${err.message}` : 'Не удалось проанализировать письмо.' });
     } finally {
       setAnalyzingEmail(null);
     }
@@ -125,8 +126,8 @@ export default function MailPage() {
         setIsComposeOpen(false);
         loadEmails();
       }, 2000);
-    } catch (err: any) {
-      alert(`Ошибка отправки письма: ${err.message}`);
+    } catch (err: unknown) {
+      setNotice({ tone: 'error', text: err instanceof Error ? `Ошибка отправки письма: ${err.message}` : 'Не удалось отправить письмо.' });
     } finally {
       setSending(false);
     }
@@ -256,6 +257,7 @@ export default function MailPage() {
 
         {/* Display Content Area */}
         <div className="flex-1 w-full p-6">
+          {notice && <div className={`mb-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs ${notice.tone === 'error' ? 'border-rose-500/20 bg-rose-500/5 text-rose-200' : 'border-sky-500/20 bg-sky-500/5 text-sky-100'}`}><span>{notice.text}</span><button onClick={() => setNotice(null)} aria-label="Закрыть уведомление" className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"><X className="h-4 w-4" /></button></div>}
           {loading ? (
             <div className="w-full h-64 flex flex-col items-center justify-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-blue-500" />

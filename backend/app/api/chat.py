@@ -15,6 +15,7 @@ class ChatResponse(BaseModel):
     requires_confirmation: bool = False
     weather: dict | None = None
     web_sources: list[dict] | None = None
+    memory_used: list[dict] | None = None
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
@@ -26,6 +27,7 @@ async def chat_endpoint(request: ChatRequest):
             requires_confirmation=result.get("requires_confirmation", False),
             weather=result.get("weather"),
             web_sources=result.get("web_sources"),
+            memory_used=result.get("memory_used"),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

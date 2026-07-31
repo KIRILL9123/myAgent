@@ -17,6 +17,9 @@ in [MASTER_VISION_ALIGNMENT.md](MASTER_VISION_ALIGNMENT.md):
 - [x] Define and implement the Unified Approval Control Plane record and API contract (v1)
 - [x] Add observability foundation: correlation IDs, structured events, health status and latency telemetry
 - [x] Replace ad-hoc SQLite schema updates with versioned migrations
+- [x] Add the first deterministic Personal State Engine snapshot and Dashboard view
+- [x] Persist daily Personal State snapshots and add State of Me history/report
+- [x] Add the read-only Action Center API that normalizes commitments, subscriptions, deadlines and approvals
 
 
 ---
@@ -32,7 +35,9 @@ Near-to-medium-term concrete features not yet scheduled. Long-term phase items b
 - **Internet access hardening**: add robots-policy coverage, stronger per-session budgets and a broader Lightpanda/Chromium compatibility matrix.
 - [x] **Browser runtime PoC**: compare Lightpanda via Docker/CDP with Playwright/Chromium on a local JavaScript fixture; external-site compatibility and fallback policy remain to be validated.
 - **Host computer control**: design an approval-gated, sandboxed capability for diagnostics and selected actions on the host OS, with separate Windows and macOS adapters.
-- **Trial subscription cancellation reminders**: detect free-trial or renewal dates and remind the user before a paid charge, with an explicit cancellation checklist.
+- [x] **Subscription Tracker MVP**: detect free-trial or renewal dates in unread email, keep approval-gated proposals with provenance, project them into the shared Approval Center, and remind the user before a known paid charge. Provider cancellation remains a manual user action; see [SUBSCRIPTION_TRACKER.md](design/SUBSCRIPTION_TRACKER.md).
+- [x] **Personal State Engine v1**: aggregate current commitments, subscriptions, deadlines and finance into a read-only priority snapshot; see `/api/state` and [ROADMAP.md](ROADMAP.md).
+- [x] **Action Center v1**: normalize priorities, due dates, reminders and approval-required actions into `/api/actions`; delivery preferences and Telegram coalescing remain future work.
 - **Receipt → Expense proposals**: agent detects a purchase receipt in email and proposes adding it to Finance.
 - **Calendar Conflict Checking**: warn before creating/modifying an event that overlaps with an existing one.
 - **Calendar × Memory integration**: warn when a new event conflicts with approved user preferences (e.g. "no meetings before 10:00").
@@ -40,8 +45,8 @@ Near-to-medium-term concrete features not yet scheduled. Long-term phase items b
 - **Commitment Center improvements**: richer extraction, rescheduling and notification preferences.
 
 **Notifications**
-- **Quiet hours configuration**: suppress non-urgent Telegram notifications during user-defined hours.
-- **Notification budget / coalescing**: rate-limit low-priority alerts; batch instead of sending individually.
+- [x] **Quiet hours configuration**: suppress non-urgent Telegram notifications during user-defined hours.
+- [x] **Notification budget / coalescing**: rate-limit low-priority alerts and batch Action Center items instead of sending individually.
 
 **Mail**
 - **Auto-file rules (approval-based)**: user-configured rules to categorize/move emails, requiring approval before activation.

@@ -30,63 +30,30 @@ export interface EventUpdateInput {
 
 const API_BASE = '/api/calendar';
 
-const getHeaders = (withJson = false) => {
-  const apiKey = (import.meta.env.VITE_API_KEY as string) || '';
-  const headers: Record<string, string> = {
-    'X-API-Key': apiKey,
-  };
-  if (withJson) {
-    headers['Content-Type'] = 'application/json';
-  }
-  return headers;
-};
-
 export async function fetchEvents(startDate: string, endDate: string): Promise<CalendarEvent[]> {
   const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
-  const resp = await fetch(`${API_BASE}/events?${params.toString()}`, {
-    headers: getHeaders(),
-  });
-  if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(errorText || `Failed to fetch events: ${resp.statusText}`);
-  }
-  return resp.json();
+  return apiRequest<CalendarEvent[]>(`${API_BASE}/events?${params}`);
 }
 
 export async function createEvent(input: EventCreateInput): Promise<CalendarEvent> {
-  const resp = await fetch(`${API_BASE}/events`, {
+  return apiRequest<CalendarEvent>(`${API_BASE}/events`, {
     method: 'POST',
-    headers: getHeaders(true),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(errorText || `Failed to create event: ${resp.statusText}`);
-  }
-  return resp.json();
 }
 
 export async function modifyEvent(uid: string, input: EventUpdateInput): Promise<CalendarEvent> {
-  const resp = await fetch(`${API_BASE}/events/${uid}`, {
+  return apiRequest<CalendarEvent>(`${API_BASE}/events/${uid}`, {
     method: 'PUT',
-    headers: getHeaders(true),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(errorText || `Failed to modify event: ${resp.statusText}`);
-  }
-  return resp.json();
 }
 
 export async function deleteEvent(uid: string): Promise<{ status: string }> {
-  const resp = await fetch(`${API_BASE}/events/${uid}`, {
+  return apiRequest<{ status: string }>(`${API_BASE}/events/${uid}`, {
     method: 'DELETE',
-    headers: getHeaders(),
   });
-  if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(errorText || `Failed to delete event: ${resp.statusText}`);
-  }
-  return resp.json();
 }
+import { apiRequest } from './client';

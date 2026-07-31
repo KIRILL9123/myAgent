@@ -11,6 +11,22 @@ This is the canonical operational guide. Detailed historical plans remain in
 - SQLite as the authoritative structured-state store.
 - APScheduler for scheduled jobs and Telegram polling for notifications.
 
+Subscription Tracker runs a daily read-only scan of unread IMAP messages at 04:30
+and checks approved subscription reminders every 15 minutes. Disable the mailbox
+scan with `SUBSCRIPTION_EMAIL_SCAN_ENABLED=false`; configure accounts and the
+reminder lead time with `SUBSCRIPTION_EMAIL_SCAN_ACCOUNTS` and
+`SUBSCRIPTION_REMINDER_LEAD_DAYS`. The scan never marks messages read and never
+cancels a provider subscription.
+
+Personal State is computed on demand from the authoritative domain tables. The
+Dashboard uses the local-only snapshot for fast loading; `/state` and `/api/state`
+may additionally read the configured calendar and mail connectors. Connector
+failures are reported per domain and do not invalidate local commitments,
+subscriptions, deadlines or finance signals.
+Daily persistent snapshots are refreshed by APScheduler at 08:10 and stored in
+the `state_snapshots` table. Re-running the job on the same day updates that day
+instead of creating duplicate history entries.
+
 ## Startup and health checks
 
 1. Start the Bonsai model server.

@@ -78,6 +78,12 @@ def _reconcile_resolved() -> None:
                 ).fetchone()
                 if source and source[0] != "PROPOSED":
                     resolved_status = "APPROVED" if source[0] == "ACTIVE" else "REJECTED"
+            elif kind == "SUBSCRIPTION":
+                source = conn.execute(
+                    "SELECT status FROM subscriptions WHERE id = ?", (source_id,)
+                ).fetchone()
+                if source and source[0] != "PROPOSED":
+                    resolved_status = "APPROVED" if source[0] == "ACTIVE" else "REJECTED"
             elif kind == "ACTION":
                 source = conn.execute(
                     "SELECT status FROM pending_actions WHERE rowid = ?", (int(source_id),)
@@ -113,6 +119,11 @@ def sync_pending_approvals() -> None:
             """SELECT id, title, description, confidence, source_type, deadline_at, created_at
                FROM commitments WHERE status = 'PROPOSED'"""
         ).fetchall()
+        subscriptions = conn.execute(
+            """SELECT id, name, provider, subscription_type, amount, currency,
+                      trial_ends_at, next_charge_at, confidence, source_type, created_at
+               FROM subscriptions WHERE status = 'PROPOSED'"""
+        ).fetchall()
         actions = conn.execute(
             """SELECT rowid, session_id, action_name, args, source_channel, created_at
                FROM pending_actions WHERE status = 'pending'"""
@@ -131,6 +142,16 @@ def sync_pending_approvals() -> None:
             {"commitment_id": commitment_id, "description": description,
              "confidence": confidence, "source_type": source_type,
              "deadline_at": deadline_at, "created_at": created_at},
+        )
+    for subscription_id, name, provider, subscription_type, amount, currency, trial_ends_at, next_charge_at, confidence, source_type, created_at in subscriptions:
+        price = f"{amount:g} {currency or ''}".strip() if amount is not None else "сумма не указана"
+        summary = f"{provider or name} · {subscription_type} · {price}"
+        _upsert_request(
+            "SUBSCRIPTION", subscription_id, "Проверить подписку", summary,
+            {"subscription_id": subscription_id, "name": name, "provider": provider,
+             "subscription_type": subscription_type, "amount": amount, "currency": currency,
+             "trial_ends_at": trial_ends_at, "next_charge_at": next_charge_at,
+             "confidence": confidence, "source_type": source_type, "created_at": created_at},
         )
     for action_id, session_id, action_name, args_json, source_channel, created_at in actions:
         args = _loads(args_json)
@@ -188,6 +209,9 @@ async def resolve_approval(approval_id: str, decision: str,
         elif kind == "COMMITMENT":
             from backend.app.commitments.commitment_service import transition_commitment
             transition_commitment(source_id, "cancel", {"source": "approval_center", "note": note})
+        elif kind == "SUBSCRIPTION":
+            from backend.app.subscriptions.subscription_service import transition_subscription
+            transition_subscription(source_id, "cancel", {"source": "approval_center", "note": note})
         elif kind == "ACTION":
             from backend.app.storage.db import get_pending_action, delete_pending_action
             action = get_pending_action(request["payload"].get("session_id", ""))
@@ -202,6 +226,9 @@ async def resolve_approval(approval_id: str, decision: str,
         elif kind == "COMMITMENT":
             from backend.app.commitments.commitment_service import transition_commitment
             transition_commitment(source_id, "approve", {"source": "approval_center", "note": note})
+        elif kind == "SUBSCRIPTION":
+            from backend.app.subscriptions.subscription_service import transition_subscription
+            transition_subscription(source_id, "approve", {"source": "approval_center", "note": note})
         elif kind == "ACTION":
             from backend.app.agent.orchestrator import _dispatch_tool, sanitize_tool_result
             from backend.app.storage.db import claim_pending_action, finalize_pending_action, get_pending_action

@@ -24,9 +24,11 @@ def test_env(tmp_path, monkeypatch):
     conn = sqlite3.connect(db_path)
     conn.execute("CREATE TABLE IF NOT EXISTS conversations (id INTEGER PRIMARY KEY, content TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS user_facts (id INTEGER PRIMARY KEY, content TEXT)")
+    conn.execute("CREATE TABLE IF NOT EXISTS memory_notes (id INTEGER PRIMARY KEY, content TEXT)")
     conn.execute("INSERT INTO conversations (content) VALUES ('hello')")
     conn.execute("INSERT INTO user_facts (content) VALUES ('fact1')")
     conn.execute("INSERT INTO user_facts (content) VALUES ('fact2')")
+    conn.execute("INSERT INTO memory_notes (content) VALUES ('note1')")
     conn.commit()
     conn.close()
 
@@ -43,6 +45,7 @@ def test_create_backup_creates_file(test_env):
     assert result["integrity_check"] == "ok"
     assert result["table_counts"]["conversations"] == 1
     assert result["table_counts"]["user_facts"] == 2
+    assert result["table_counts"]["memory_notes"] == 1
 
     backup_path = result["backup_path"]
     assert os.path.exists(backup_path)

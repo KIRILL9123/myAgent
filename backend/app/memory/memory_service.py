@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from datetime import datetime as _dt
 from backend.app.storage.db import get_db_connection
@@ -16,20 +17,191 @@ _RUSSIAN_STOPWORDS = {
     "они", "оно", "при", "уже", "еще", "был", "все", "той", "тот", "эту"
 }
 
-def save_pending_fact(content: str, category: str, confidence: float, source_conversation_id: int | None = None) -> int:
+AUTO_APPROVE_CATEGORIES = {"preference", "habit", "project"}
+AUTO_APPROVE_CONFIDENCE = 0.90
+
+def save_pending_fact(content: str, category: str, confidence: float, source_conversation_id: int | None = None,
+                      source_type: str = "llm_extraction", provenance: dict[str, Any] | None = None) -> int:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
             INSERT INTO user_facts (content, category, source_conversation_id, confidence, status,
-                                    source_type, last_confirmed_at, valid_from)
-            VALUES (?, ?, ?, ?, 'pending_approval', 'llm_extraction', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                                    source_type, last_confirmed_at, valid_from, approval_mode, provenance_json)
+            VALUES (?, ?, ?, ?, 'pending_approval', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'pending_review', ?)
             """,
-            (content, category, source_conversation_id, confidence)
+            (content, category, source_conversation_id, confidence, source_type, json.dumps(provenance or {}, ensure_ascii=False))
         )
         new_id = cursor.lastrowid
         conn.commit()
     return new_id
+
+def save_extracted_fact(content: str, category: str, confidence: float, source_conversation_id: int | None = None,
+                        source_type: str = "chat", provenance: dict[str, Any] | None = None) -> tuple[int, str]:
+    """Save safe high-confidence personal facts directly; route everything else to review."""
+    auto_approved = confidence >= AUTO_APPROVE_CONFIDENCE and category in AUTO_APPROVE_CATEGORIES
+    status = "approved" if auto_approved else "pending_approval"
+    approval_mode = "auto_high_confidence" if auto_approved else "pending_review"
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """INSERT INTO user_facts (content, category, source_conversation_id, confidence, status,
+                                         source_type, last_confirmed_at, valid_from, approval_mode, provenance_json)
+               VALUES (?, ?, ?, ?, ?, ?, CASE WHEN ? = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END,
+                       CURRENT_TIMESTAMP, ?, ?)""",
+            (content, category, source_conversation_id, confidence, status, source_type, status,
+             approval_mode, json.dumps(provenance or {}, ensure_ascii=False)),
+        )
+        fact_id = cursor.lastrowid
+        conn.commit()
+    _sync_memory_search_index()
+    clear_consolidation_cache()
+    return fact_id, status
+
+def _sync_memory_search_index() -> None:
+    """Small local index; rebuilding is inexpensive at the current personal scale."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM memory_search")
+        cursor.execute("SELECT id, title, content, tags_json FROM memory_notes WHERE status = 'active'")
+        for note_id, title, content, tags_json in cursor.fetchall():
+            cursor.execute("INSERT INTO memory_search (item_type, item_id, title, content, tags) VALUES ('note', ?, ?, ?, ?)",
+                           (str(note_id), title, content, tags_json or ""))
+        cursor.execute("SELECT id, content, category FROM user_facts WHERE status = 'approved' AND (valid_to IS NULL OR valid_to > CURRENT_TIMESTAMP)")
+        for fact_id, content, category in cursor.fetchall():
+            cursor.execute("INSERT INTO memory_search (item_type, item_id, title, content, tags) VALUES ('fact', ?, ?, ?, ?)",
+                           (str(fact_id), category, content, category))
+        conn.commit()
+
+def _fact_dict(row: tuple) -> dict[str, Any]:
+    keys = ("id", "content", "category", "confidence", "status", "source_conversation_id", "created_at", "updated_at",
+            "last_confirmed_at", "valid_from", "valid_to", "source_type", "approval_mode", "provenance_json", "is_pinned")
+    item = dict(zip(keys, row))
+    try:
+        item["provenance"] = json.loads(item.pop("provenance_json") or "{}")
+    except json.JSONDecodeError:
+        item["provenance"] = {}
+    item["is_pinned"] = bool(item["is_pinned"])
+    return item
+
+def list_facts(query: str = "", category: str | None = None, status: str = "approved") -> list[dict[str, Any]]:
+    clauses, params = ["status = ?"], [status]
+    if status == "approved":
+        clauses.append("(valid_to IS NULL OR valid_to > CURRENT_TIMESTAMP)")
+    if category:
+        clauses.append("category = ?"); params.append(category)
+    if query.strip():
+        clauses.append("content LIKE ?"); params.append(f"%{query.strip()}%")
+    sql = "SELECT id, content, category, confidence, status, source_conversation_id, created_at, updated_at, last_confirmed_at, valid_from, valid_to, source_type, approval_mode, provenance_json, is_pinned FROM user_facts WHERE " + " AND ".join(clauses) + " ORDER BY is_pinned DESC, updated_at DESC, id DESC"
+    with get_db_connection() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [_fact_dict(row) for row in rows]
+
+def update_fact(fact_id: int, content: str | None = None, category: str | None = None, valid_to: str | None = None,
+                is_pinned: bool | None = None) -> dict[str, Any] | None:
+    changes: list[str] = ["updated_at = CURRENT_TIMESTAMP"]
+    params: list[Any] = []
+    if content is not None: changes.append("content = ?"); params.append(content.strip())
+    if category is not None: changes.append("category = ?"); params.append(category)
+    if valid_to is not None: changes.append("valid_to = ?"); params.append(valid_to or None)
+    if is_pinned is not None: changes.append("is_pinned = ?"); params.append(int(is_pinned))
+    params.append(fact_id)
+    with get_db_connection() as conn:
+        cursor = conn.cursor(); cursor.execute(f"UPDATE user_facts SET {', '.join(changes)} WHERE id = ?", params)
+        if cursor.rowcount == 0: return None
+        conn.commit()
+    _sync_memory_search_index()
+    return next((item for item in list_facts(status="approved") if item["id"] == fact_id), None)
+
+def confirm_fact(fact_id: int) -> dict[str, Any] | None:
+    with get_db_connection() as conn:
+        cursor = conn.cursor(); cursor.execute("UPDATE user_facts SET last_confirmed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, approval_mode = 'user_confirmed' WHERE id = ? AND status = 'approved'", (fact_id,))
+        if cursor.rowcount == 0: return None
+        conn.commit()
+    return next((item for item in list_facts(status="approved") if item["id"] == fact_id), None)
+
+def create_note(title: str, content: str, tags: list[str] | None = None) -> dict[str, Any]:
+    clean_tags = sorted({tag.strip().lower() for tag in (tags or []) if tag.strip()})
+    with get_db_connection() as conn:
+        cursor = conn.cursor(); cursor.execute("INSERT INTO memory_notes (title, content, tags_json) VALUES (?, ?, ?)", (title.strip(), content.strip(), json.dumps(clean_tags, ensure_ascii=False)))
+        note_id = cursor.lastrowid; conn.commit()
+    _sync_memory_search_index()
+    return get_note(note_id) or {}
+
+def get_note(note_id: int) -> dict[str, Any] | None:
+    with get_db_connection() as conn:
+        row = conn.execute("SELECT id, title, content, tags_json, status, created_at, updated_at FROM memory_notes WHERE id = ?", (note_id,)).fetchone()
+    return _note_dict(row) if row else None
+
+def _note_dict(row: tuple) -> dict[str, Any]:
+    try: tags = json.loads(row[3] or "[]")
+    except json.JSONDecodeError: tags = []
+    return {"id": row[0], "title": row[1], "content": row[2], "tags": tags, "status": row[4], "created_at": row[5], "updated_at": row[6]}
+
+def list_notes(query: str = "", status: str = "active") -> list[dict[str, Any]]:
+    clauses, params = ["status = ?"], [status]
+    if query.strip(): clauses.append("(title LIKE ? OR content LIKE ? OR tags_json LIKE ?)"); params.extend([f"%{query.strip()}%"] * 3)
+    with get_db_connection() as conn:
+        rows = conn.execute("SELECT id, title, content, tags_json, status, created_at, updated_at FROM memory_notes WHERE " + " AND ".join(clauses) + " ORDER BY updated_at DESC, id DESC", params).fetchall()
+    return [_note_dict(row) for row in rows]
+
+def update_note(note_id: int, title: str | None = None, content: str | None = None, tags: list[str] | None = None, status: str | None = None) -> dict[str, Any] | None:
+    changes, params = ["updated_at = CURRENT_TIMESTAMP"], []
+    if title is not None: changes.append("title = ?"); params.append(title.strip())
+    if content is not None: changes.append("content = ?"); params.append(content.strip())
+    if tags is not None: changes.append("tags_json = ?"); params.append(json.dumps(sorted({tag.strip().lower() for tag in tags if tag.strip()}), ensure_ascii=False))
+    if status is not None: changes.append("status = ?"); params.append(status)
+    params.append(note_id)
+    with get_db_connection() as conn:
+        cursor = conn.cursor(); cursor.execute(f"UPDATE memory_notes SET {', '.join(changes)} WHERE id = ?", params)
+        if cursor.rowcount == 0: return None
+        conn.commit()
+    _sync_memory_search_index()
+    return get_note(note_id)
+
+async def extract_note_facts(note_id: int) -> list[dict[str, Any]] | None:
+    note = get_note(note_id)
+    if not note or note["status"] != "active":
+        return None
+    from backend.app.memory.fact_extractor import extract_facts_from_conversation
+    text = f"User note title: {note['title']}\nUser note: {note['content']}"
+    return await extract_facts_from_conversation(
+        text,
+        source_type="manual_note",
+        provenance={"note_id": note_id, "note_title": note["title"]},
+    )
+
+def get_memory_overview() -> dict[str, int]:
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        return {"notes": cursor.execute("SELECT COUNT(*) FROM memory_notes WHERE status = 'active'").fetchone()[0],
+                "approved_facts": cursor.execute("SELECT COUNT(*) FROM user_facts WHERE status = 'approved' AND (valid_to IS NULL OR valid_to > CURRENT_TIMESTAMP)").fetchone()[0],
+                "pending_facts": cursor.execute("SELECT COUNT(*) FROM user_facts WHERE status = 'pending_approval'").fetchone()[0],
+                "stale_facts": cursor.execute("SELECT COUNT(*) FROM user_facts WHERE status = 'approved' AND last_confirmed_at IS NOT NULL AND last_confirmed_at < datetime('now', '-90 days')").fetchone()[0]}
+
+def search_memory(query: str, limit: int = 12) -> list[dict[str, Any]]:
+    terms = [term.replace('"', '') for term in query.split() if term.strip()]
+    if not terms: return []
+    _sync_memory_search_index()
+    expression = " OR ".join(f'"{term}"' for term in terms)
+    with get_db_connection() as conn:
+        rows = conn.execute("SELECT item_type, item_id FROM memory_search WHERE memory_search MATCH ? LIMIT ?", (expression, limit)).fetchall()
+    facts = {item["id"]: item for item in list_facts(status="approved")}
+    notes = {item["id"]: item for item in list_notes()}
+    results = []
+    for kind, item_id in rows:
+        item = facts.get(int(item_id)) if kind == "fact" else notes.get(int(item_id))
+        if item:
+            results.append({"type": kind, "item": item})
+    return results
+
+async def get_relevant_memory(query: str, limit: int = 5) -> list[dict[str, Any]]:
+    """Return compact, source-aware memory for the chat context."""
+    results = search_memory(query, limit=limit)
+    if results:
+        return results[:limit]
+    # Preserve the existing stemming/LLM fact path when FTS has no lexical hit.
+    return [{"type": "fact", "item": item} for item in await get_relevant_facts(query, limit=limit)]
 
 def _row_to_fact(r: tuple, include_status: bool = False) -> dict[str, Any]:
     fact = {

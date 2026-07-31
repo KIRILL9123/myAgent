@@ -1,11 +1,15 @@
 import json
 import asyncio
+import re
+import logging
 from backend.app.agent.llm import chat as chat_with_ollama
 from backend.app.memory.memory_service import (
-    save_pending_fact,
+    save_extracted_fact,
     get_all_facts,
     update_fact_timestamp
 )
+
+logger = logging.getLogger(__name__)
 
 FACT_EXTRACTION_PROMPT = """You are a factual information extractor. Analyze the conversation history between a user and an AI assistant, and extract important, long-term, verifiable facts about the user.
 Ignore short-term conversation details, temporary questions, pleasantries, or general topics. Focus strictly on user preferences, habits, relationships, projects, or other notable persistent attributes.
@@ -54,7 +58,8 @@ Response format MUST be exactly:
   "fact_id": null
 }}"""
 
-async def extract_facts_from_conversation(conversation_text: str, source_conversation_id: int | None = None) -> list[dict]:
+async def extract_facts_from_conversation(conversation_text: str, source_conversation_id: int | None = None,
+                                          source_type: str = "chat", provenance: dict | None = None) -> list[dict]:
     """
     Extracts facts from the conversation text, checks for semantic duplicates against
     existing approved and pending facts, and saves them as pending_approval (if not duplicate).
@@ -67,25 +72,33 @@ async def extract_facts_from_conversation(conversation_text: str, source_convers
     
     response = await chat_with_ollama(messages, response_format="json", role="extractor")
     if "error" in response:
-        print(f"[FactExtractor] LLM Error: {response['error']}")
+        logger.warning("LLM error during fact extraction: %s", response["error"])
         return []
         
     content_str = response.get("message", {}).get("content", "")
-    print(f"[FactExtractor] Raw content_str: {content_str}")
+    logger.debug("Raw fact extraction response: %s", content_str)
     if not content_str:
         return []
         
+    # Completion models sometimes wrap valid JSON in a markdown fence even
+    # when JSON mode was requested. Accept that harmless wrapper.
+    cleaned_content = content_str.strip()
+    if cleaned_content.startswith("```"):
+        cleaned_content = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned_content, flags=re.IGNORECASE).strip()
+
     try:
-        data = json.loads(content_str)
+        data = json.loads(cleaned_content)
     except json.JSONDecodeError as e:
-        print(f"[FactExtractor] Failed to parse LLM response as JSON: {e}")
+        logger.warning("Failed to parse fact extraction response as JSON: %s", e)
         return []
         
     raw_facts = []
     if isinstance(data, list):
         raw_facts = data
     elif isinstance(data, dict):
-        if "content" in data and "category" in data:
+        if isinstance(data.get("facts"), list):
+            raw_facts = data["facts"]
+        elif "content" in data or "fact" in data or "text" in data:
             raw_facts = [data]
         else:
             for key, val in data.items():
@@ -110,9 +123,18 @@ async def extract_facts_from_conversation(conversation_text: str, source_convers
         ])
 
     for item in raw_facts:
-        content = item.get("content")
+        # Some local completion models use `fact`/`text` instead of the
+        # requested `content`, and may omit optional metadata. Normalize the
+        # aliases so extraction does not silently produce zero facts.
+        content = item.get("content") or item.get("fact") or item.get("text") or item.get("description")
         category = item.get("category")
-        confidence = item.get("confidence", 1.0)
+        if not category:
+            category = _infer_category(str(content or ""))
+        try:
+            confidence = float(item.get("confidence", 0.85))
+        except (TypeError, ValueError):
+            confidence = 0.0
+        confidence = max(0.0, min(1.0, confidence))
         
         if not content or not category:
             continue
@@ -130,18 +152,27 @@ async def extract_facts_from_conversation(conversation_text: str, source_convers
             dedup_tasks.append(chat_with_ollama(messages, response_format="json", role="extractor"))
             dedup_items.append((content, category, confidence))
         else:
-            dedup_items.append((content, category, confidence, None, None))
+            dedup_items.append((content, category, confidence))
 
     if dedup_tasks:
         dedup_responses = await asyncio.gather(*dedup_tasks, return_exceptions=True)
         for i, resp in enumerate(dedup_responses):
             content, category, confidence = dedup_items[i]
             if isinstance(resp, Exception):
-                print(f"[FactExtractor] Dedup call failed for '{content}': {resp}")
+                logger.warning("Deduplication call failed for %r: %s", content, resp)
                 dedup_items[i] = (content, category, confidence, False, None)
                 continue
-            dedup_content_str = resp.get("message", {}).get("content", "")
-            print(f"[FactExtractor] Deduplication raw response for '{content}': {dedup_content_str}")
+            if not isinstance(resp, dict) or resp.get("status") == "error":
+                logger.warning("Deduplication model request failed for %r: %s", content, resp)
+                dedup_items[i] = (content, category, confidence, False, None)
+                continue
+            dedup_message = resp.get("message", {})
+            if not isinstance(dedup_message, dict):
+                logger.warning("Deduplication response has no message object for %r", content)
+                dedup_items[i] = (content, category, confidence, False, None)
+                continue
+            dedup_content_str = dedup_message.get("content", "")
+            logger.debug("Deduplication response for %r: %s", content, dedup_content_str)
             try:
                 dedup_data = json.loads(dedup_content_str) if dedup_content_str else {}
                 is_duplicate_raw = dedup_data.get("is_duplicate", False)
@@ -149,7 +180,7 @@ async def extract_facts_from_conversation(conversation_text: str, source_convers
                 raw_id = dedup_data.get("fact_id")
                 duplicate_id = int(raw_id) if raw_id is not None and str(raw_id).lower() != "null" else None
             except Exception as e:
-                print(f"[FactExtractor] Deduplication parse error for '{content}': {e}")
+                logger.warning("Deduplication parse error for %r: %s", content, e)
                 is_duplicate, duplicate_id = False, None
             dedup_items[i] = (content, category, confidence, is_duplicate, duplicate_id)
     else:
@@ -160,7 +191,7 @@ async def extract_facts_from_conversation(conversation_text: str, source_convers
             # Verify the duplicate ID actually exists in our active list
             exists_in_active = any(f["id"] == duplicate_id for f in active_existing)
             if exists_in_active:
-                print(f"[FactExtractor] Detected duplicate of fact #{duplicate_id}. Updating timestamp.")
+                logger.info("Detected duplicate of fact #%s; updating timestamp", duplicate_id)
                 update_fact_timestamp(duplicate_id)
                 processed_facts.append({
                     "content": content,
@@ -171,21 +202,38 @@ async def extract_facts_from_conversation(conversation_text: str, source_convers
                 })
                 continue
                 
-        # If not duplicate, save as pending_approval
-        fact_id = save_pending_fact(
+        # Reliable preference/habit/project facts are approved automatically;
+        # relationships, ambiguous and lower-confidence facts stay in review.
+        fact_id, status = save_extracted_fact(
             content=content,
             category=category,
             confidence=confidence,
-            source_conversation_id=source_conversation_id
+            source_conversation_id=source_conversation_id,
+            source_type=source_type,
+            provenance=provenance or {"channel": source_type},
         )
-        print(f"[FactExtractor] Saved new fact #{fact_id} as pending_approval.")
+        logger.info("Saved new fact #%s as %s", fact_id, status)
         processed_facts.append({
             "id": fact_id,
             "content": content,
             "category": category,
             "confidence": confidence,
             "is_duplicate": False,
-            "status": "pending_approval"
+            "status": status
         })
         
     return processed_facts
+
+
+def _infer_category(content: str) -> str:
+    """Best-effort category for completion models that omit the field."""
+    lowered = content.lower()
+    if any(word in lowered for word in ("предпочит", "люблю", "нравит", "валют", "предпочитаю")):
+        return "preference"
+    if any(word in lowered for word in ("проект", "планирую", "хочу подключ", "работаю над")):
+        return "project"
+    if any(word in lowered for word in ("жена", "муж", "друг", "коллег", "семь")):
+        return "relationship"
+    if any(word in lowered for word in ("каждый день", "обычно", "привыч", "встаю", "работаю по")):
+        return "habit"
+    return "other"

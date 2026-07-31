@@ -1,4 +1,15 @@
-# Memory Evolution Roadmap (Planning)
+# Memory Evolution Roadmap
+
+## Memory v2 — implemented baseline
+
+Memory now has two local layers:
+
+- **Notes**: manually created, editable, taggable items that can be archived. They are searchable and available to the agent as contextual knowledge.
+- **Facts**: structured preferences, habits, projects and relationships extracted from chat. High-confidence `preference`, `habit`, and `project` facts are approved automatically; relationships, ambiguous and low-confidence facts remain in review.
+
+The `Memory` screen now starts with an overview and provides Notes, Facts, Review, Consolidation, and Graph views. Facts expose their source type, approval mode, confidence, pin state, and last confirmation time. The chat response can expose the compact list of memory items that informed the answer.
+
+SQLite FTS5 is used for local candidate retrieval across notes and active facts. Embeddings remain a later optimisation, not a requirement for the current personal scale.
 
 ## What exists today
 Current `user_facts` fields already include:

@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 from backend.app.memory.memory_service import (
     get_pending_facts,
     approve_fact,
     reject_fact,
     get_graph_data,
-    backfill_isolated_relations
+    backfill_isolated_relations,
+    create_note, get_note, get_memory_overview, list_facts, list_notes, search_memory,
+    update_fact, update_note, confirm_fact, extract_note_facts,
 )
 
 router = APIRouter()
@@ -65,8 +68,74 @@ async def api_backfill_relations():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-from pydantic import BaseModel
 from backend.app.memory.memory_service import find_consolidation_candidates, consolidate_facts
+
+class NoteCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    content: str = Field(min_length=1, max_length=20000)
+    tags: list[str] = Field(default_factory=list)
+
+class NoteUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    content: str | None = Field(default=None, min_length=1, max_length=20000)
+    tags: list[str] | None = None
+    status: str | None = None
+
+class FactUpdateRequest(BaseModel):
+    content: str | None = Field(default=None, min_length=1, max_length=1000)
+    category: str | None = None
+    is_pinned: bool | None = None
+
+@router.get("/overview")
+async def api_memory_overview():
+    return get_memory_overview()
+
+@router.get("/notes")
+async def api_list_notes(query: str = "", status: str = "active"):
+    return {"notes": list_notes(query=query, status=status)}
+
+@router.post("/notes")
+async def api_create_note(req: NoteCreateRequest):
+    return create_note(req.title, req.content, req.tags)
+
+@router.patch("/notes/{note_id}")
+async def api_update_note(note_id: int, req: NoteUpdateRequest):
+    if req.status is not None and req.status not in {"active", "archived"}:
+        raise HTTPException(status_code=400, detail="Invalid note status")
+    note = update_note(note_id, req.title, req.content, req.tags, req.status)
+    if not note: raise HTTPException(status_code=404, detail="Note not found")
+    return note
+
+@router.post("/notes/{note_id}/extract")
+async def api_extract_note_facts(note_id: int):
+    results = await extract_note_facts(note_id)
+    if results is None:
+        raise HTTPException(status_code=404, detail="Active note not found")
+    return {"facts": results}
+
+@router.get("/facts")
+async def api_list_facts(query: str = "", category: str | None = None, status: str = "approved"):
+    if status not in {"approved", "pending_approval", "rejected", "merged"}:
+        raise HTTPException(status_code=400, detail="Invalid fact status")
+    return {"facts": list_facts(query=query, category=category, status=status)}
+
+@router.patch("/facts/{fact_id}")
+async def api_update_fact(fact_id: int, req: FactUpdateRequest):
+    if req.category is not None and req.category not in {"preference", "habit", "relationship", "project", "other"}:
+        raise HTTPException(status_code=400, detail="Invalid fact category")
+    fact = update_fact(fact_id, req.content, req.category, is_pinned=req.is_pinned)
+    if not fact: raise HTTPException(status_code=404, detail="Fact not found or expired")
+    return fact
+
+@router.post("/facts/{fact_id}/confirm")
+async def api_confirm_fact(fact_id: int):
+    fact = confirm_fact(fact_id)
+    if not fact: raise HTTPException(status_code=404, detail="Fact not found or inactive")
+    return fact
+
+@router.get("/search")
+async def api_search_memory(query: str = Query(min_length=1, max_length=200), limit: int = Query(default=12, ge=1, le=50)):
+    return {"results": search_memory(query, limit)}
 
 class ConsolidateRequest(BaseModel):
     fact_ids: list[int]

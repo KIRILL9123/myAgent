@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   fetchRecurringTemplates,
   fetchSummary,
@@ -6,7 +7,6 @@ import {
 } from '../api/finance';
 import type {
   FinanceRange,
-  FinanceSummary,
   RecurringTemplate,
   Transaction,
 } from '../types';
@@ -41,35 +41,15 @@ function getRangeDates(range: FinanceRange): { startDate: string; endDate: strin
 }
 
 export function useFinanceData(range: FinanceRange) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [summary, setSummary] = useState<FinanceSummary | null>(null);
-  const [recurringTemplates, setRecurringTemplates] = useState<RecurringTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { startDate, endDate } = getRangeDates(range);
-      const [nextTransactions, nextSummary, nextTemplates] = await Promise.all([
-        fetchTransactions(startDate, endDate),
-        fetchSummary(startDate, endDate),
+  const dates = useMemo(() => getRangeDates(range), [range]);
+  const query = useQuery({ queryKey: ['finance', range, dates.startDate, dates.endDate], queryFn: async () => {
+      const [transactions, summary, recurringTemplates] = await Promise.all([
+        fetchTransactions(dates.startDate, dates.endDate),
+        fetchSummary(dates.startDate, dates.endDate),
         fetchRecurringTemplates(),
       ]);
-      setTransactions(nextTransactions);
-      setSummary(nextSummary);
-      setRecurringTemplates(nextTemplates);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки финансовых данных');
-    } finally {
-      setLoading(false);
-    }
-  }, [range]);
+      return { transactions, summary, recurringTemplates };
+  }, staleTime: 30_000 });
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  return { transactions, summary, recurringTemplates, loading, error, reload };
+  return { transactions: query.data?.transactions ?? ([] as Transaction[]), summary: query.data?.summary ?? null, recurringTemplates: query.data?.recurringTemplates ?? ([] as RecurringTemplate[]), loading: query.isLoading, error: query.error instanceof Error ? query.error.message : null, reload: () => query.refetch() };
 }

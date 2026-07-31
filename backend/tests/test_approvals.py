@@ -6,6 +6,7 @@ from backend.app.approvals.approval_service import list_approvals, resolve_appro
 from backend.app.commitments.commitment_service import create_commitment
 from backend.app.memory.memory_service import save_pending_fact
 from backend.app.storage import db
+from backend.app.subscriptions.subscription_service import create_subscription, get_subscription
 
 
 @pytest.fixture
@@ -37,6 +38,37 @@ async def test_unified_center_rejects_commitment(approval_db):
 
     resolved = await resolve_approval(pending[0]["id"], "reject", "Неактуально")
     assert resolved["status"] == "REJECTED"
+    assert list_approvals() == []
+
+
+@pytest.mark.asyncio
+async def test_unified_center_approves_subscription(approval_db):
+    subscription = create_subscription(
+        "Streaming trial", source_type="EMAIL", subscription_type="TRIAL",
+        trial_ends_at="2030-01-10T12:00:00+00:00",
+    )
+
+    pending = list_approvals()
+    assert len(pending) == 1
+    assert pending[0]["kind"] == "SUBSCRIPTION"
+    assert pending[0]["payload"]["subscription_id"] == subscription["id"]
+
+    resolved = await resolve_approval(pending[0]["id"], "approve", "Проверено пользователем")
+
+    assert resolved["status"] == "APPROVED"
+    assert get_subscription(subscription["id"])["status"] == "ACTIVE"
+    assert list_approvals() == []
+
+
+@pytest.mark.asyncio
+async def test_unified_center_rejects_subscription(approval_db):
+    subscription = create_subscription("Unknown renewal", source_type="EMAIL")
+    pending = list_approvals()
+
+    resolved = await resolve_approval(pending[0]["id"], "reject")
+
+    assert resolved["status"] == "REJECTED"
+    assert get_subscription(subscription["id"])["status"] == "CANCELLED"
     assert list_approvals() == []
 
 

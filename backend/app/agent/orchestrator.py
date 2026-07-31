@@ -845,21 +845,22 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
     save_message(session_id, "user", user_message)
 
     # ── Step 0.5: Custom Memory Layer Integration ──
-    from backend.app.memory.memory_service import get_relevant_facts
+    from backend.app.memory.memory_service import get_relevant_memory
     
-    relevant_facts = await get_relevant_facts(user_message)
+    relevant_memory = await get_relevant_memory(user_message)
     
-    if relevant_facts:
+    if relevant_memory:
         facts_block = "\n".join([
-            f"- {f['content']} (категория: {f['category']}, достоверность: {int(f['confidence'] * 100)}%)"
-            for f in relevant_facts
+            (f"- Факт: {entry['item']['content']} (категория: {entry['item']['category']}, достоверность: {int(entry['item']['confidence'] * 100)}%)"
+             if entry['type'] == 'fact' else f"- Заметка «{entry['item']['title']}»: {entry['item']['content'][:700]}")
+            for entry in relevant_memory
         ])
-        print(f'[MEMORY] Retrieved {len(relevant_facts)} relevant facts for query: "{user_message}"')
-        for f in relevant_facts:
-            print(f"[MEMORY]   - {f['content']}")
+        print(f'[MEMORY] Retrieved {len(relevant_memory)} memory items for query: "{user_message}"')
+        for entry in relevant_memory:
+            print(f"[MEMORY]   - {entry['type']}: {entry['item'].get('content', entry['item'].get('title', ''))}")
     else:
         facts_block = None
-        print(f'[MEMORY] No relevant facts found for query: "{user_message}"')
+        print(f'[MEMORY] No relevant memory found for query: "{user_message}"')
 
     # ── Step 1: Build messages from history ──
     history = get_history(session_id, limit=20)
@@ -966,6 +967,7 @@ async def run_orchestrator(user_message: str, session_id: str = "default") -> di
                 "requires_confirmation": requires_confirmation,
                 "weather": weather_data,
                 "web_sources": web_sources or None,
+                "memory_used": [{"type": entry["type"], "id": entry["item"]["id"], "title": entry["item"].get("title") or entry["item"].get("content", "")[:100]} for entry in relevant_memory],
             }
 
         # Early Stopping: Check if LLM is repeating the exact same tool calls

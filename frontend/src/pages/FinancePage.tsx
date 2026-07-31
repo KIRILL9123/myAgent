@@ -18,6 +18,7 @@ import type { FinanceRange } from '../types';
 import FinanceSummaryCards from '../components/finance/FinanceSummaryCards';
 import TransactionCard from '../components/finance/TransactionCard';
 import RecurringTemplateCard from '../components/finance/RecurringTemplateCard';
+import { Dialog, Button } from '../components/ui';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -46,30 +47,19 @@ export default function FinancePage() {
   const [formDate, setFormDate] = useState<string>('');
   const [formIsRecurring, setFormIsRecurring] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<{ kind: 'transaction' | 'template'; id: number; label: string } | null>(null);
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Вы действительно хотите удалить эту операцию?')) {
-      return;
-    }
-
+  const handleDelete = (id: number) => setPendingRemoval({ kind: 'transaction', id, label: 'Удалить эту операцию?' });
+  const handleDeleteTemplate = (id: number) => setPendingRemoval({ kind: 'template', id, label: 'Остановить этот повторяющийся платёж?' });
+  const confirmRemoval = async () => {
+    if (!pendingRemoval) return;
     try {
-      await deleteTransaction(id);
+      if (pendingRemoval.kind === 'transaction') await deleteTransaction(pendingRemoval.id); else await deleteRecurringTemplate(pendingRemoval.id);
+      setPendingRemoval(null);
       loadData();
-    } catch (err: any) {
-      alert(`Ошибка при удалении: ${err.message}`);
-    }
-  };
-
-  const handleDeleteTemplate = async (id: number) => {
-    if (!window.confirm('Вы действительно хотите остановить эту подписку? Повторяющиеся расходы больше не будут генерироваться.')) {
-      return;
-    }
-
-    try {
-      await deleteRecurringTemplate(id);
-      loadData();
-    } catch (err: any) {
-      alert(`Ошибка при удалении шаблона: ${err.message}`);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Не удалось удалить запись');
     }
   };
 
@@ -88,7 +78,7 @@ export default function FinancePage() {
     e.preventDefault();
     const amountNum = parseFloat(formAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      alert('Сумма должна быть положительным числом');
+      setActionError('Сумма должна быть положительным числом');
       return;
     }
 
@@ -104,15 +94,15 @@ export default function FinancePage() {
       });
       setIsModalOpen(false);
       loadData();
-    } catch (err: any) {
-      alert(`Ошибка при сохранении: ${err.message}`);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Не удалось сохранить транзакцию');
     } finally {
       setSubmitting(false);
     }
   };
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 }).format(val);
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(val);
   };
 
   const formatDateString = (str: string) => {
@@ -186,6 +176,7 @@ export default function FinancePage() {
               Добавить транзакцию
             </button>
           </div>
+          {actionError && <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-xs text-rose-200"><span>{actionError}</span><button onClick={() => setActionError(null)} className="text-rose-300 hover:text-rose-100">Скрыть</button></div>}
 
           {/* Finance summary indicators */}
           {summary && !loading && (
@@ -356,7 +347,7 @@ export default function FinancePage() {
               {/* Amount */}
               <div>
                 <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
-                  Сумма (₽) *
+                  Сумма (€) *
                 </label>
                 <input
                   type="number"
@@ -457,6 +448,7 @@ export default function FinancePage() {
           </div>
         </div>
       )}
+      {pendingRemoval && <Dialog title={pendingRemoval.label} description={pendingRemoval.kind === 'template' ? 'Новые ежемесячные операции по этому шаблону больше не будут создаваться.' : 'Операция будет удалена из журнала финансов.'} onClose={() => setPendingRemoval(null)}><div className="flex justify-end gap-2"><Button onClick={() => setPendingRemoval(null)}>Отмена</Button><Button tone="danger" onClick={confirmRemoval}>Подтвердить</Button></div></Dialog>}
     </div>
   );
 }

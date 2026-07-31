@@ -6,6 +6,7 @@ export interface ChatResponse {
   requires_confirmation: boolean;
   weather?: WeatherData | null;
   web_sources?: WebSource[] | null;
+  memory_used?: Array<{ type: 'fact' | 'note'; id: number; title: string }> | null;
 }
 
 export interface WebSource {

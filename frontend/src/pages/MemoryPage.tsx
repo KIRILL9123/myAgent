@@ -1,213 +1,41 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Brain, CheckCircle2, Clock3, FileText, GitBranch, Lightbulb, Plus, RefreshCw, Search, Star, type LucideIcon } from 'lucide-react';
 import MemoryGraph from '../components/MemoryGraph';
 import PendingFactsQueue from '../components/PendingFactsQueue';
 import ConsolidationQueue from '../components/ConsolidationQueue';
-import { backfillRelations } from '../api/memory';
+import { backfillRelations, confirmFact, createNote, extractNoteFacts, fetchFacts, fetchMemoryOverview, fetchNotes, setFactValidity, updateFact, updateNote } from '../api/memory';
+import type { FactCategory, MemoryFact, MemoryNote } from '../api/memory';
+import { Button, Card, Dialog, EmptyState, ErrorState, LoadingState, PageHeader } from '../components/ui';
 
-const CATEGORY_LEGEND = [
-  { name: 'preference', label: 'Предпочтения (preference)', color: '#c084fc' },
-  { name: 'habit', label: 'Привычки (habit)', color: '#4ade80' },
-  { name: 'relationship', label: 'Связи/Контакты (relationship)', color: '#f472b6' },
-  { name: 'project', label: 'Проекты (project)', color: '#facc15' },
-  { name: 'other', label: 'Другое (other)', color: '#a1a1aa' },
-];
-
-const RELATION_LEGEND = [
-  { label: 'Связано (related_to)', color: '#475569', style: 'border-solid' },
-  { label: 'Противоречит (contradicts)', color: '#ef4444', style: 'border-dashed' },
-  { label: 'Уточняет (clarifies)', color: '#38bdf8', style: 'border-solid' },
-  { label: 'Причина (causes)', color: '#34d399', style: 'border-solid', particles: true },
-];
+type Tab = 'overview' | 'notes' | 'facts' | 'review' | 'consolidate' | 'graph';
+const categories: FactCategory[] = ['preference', 'habit', 'relationship', 'project', 'other'];
+const categoryLabels: Record<FactCategory, string> = { preference: 'Предпочтение', habit: 'Привычка', relationship: 'Связь', project: 'Проект', other: 'Другое' };
+const label = (value: string) => categoryLabels[value as FactCategory] || value;
+const shortDate = (value: string | null) => value ? new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'не подтверждалось';
 
 export default function MemoryPage() {
-  const [activeTab, setActiveTab] = useState<'graph' | 'pending' | 'consolidate'>('graph');
-  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
-  const [backfilling, setBackfilling] = useState<boolean>(false);
-  const [isLegendOpen, setIsLegendOpen] = useState<boolean>(false);
-
-  const handleRefresh = () => setRefreshTrigger((prev) => prev + 1);
-
-  const handleBackfill = async () => {
-    setBackfilling(true);
-    try {
-      const result = await backfillRelations();
-      alert(`Пересчет связей завершен! Добавлено новых связей: ${result.relations_added}`);
-      handleRefresh();
-    } catch (err: any) {
-      alert(`Ошибка при пересчете связей: ${err.message}`);
-    } finally {
-      setBackfilling(false);
-    }
-  };
-
-  return (
-    <div className="h-full w-full flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
-      {/* Top Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-zinc-950/60 border-b border-zinc-900 backdrop-blur-md z-10">
-        <div className="flex items-center gap-3">
-          <div className="h-3 w-3 animate-pulse rounded-full bg-purple-500 shadow-[0_0_8px_#a855f7]"></div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100 bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
-            Карта памяти пользователя
-          </h1>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex bg-zinc-900 border border-zinc-800/80 rounded-xl p-1 font-sans">
-          <button
-            onClick={() => setActiveTab('graph')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
-              activeTab === 'graph'
-                ? 'bg-purple-600 text-zinc-100 shadow-md shadow-purple-900/30'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Граф памяти
-          </button>
-          <button
-            onClick={() => setActiveTab('pending')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
-              activeTab === 'pending'
-                ? 'bg-purple-600 text-zinc-100 shadow-md shadow-purple-900/30'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            На подтверждение
-          </button>
-          <button
-            onClick={() => setActiveTab('consolidate')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
-              activeTab === 'consolidate'
-                ? 'bg-purple-600 text-zinc-100 shadow-md shadow-purple-900/30'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Консолидация
-          </button>
-        </div>
-
-        <div className="text-xs text-zinc-500 font-mono hidden md:block">
-          Home Agent Memory Layer
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="flex-1 relative w-full h-full overflow-y-auto">
-        {activeTab === 'graph' ? (
-          <>
-            {/* Force Directed Graph */}
-            <MemoryGraph refreshTrigger={refreshTrigger} />
-            
-            {/* Mobile Legend Toggle Button */}
-            <button
-              onClick={() => setIsLegendOpen(true)}
-              className="sm:hidden absolute top-6 right-6 p-2.5 bg-zinc-900/90 border border-zinc-800 rounded-xl text-zinc-300 shadow-lg backdrop-blur-md z-10 hover:bg-zinc-800 transition-all cursor-pointer"
-              title="Показать легенду"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </button>
-
-            {/* Legend layout */}
-            <div className={`
-              z-10 shadow-2xl backdrop-blur-md select-none transition-all duration-300 pointer-events-auto text-sm
-              /* Mobile bottom sheet style */
-              fixed bottom-0 left-0 w-full rounded-t-3xl border-t border-zinc-800 p-6 flex flex-col gap-5 bg-zinc-950/95
-              ${isLegendOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}
-              /* Desktop top-right panel style */
-              sm:absolute sm:top-6 sm:right-6 sm:bottom-auto sm:left-auto sm:w-72 sm:rounded-2xl sm:border sm:p-5 sm:bg-zinc-900/80 sm:translate-y-0 sm:opacity-100 sm:pointer-events-auto sm:flex sm:flex-col
-            `}>
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-1 sm:mb-0">
-                <h2 className="font-semibold text-zinc-200">
-                  Легенда графа
-                </h2>
-                <button
-                  onClick={() => setIsLegendOpen(false)}
-                  className="sm:hidden p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300 transition-colors cursor-pointer"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div>
-                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                  Категории фактов
-                </h3>
-                <ul className="flex flex-col gap-2.5">
-                  {CATEGORY_LEGEND.map((item) => (
-                    <li key={item.name} className="flex items-center gap-3 text-xs text-zinc-400">
-                      <span
-                        className="h-3.5 w-3.5 rounded-full flex-shrink-0 border border-black/40 shadow-sm"
-                        style={{ backgroundColor: item.color }}
-                      ></span>
-                      <span>{item.label}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                  Типы связей
-                </h3>
-                <ul className="flex flex-col gap-2.5">
-                  {RELATION_LEGEND.map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-xs text-zinc-400">
-                      <span
-                        className="w-8 h-0.5 border-t flex-shrink-0 relative"
-                        style={{
-                          borderColor: item.color,
-                          borderStyle: item.style === 'border-dashed' ? 'dashed' : 'solid',
-                          borderWidth: '2px',
-                        }}
-                      >
-                        {item.particles && (
-                          <span
-                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full animate-ping"
-                            style={{ backgroundColor: item.color }}
-                          ></span>
-                        )}
-                      </span>
-                      <span>{item.label}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Backfill Button */}
-              <div className="border-t border-zinc-800 pt-3 flex flex-col gap-3">
-                <button
-                  disabled={backfilling}
-                  onClick={handleBackfill}
-                  className="w-full py-2 px-3 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 hover:border-zinc-600 active:bg-zinc-950 text-zinc-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-                >
-                  {backfilling ? (
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border border-zinc-400 border-t-transparent"></span>
-                  ) : (
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H12M4 9h5" />
-                    </svg>
-                  )}
-                  <span>{backfilling ? 'Пересчет...' : 'Пересчитать связи'}</span>
-                </button>
-              </div>
-
-              <div className="text-[10px] text-zinc-500 leading-normal border-t border-zinc-800 pt-3">
-                <p>💡 Подсказка:</p>
-                <p className="mt-1">
-                  Перетаскивайте узлы мышкой для изменения структуры графа. Кликните на узел для детального просмотра.
-                </p>
-              </div>
-            </div>
-          </>
-        ) : activeTab === 'pending' ? (
-          <PendingFactsQueue onFactProcessed={handleRefresh} />
-        ) : (
-          <ConsolidationQueue onConsolidationProcessed={handleRefresh} />
-        )}
-      </main>
-    </div>
-  );
+  const [tab, setTab] = useState<Tab>('overview'); const [search, setSearch] = useState(''); const [category, setCategory] = useState('');
+  const [noteEditor, setNoteEditor] = useState<MemoryNote | 'new' | null>(null); const [factEditor, setFactEditor] = useState<MemoryFact | null>(null); const [graphRefresh, setGraphRefresh] = useState(0);
+  const client = useQueryClient(); const refresh = () => client.invalidateQueries({ queryKey: ['memory'] });
+  const overview = useQuery({ queryKey: ['memory', 'overview'], queryFn: fetchMemoryOverview });
+  const notes = useQuery({ queryKey: ['memory', 'notes', search], queryFn: () => fetchNotes(search) });
+  const facts = useQuery({ queryKey: ['memory', 'facts', search, category], queryFn: () => fetchFacts(search, category) });
+  const backfill = useMutation({ mutationFn: backfillRelations, onSuccess: () => { setGraphRefresh(value => value + 1); refresh(); } });
+  const confirm = useMutation({ mutationFn: confirmFact, onSuccess: refresh });
+  const archive = useMutation({ mutationFn: (id: number) => setFactValidity(id, new Date().toISOString().slice(0, 10)), onSuccess: refresh });
+  const invalidate = () => { refresh(); setGraphRefresh(value => value + 1); };
+  const noteExtract = useMutation({ mutationFn: extractNoteFacts, onSuccess: invalidate });
+  const activeContent = tab === 'overview' ? <Overview overview={overview.data} loading={overview.isLoading} error={overview.error} onNewNote={() => { setNoteEditor('new'); setTab('notes'); }} onOpenReview={() => setTab('review')} onOpenFacts={() => setTab('facts')} /> : tab === 'notes' ? <Notes notes={notes.data?.notes ?? []} loading={notes.isLoading} error={notes.error} onEdit={setNoteEditor} onArchive={(note) => updateNote(note.id, { status: 'archived' }).then(invalidate)} onExtract={(id) => noteExtract.mutate(id)} extracting={noteExtract.isPending ? noteExtract.variables : null} /> : tab === 'facts' ? <Facts facts={facts.data?.facts ?? []} loading={facts.isLoading} error={facts.error} onEdit={setFactEditor} onConfirm={(id) => confirm.mutate(id)} onArchive={(id) => archive.mutate(id)} /> : tab === 'review' ? <PendingFactsQueue onFactProcessed={invalidate} /> : tab === 'consolidate' ? <ConsolidationQueue onConsolidationProcessed={invalidate} /> : <div className="relative h-full min-h-[560px]"><MemoryGraph refreshTrigger={graphRefresh} /><Button className="absolute left-4 top-4 z-20" onClick={() => backfill.mutate()} loading={backfill.isPending}><GitBranch className="h-4 w-4" />Пересчитать связи</Button>{backfill.isSuccess && <span className="absolute left-4 top-16 z-20 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">Связей добавлено: {backfill.data.relations_added}</span>}</div>;
+  return <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 text-zinc-100"><PageHeader icon={<Brain className="h-5 w-5" />} title="Второй мозг" description="Заметки, факты и знания, которые агент использует с вашим контролем" action={<Button onClick={() => { overview.refetch(); notes.refetch(); facts.refetch(); }} aria-label="Обновить память"><RefreshCw className="h-4 w-4" /></Button>} /><div className="flex shrink-0 gap-1 overflow-x-auto border-b border-zinc-900 px-3 py-2 sm:px-6">{([['overview','Обзор'],['notes','Заметки'],['facts','Факты'],['review','На проверке'],['consolidate','Объединение'],['graph','Граф']] as Array<[Tab,string]>).map(([key, title]) => <button key={key} onClick={() => setTab(key)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold ${tab === key ? 'bg-purple-600 text-white' : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'}`}>{title}</button>)}</div>{(tab === 'notes' || tab === 'facts') && <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-900 px-4 py-3 sm:px-6"><div className="relative min-w-48 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" /><input value={search} onChange={event => setSearch(event.target.value)} className="input pl-9" placeholder={tab === 'notes' ? 'Поиск по заметкам…' : 'Поиск по фактам…'} /></div>{tab === 'facts' && <select value={category} onChange={event => setCategory(event.target.value)} className="input w-auto"><option value="">Все категории</option>{categories.map(item => <option key={item} value={item}>{label(item)}</option>)}</select>}{tab === 'notes' && <Button tone="primary" onClick={() => setNoteEditor('new')}><Plus className="h-4 w-4" />Новая заметка</Button>}</div>}<main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">{activeContent}</main>{noteEditor && <NoteDialog note={noteEditor} onClose={() => setNoteEditor(null)} onSaved={invalidate} />}{factEditor && <FactDialog fact={factEditor} onClose={() => setFactEditor(null)} onSaved={invalidate} />}</div>;
 }
+
+function Overview({ overview, loading, error, onNewNote, onOpenReview, onOpenFacts }: { overview?: { notes: number; approved_facts: number; pending_facts: number; stale_facts: number }; loading: boolean; error: unknown; onNewNote: () => void; onOpenReview: () => void; onOpenFacts: () => void }) { if (loading) return <LoadingState label="Собираю память…" />; if (error) return <ErrorState message={error instanceof Error ? error.message : 'Не удалось загрузить память'} />; const stats: Array<{ title: string; value: number; icon: LucideIcon }> = [{ title: 'Заметки', value: overview?.notes ?? 0, icon: FileText }, { title: 'Активные факты', value: overview?.approved_facts ?? 0, icon: Brain }, { title: 'На проверке', value: overview?.pending_facts ?? 0, icon: CheckCircle2 }, { title: 'Требуют актуализации', value: overview?.stale_facts ?? 0, icon: Clock3 }]; return <div className="mx-auto max-w-6xl space-y-5"><Card className="border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-zinc-900/40 p-5 sm:p-6"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><h2 className="text-lg font-bold">Память, которой можно доверять</h2><p className="mt-1 max-w-xl text-sm text-zinc-400">Сохраняйте заметки вручную, проверяйте знания агента и возвращайтесь к важным вещам через поиск.</p></div><Button tone="primary" onClick={onNewNote}><Plus className="h-4 w-4" />Новая заметка</Button></div><div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">{stats.map(({ title, value, icon: Icon }) => <div key={title} className="rounded-xl border border-zinc-800 bg-zinc-950/30 p-3"><Icon className="h-4 w-4 text-purple-300" /><div className="mt-3 text-xl font-bold">{value}</div><div className="mt-1 text-xs text-zinc-500">{title}</div></div>)}</div></Card><div className="grid gap-4 md:grid-cols-2"><Card className="p-5"><Lightbulb className="h-5 w-5 text-amber-300" /><h3 className="mt-3 text-sm font-semibold">Как это работает</h3><p className="mt-2 text-xs leading-relaxed text-zinc-500">Ручные заметки сохраняются сразу. Надёжные предпочтения, привычки и проекты из чата могут добавляться автоматически; всё спорное остаётся на проверке.</p></Card><Card className="p-5"><CheckCircle2 className="h-5 w-5 text-emerald-300" /><h3 className="mt-3 text-sm font-semibold">Управляйте актуальностью</h3><p className="mt-2 text-xs leading-relaxed text-zinc-500">Подтверждайте нужные факты, редактируйте их или завершайте действие устаревших знаний.</p><div className="mt-4 flex gap-2"><Button onClick={onOpenReview}>Очередь проверки</Button><Button onClick={onOpenFacts}>Открыть факты</Button></div></Card></div></div>; }
+
+function Notes({ notes, loading, error, onEdit, onArchive, onExtract, extracting }: { notes: MemoryNote[]; loading: boolean; error: unknown; onEdit: (note: MemoryNote) => void; onArchive: (note: MemoryNote) => void; onExtract: (id: number) => void; extracting: number | null }) { if (loading) return <LoadingState label="Загружаю заметки…" />; if (error) return <ErrorState message={error instanceof Error ? error.message : 'Не удалось загрузить заметки'} />; if (!notes.length) return <EmptyState title="Заметок пока нет" description="Создайте первую заметку — она сразу станет доступна для поиска агентом." />; return <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2 xl:grid-cols-3">{notes.map(note => <Card key={note.id} className="flex min-h-52 flex-col p-5"><h2 className="text-sm font-semibold">{note.title}</h2><p className="mt-3 flex-1 whitespace-pre-wrap text-xs leading-relaxed text-zinc-400 line-clamp-6">{note.content}</p>{note.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-1">{note.tags.map(tag => <span key={tag} className="rounded bg-purple-500/10 px-2 py-1 text-[10px] text-purple-200">#{tag}</span>)}</div>}<div className="mt-4 flex items-center justify-between border-t border-zinc-800 pt-3 text-[11px] text-zinc-600"><span>{shortDate(note.updated_at)}</span><span className="flex gap-2"><button onClick={() => onExtract(note.id)} disabled={extracting === note.id} className="text-amber-300 hover:text-amber-100 disabled:opacity-50">{extracting === note.id ? 'Анализ…' : 'Извлечь факты'}</button><button onClick={() => onEdit(note)} className="text-purple-300 hover:text-purple-100">Изменить</button><button onClick={() => onArchive(note)} className="text-zinc-500 hover:text-rose-300">Архив</button></span></div></Card>)}</div>; }
+
+function Facts({ facts, loading, error, onEdit, onConfirm, onArchive }: { facts: MemoryFact[]; loading: boolean; error: unknown; onEdit: (fact: MemoryFact) => void; onConfirm: (id: number) => void; onArchive: (id: number) => void }) { if (loading) return <LoadingState label="Загружаю факты…" />; if (error) return <ErrorState message={error instanceof Error ? error.message : 'Не удалось загрузить факты'} />; if (!facts.length) return <EmptyState title="Активных фактов нет" description="Подтверждённые знания из чата появятся здесь." />; return <div className="mx-auto max-w-6xl space-y-3">{facts.map(fact => <Card key={fact.id} className="p-4"><div className="flex flex-col justify-between gap-3 sm:flex-row"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="rounded-lg border border-purple-500/20 bg-purple-500/10 px-2 py-1 text-[10px] font-semibold text-purple-200">{label(fact.category)}</span>{fact.is_pinned && <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />}<span className="text-[10px] text-zinc-600">{fact.approval_mode === 'auto_high_confidence' ? 'сохранено автоматически' : fact.approval_mode === 'user_confirmed' ? 'подтверждено вами' : fact.source_type}</span></div><p className="mt-3 text-sm text-zinc-200">{fact.content}</p><div className="mt-3 text-[11px] text-zinc-500">Последнее подтверждение: {shortDate(fact.last_confirmed_at)} · Уверенность: {Math.round(fact.confidence * 100)}%</div></div><div className="flex shrink-0 flex-wrap gap-2"><Button onClick={() => onConfirm(fact.id)}><CheckCircle2 className="h-3.5 w-3.5" />Актуально</Button><Button onClick={() => onEdit(fact)}>Изменить</Button><Button tone="danger" onClick={() => onArchive(fact.id)}>Устарело</Button></div></div></Card>)}</div>; }
+
+function NoteDialog({ note, onClose, onSaved }: { note: MemoryNote | 'new'; onClose: () => void; onSaved: () => void }) { const initial = note === 'new' ? { title: '', content: '', tags: [] as string[] } : note; const [title, setTitle] = useState(initial.title); const [content, setContent] = useState(initial.content); const [tags, setTags] = useState(initial.tags.join(', ')); const mutation = useMutation({ mutationFn: () => note === 'new' ? createNote({ title, content, tags: tags.split(',').map(item => item.trim()).filter(Boolean) }) : updateNote(note.id, { title, content, tags: tags.split(',').map(item => item.trim()).filter(Boolean) }), onSuccess: () => { onSaved(); onClose(); } }); return <Dialog title={note === 'new' ? 'Новая заметка' : 'Редактировать заметку'} description="Заметка сохраняется локально и доступна агенту через поиск." onClose={onClose}><form onSubmit={(event: FormEvent) => { event.preventDefault(); mutation.mutate(); }} className="space-y-4"><label className="block text-xs text-zinc-400">Название<input required value={title} onChange={event => setTitle(event.target.value)} className="input mt-1.5" /></label><label className="block text-xs text-zinc-400">Текст<textarea required rows={8} value={content} onChange={event => setContent(event.target.value)} className="input mt-1.5 resize-none" /></label><label className="block text-xs text-zinc-400">Теги через запятую<input value={tags} onChange={event => setTags(event.target.value)} className="input mt-1.5" placeholder="проект, идея" /></label>{mutation.isError && <p className="text-xs text-rose-300">{mutation.error instanceof Error ? mutation.error.message : 'Не удалось сохранить заметку'}</p>}<div className="flex justify-end gap-2"><Button type="button" onClick={onClose}>Отмена</Button><Button type="submit" tone="primary" loading={mutation.isPending}>Сохранить</Button></div></form></Dialog>; }
+
+function FactDialog({ fact, onClose, onSaved }: { fact: MemoryFact; onClose: () => void; onSaved: () => void }) { const [content, setContent] = useState(fact.content); const [category, setCategory] = useState<FactCategory>(fact.category); const [pinned, setPinned] = useState(fact.is_pinned); const mutation = useMutation({ mutationFn: () => updateFact(fact.id, { content, category, is_pinned: pinned }), onSuccess: () => { onSaved(); onClose(); } }); return <Dialog title="Редактировать факт" description="Изменение фиксирует актуальную формулировку знания агента." onClose={onClose}><form onSubmit={(event: FormEvent) => { event.preventDefault(); mutation.mutate(); }} className="space-y-4"><label className="block text-xs text-zinc-400">Факт<textarea required rows={4} value={content} onChange={event => setContent(event.target.value)} className="input mt-1.5 resize-none" /></label><label className="block text-xs text-zinc-400">Категория<select value={category} onChange={event => setCategory(event.target.value as FactCategory)} className="input mt-1.5">{categories.map(item => <option key={item} value={item}>{label(item)}</option>)}</select></label><label className="flex items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={pinned} onChange={event => setPinned(event.target.checked)} />Закрепить как особенно важный</label><div className="flex justify-end gap-2"><Button type="button" onClick={onClose}>Отмена</Button><Button type="submit" tone="primary" loading={mutation.isPending}>Сохранить</Button></div></form></Dialog>; }

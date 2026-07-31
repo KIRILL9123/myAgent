@@ -50,6 +50,20 @@ async def morning_summary():
     if isinstance(emails, dict) and emails.get("status") == "error":
         emails = []
 
+    # Add the deterministic Personal State layer to the existing morning brief.
+    # It is local-only here because calendar and mail were already fetched above.
+    try:
+        from backend.app.state.state_service import build_state_snapshot
+        state = build_state_snapshot(include_external=False)
+        state_text = (
+            f"Состояние: {state['headline']}. "
+            f"Активных обязательств: {state['counts']['active_commitments']}; "
+            f"активных подписок: {state['counts']['active_subscriptions']}; "
+            f"срочных сигналов: {state['counts']['alerts_total']}."
+        )
+    except Exception as exc:
+        state_text = f"Сводка состояния недоступна: {exc}"
+
     # 3. Build Prompt for LLM
     events_text = "\n".join([f"- {e.get('summary', 'No Title')} ({e.get('start', '')} to {e.get('end', '')})" for e in events]) if events else "Нет событий на сегодня."
     emails_text = "\n".join([f"- От: {m.get('from', 'Unknown')} | Тема: {m.get('subject', 'No Subject')}" for m in emails]) if emails else "Нет непрочитанных писем."
@@ -58,6 +72,7 @@ async def morning_summary():
         f"Ты — дружелюбный домашний ассистент. Сегодня {today.strftime('%Y-%m-%d')}.\n\n"
         f"Вот список событий на сегодня из календаря:\n{events_text}\n\n"
         f"Вот список непрочитанных писем в почте:\n{emails_text}\n\n"
+        f"Вот краткий детерминированный статус системы:\n{state_text}\n\n"
         f"Составь короткую, емкую и полезную утреннюю сводку для пользователя на русском языке. "
         f"Поприветствуй его, выдели самые важные дела из календаря и новые письма, на которые стоит обратить внимание. "
         f"Пиши в дружелюбном, уважительном тоне, без лишней «воды»."

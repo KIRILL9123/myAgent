@@ -1,5 +1,6 @@
 import os
 import time
+import asyncio
 from uuid import UUID
 from typing import Any, AsyncGenerator
 from contextlib import asynccontextmanager
@@ -74,6 +75,103 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         id="commitment_reminder_job",
         replace_existing=True,
         misfire_grace_time=3600,
+    )
+
+    async def subscription_reminder_job():
+        from backend.app.subscriptions.subscription_service import get_due_reminders, mark_reminder_sent
+        from backend.app.notifications.telegram_notifier import send_notification
+
+        for subscription in get_due_reminders():
+            provider = subscription.get("provider") or subscription["name"]
+            charge_at = subscription.get("next_charge_at") or subscription.get("trial_ends_at") or "дата не указана"
+            amount = subscription.get("amount")
+            price = f"{amount:g} {subscription.get('currency') or ''}".strip() if amount is not None else "сумма не указана"
+            cancellation = subscription.get("cancellation_url") or subscription.get("cancellation_instructions") or "проверьте условия отмены"
+            message = (
+                f"Напоминание о подписке:\n{provider}\n"
+                f"Списание/окончание пробного периода: {charge_at}\n"
+                f"Стоимость: {price}\n"
+                f"Отмена: {cancellation}"
+            )
+            result = await send_notification(message)
+            if result is True:
+                mark_reminder_sent(subscription["id"])
+
+    scheduler.add_job(
+        subscription_reminder_job,
+        trigger=IntervalTrigger(minutes=15),
+        id="subscription_reminder_job",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
+    async def action_center_notification_job():
+        from backend.app.notifications.delivery_service import deliver_action_notifications
+
+        try:
+            await deliver_action_notifications()
+        except Exception as exc:
+            print(f"[NOTIFICATIONS] Action Center delivery failed: {exc}")
+
+    scheduler.add_job(
+        action_center_notification_job,
+        trigger=IntervalTrigger(minutes=15),
+        id="action_center_notification_job",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+    # Keep the legacy functions above available for compatibility, but make
+    # the unified policy layer the only scheduled reminder sender.
+    scheduler.remove_job("commitment_reminder_job")
+    scheduler.remove_job("subscription_reminder_job")
+
+    async def subscription_email_scan_job():
+        if os.getenv("SUBSCRIPTION_EMAIL_SCAN_ENABLED", "true").lower() not in {"1", "true", "yes", "on"}:
+            return
+        from backend.app.connectors.mail_connector import list_unread_emails
+        from backend.app.subscriptions.email_extractor import extract_email_subscriptions
+
+        accounts = [item.strip() for item in os.getenv("SUBSCRIPTION_EMAIL_SCAN_ACCOUNTS", "gmail,ukrnet").split(",") if item.strip()]
+        for account in accounts:
+            result = await asyncio.to_thread(list_unread_emails, account, 20, True)
+            if isinstance(result, dict) and result.get("status") == "error":
+                print(f"[SUBSCRIPTIONS] Mail scan skipped for {account}: {result.get('message', 'unknown error')}")
+                continue
+            for message in result:
+                try:
+                    await extract_email_subscriptions(
+                        account=account,
+                        sender=message.get("from", ""),
+                        recipient=message.get("to", ""),
+                        subject=message.get("subject", ""),
+                        date=message.get("date", ""),
+                        preview=message.get("preview", ""),
+                    )
+                except Exception as exc:
+                    print(f"[SUBSCRIPTIONS] Failed to analyze {account} email: {exc}")
+
+    scheduler.add_job(
+        subscription_email_scan_job,
+        trigger=CronTrigger(hour=4, minute=30),
+        id="subscription_email_scan_job",
+        replace_existing=True,
+        misfire_grace_time=21600,
+    )
+
+    async def personal_state_snapshot_job():
+        from backend.app.state.state_service import capture_daily_snapshot
+
+        try:
+            await asyncio.to_thread(capture_daily_snapshot, None, True)
+        except Exception as exc:
+            print(f"[STATE] Daily snapshot failed: {exc}")
+
+    scheduler.add_job(
+        personal_state_snapshot_job,
+        trigger=CronTrigger(hour=8, minute=10),
+        id="personal_state_snapshot_job",
+        replace_existing=True,
+        misfire_grace_time=21600,
     )
 
     from backend.app.storage.backup import create_backup, apply_retention_policy
@@ -220,8 +318,20 @@ app.include_router(mail_router, prefix="/api/mail")
 from backend.app.api.commitments import router as commitments_router
 app.include_router(commitments_router, prefix="/api/commitments")
 
+from backend.app.api.subscriptions import router as subscriptions_router
+app.include_router(subscriptions_router, prefix="/api/subscriptions")
+
+from backend.app.api.state import router as state_router
+app.include_router(state_router, prefix="/api/state")
+
+from backend.app.api.actions import router as actions_router
+app.include_router(actions_router, prefix="/api/actions")
+
 from backend.app.api.approvals import router as approvals_router
 app.include_router(approvals_router, prefix="/api/approvals")
+
+from backend.app.api.notifications import router as notifications_router
+app.include_router(notifications_router, prefix="/api/notifications")
 
 from backend.app.api.system import router as system_router
 app.include_router(system_router, prefix="/api/system")

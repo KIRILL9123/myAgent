@@ -24,9 +24,10 @@ LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "3000"))
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT_SECONDS", "120"))
 LLM_FALLBACK_MODEL = os.getenv("LLM_FALLBACK_MODEL", "")
 
-LLM_ROLE_MAIN = os.getenv("LLM_ROLE_MAIN", OPENAI_MODEL if LLM_PROVIDER == "openai_compatible" else OLLAMA_MODEL)
-LLM_ROLE_EXTRACTOR = os.getenv("LLM_ROLE_EXTRACTOR", OLLAMA_MODEL)
-LLM_ROLE_CLASSIFIER = os.getenv("LLM_ROLE_CLASSIFIER", OLLAMA_MODEL)
+_DEFAULT_ROLE_MODEL = OPENAI_MODEL if LLM_PROVIDER == "openai_compatible" else OLLAMA_MODEL
+LLM_ROLE_MAIN = os.getenv("LLM_ROLE_MAIN", _DEFAULT_ROLE_MODEL)
+LLM_ROLE_EXTRACTOR = os.getenv("LLM_ROLE_EXTRACTOR", _DEFAULT_ROLE_MODEL)
+LLM_ROLE_CLASSIFIER = os.getenv("LLM_ROLE_CLASSIFIER", _DEFAULT_ROLE_MODEL)
 
 
 def get_model_for_role(role: str) -> str:
@@ -202,6 +203,11 @@ async def _chat_ollama(messages, tools, response_format, model: str) -> dict[str
             "message": f"Failed to communicate with Ollama. Is it running?"}
 
 async def _chat_openai(messages, tools, response_format, model: str) -> dict[str, Any]:
+    if response_format == "json" and not any(m.get("role") == "user" for m in messages):
+        # Some OpenAI-compatible servers reject a request containing only a
+        # system message. Add the task before serializing the payload.
+        messages.append({"role": "user", "content": "Process the request above and return only JSON."})
+
     payload: dict[str, Any] = {
         "model": model,
         "messages": _serialize_messages_for_openai(messages),

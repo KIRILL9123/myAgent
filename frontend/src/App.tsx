@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
+import QueryProvider from './components/QueryProvider';
 import { generateSessionId } from './api/chat';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -13,6 +14,8 @@ const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const MailPage = lazy(() => import('./pages/MailPage'));
 const FinancePage = lazy(() => import('./pages/FinancePage'));
 const CountdownsPage = lazy(() => import('./pages/CountdownsPage'));
+const SubscriptionsPage = lazy(() => import('./pages/SubscriptionsPage'));
+const StatePage = lazy(() => import('./pages/StatePage'));
 
 function PageFallback() {
   return (
@@ -30,7 +33,8 @@ function App() {
 
   return (
     <BrowserRouter>
-      <AppShell>
+      <QueryProvider>
+        <AppShell>
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/dashboard" element={<DashboardPage />} />
@@ -43,10 +47,13 @@ function App() {
             <Route path="/mail" element={<MailPage />} />
             <Route path="/finance" element={<FinancePage />} />
             <Route path="/deadlines" element={<CountdownsPage />} />
+            <Route path="/subscriptions" element={<SubscriptionsPage />} />
+            <Route path="/state" element={<StatePage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>
-      </AppShell>
+        </AppShell>
+      </QueryProvider>
     </BrowserRouter>
   );
 }
