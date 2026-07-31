@@ -76,6 +76,7 @@ Only the following ideas from the latest ideation pass are retained. They are no
 **Notifications**
 - [x] **Quiet hours configuration**: suppress non-urgent Telegram notifications during user-defined hours.
 - [x] **Notification budget / coalescing**: rate-limit low-priority alerts and batch Action Center items instead of sending individually.
+- [x] **Notification preferences UI**: configure delivery, timezone, quiet hours, minimum priority, budgets and coalescing from `/notifications/preferences`.
 
 **Mail**
 - **Auto-file rules (approval-based)**: user-configured rules to categorize/move emails, requiring approval before activation.

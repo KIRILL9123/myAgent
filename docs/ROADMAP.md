@@ -189,7 +189,7 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [x] Notification budget and priority scoring
 - [x] Notification coalescing and deduplication for Telegram delivery
 - [x] Shared Action Center delivery layer for Telegram
-- [ ] Notification preferences UI and future mobile-client delivery
+- [x] Notification preferences UI; future mobile-client delivery remains planned
 
 **Cross-domain**
 - [ ] Calendar × Memory conflict detection (flag when new event conflicts with known preferences)
