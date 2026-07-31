@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell, CalendarClock, CheckCircle2, ChevronRight, Clock3, Settings,
-  CreditCard, Inbox, RefreshCw, ShieldCheck, Timer,
+  CreditCard, Inbox, RefreshCw, ShieldAlert, ShieldCheck, Timer,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { fetchActionCenter } from '../api/actions';
@@ -11,7 +11,7 @@ import { Button, Card, EmptyState, ErrorState, LoadingState, PageHeader } from '
 
 type KindFilter = 'all' | ActionKind;
 
-const KIND_FILTERS: KindFilter[] = ['all', 'approval', 'commitment', 'subscription', 'deadline', 'mail'];
+const KIND_FILTERS: KindFilter[] = ['all', 'approval', 'commitment', 'subscription', 'deadline', 'mail', 'error'];
 
 const KIND_LABELS: Record<ActionKind, string> = {
   approval: 'Подтверждения',
@@ -19,6 +19,7 @@ const KIND_LABELS: Record<ActionKind, string> = {
   subscription: 'Подписки',
   deadline: 'Дедлайны',
   mail: 'Почта',
+  error: 'Ошибки',
 };
 
 const KIND_ICONS: Record<ActionKind, typeof Bell> = {
@@ -27,6 +28,7 @@ const KIND_ICONS: Record<ActionKind, typeof Bell> = {
   subscription: CreditCard,
   deadline: Timer,
   mail: Inbox,
+  error: ShieldAlert,
 };
 
 const PRIORITY_STYLES: Record<ActionPriority, string> = {
@@ -59,6 +61,7 @@ const SOURCE_LABELS: Record<string, string> = {
   COUNTDOWN: 'Дедлайны',
   gmail: 'Gmail',
   ukrnet: 'ukr.net',
+  ERROR_REPORTING: 'Ошибки',
 };
 
 function formatDate(value: string | null): string | null {
@@ -139,7 +142,7 @@ export default function NotificationsPage() {
     [kind, query.data?.actions],
   );
   const kindCounts = useMemo(() => {
-    const counts: Record<KindFilter, number> = { all: query.data?.actions.length || 0, approval: 0, commitment: 0, subscription: 0, deadline: 0, mail: 0 };
+    const counts: Record<KindFilter, number> = { all: query.data?.actions.length || 0, approval: 0, commitment: 0, subscription: 0, deadline: 0, mail: 0, error: 0 };
     (query.data?.actions || []).forEach(item => { counts[item.kind] += 1; });
     return counts;
   }, [query.data?.actions]);
@@ -185,7 +188,7 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-        {query.isError && <ErrorState message={query.error instanceof Error ? query.error.message : 'Не удалось загрузить центр уведомлений'} onRetry={() => query.refetch()} />}
+    {query.isError && <ErrorState message={query.error instanceof Error ? query.error.message : 'Не удалось загрузить центр уведомлений'} onRetry={() => query.refetch()} />}
         {!query.isError && (query.isLoading ? <LoadingState label="Загружаю сигналы…" /> : actions.length === 0 ? <EmptyState title={kind === 'all' ? (mode === 'attention' ? 'Срочных сигналов нет' : 'Сигналов пока нет') : 'Для этого фильтра сигналов нет'} description="Новые подтверждения, напоминания и предложения появятся здесь автоматически." /> : <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">{actions.map(item => <ActionCard key={item.id} item={item} />)}</div>)}
 
         {query.data && <p className="flex items-center justify-end gap-1.5 text-[11px] text-zinc-600"><Clock3 className="h-3.5 w-3.5" />Обновлено: {formatDate(query.data.generated_at)}</p>}

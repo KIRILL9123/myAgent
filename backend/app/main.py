@@ -271,6 +271,20 @@ async def observability_middleware(request: Request, call_next: Any) -> Response
         record_event("http_request", "api", status, elapsed_ms(started),
                      {"method": request.method, "path": request.url.path,
                       "status_code": status_code})
+        if status_code >= 500:
+            try:
+                from backend.app.observability.error_reports import create_error_report
+                create_error_report(
+                    f"HTTP {status_code}: {request.method} {request.url.path}",
+                    f"Backend request returned HTTP {status_code}.",
+                    severity="critical" if status_code >= 500 else "high",
+                    component="http",
+                    correlation_id=correlation_id,
+                    error_type="HTTPError",
+                    context={"method": request.method, "path": request.url.path, "status_code": status_code},
+                )
+            except Exception:
+                pass
         if response is not None:
             response.headers["X-Correlation-ID"] = correlation_id
         reset_correlation_id(token)
@@ -336,6 +350,9 @@ app.include_router(approvals_router, prefix="/api/approvals")
 
 from backend.app.api.notifications import router as notifications_router
 app.include_router(notifications_router, prefix="/api/notifications")
+
+from backend.app.api.errors import router as errors_router
+app.include_router(errors_router, prefix="/api/errors")
 
 from backend.app.api.sandbox import router as sandbox_router
 app.include_router(sandbox_router, prefix="/api/sandbox")

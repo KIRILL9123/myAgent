@@ -71,7 +71,7 @@ Only the following ideas from the latest ideation pass are retained. They are no
 - [ ] **Mobile four-action mode**: optimize the phone experience around Chat, Tasks, Notifications and File Upload; place the remaining sections under “More”.
 - [ ] **Monthly security report**: summarize open security findings, active permissions, failed checks and stale configuration.
 - [ ] **Temporary-file cleanup**: automatically clean sandbox artifacts, transient logs and expired upload/cache files according to safe retention rules.
-- [ ] **Error reporting with lifecycle**: save error reports inside the project with correlation ID and context; track `new → fixing → fixed → verified → closed` and preserve the fix reference and verification result.
+- [x] **Error reporting with lifecycle**: save error reports inside the project with correlation ID and context; track `new → fixing → fixed → verified → closed` and preserve the fix reference and verification result.
 
 **Notifications**
 - [x] **Quiet hours configuration**: suppress non-urgent Telegram notifications during user-defined hours.

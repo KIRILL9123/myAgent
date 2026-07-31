@@ -12,6 +12,7 @@ from backend.app.approvals.approval_service import list_approvals
 from backend.app.commitments.commitment_service import list_commitments
 from backend.app.countdown.countdown_service import get_all_countdowns
 from backend.app.subscriptions.subscription_service import list_subscriptions
+from backend.app.observability.error_reports import list_error_reports
 
 
 def _parse_datetime(value: str | None) -> datetime | None:
@@ -131,6 +132,31 @@ def build_action_center(
             target="/approvals",
             requires_approval=True,
             metadata={"approval_id": approval["id"], "approval_kind": approval.get("kind")},
+        ))
+
+    error_result = list_error_reports("all", limit=200)
+    for report in error_result.get("reports", []):
+        if report.get("status") == "closed":
+            continue
+        severity = report.get("severity", "medium")
+        priority = severity if severity in {"critical", "high", "medium", "low"} else "medium"
+        status_label = report.get("status", "new")
+        items.append(_action(
+            action_id=f"error:{report['id']}",
+            kind="error",
+            source_id=report["id"],
+            title=f"Ошибка: {report['title']}",
+            summary=report.get("summary") or f"Отчёт находится в статусе {status_label}.",
+            status=status_label,
+            priority=priority,
+            source="ERROR_REPORTING",
+            target="/errors",
+            metadata={
+                "severity": priority,
+                "component": report.get("component"),
+                "correlation_id": report.get("correlation_id"),
+                "error_type": report.get("error_type"),
+            },
         ))
 
     commitments = list_commitments(include_completed=False)

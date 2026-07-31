@@ -288,7 +288,7 @@ The selected ideas are mirrored in [BACKLOG.md](BACKLOG.md). The Notification Ce
 - Unified Notification Center for approvals, reminders, errors and proposals.
 - Mobile four-action mode for Chat, Tasks, Notifications and File Upload.
 - Safe cleanup of temporary sandbox, log, upload and cache artifacts.
-- Persistent error reporting with correlation context and a fix lifecycle: new → fixing → fixed → verified → closed.
+- [x] Persistent error reporting with correlation context and a fix lifecycle: new → fixing → fixed → verified → closed.
 
 - **Self-Improving Agent** — requires ALL safety phases complete, plus sandbox infrastructure. Earliest: after Phase 5.
 - **Ausbildung / Language Trainer** — spaced repetition, OCR, generative exercises. Valuable but orthogonal to the core architecture.
