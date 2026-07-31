@@ -11,6 +11,11 @@ This is the canonical operational guide. Detailed historical plans remain in
 - SQLite as the authoritative structured-state store.
 - APScheduler for scheduled jobs and Telegram polling for notifications.
 
+Host Control v1 exposes read-only diagnostics plus two approval-gated actions:
+`open_url` and `open_path`. Local paths are limited to the project root and any
+directories listed in `HOST_CONTROL_ALLOWED_ROOTS`. The Windows adapter uses the
+native file/browser opener; the same contract is ready for a macOS adapter.
+
 Subscription Tracker runs a daily read-only scan of unread IMAP messages at 04:30
 and checks approved subscription reminders every 15 minutes. Disable the mailbox
 scan with `SUBSCRIPTION_EMAIL_SCAN_ENABLED=false`; configure accounts and the
@@ -39,6 +44,21 @@ instead of creating duplicate history entries.
 Startup reconciliation is planned: after downtime the service should identify missed
 jobs, stale mail/finance state, pending approvals and summaries that need recovery rather
 than relying only on APScheduler misfire handling.
+
+For a Windows always-on setup, install the user-level Scheduled Task once:
+`powershell -ExecutionPolicy Bypass -File .\dev-tools\install_windows_tasks.ps1`.
+It runs `run_backend_watchdog.ps1`, which restarts the backend after an unexpected
+exit. Stop the watchdog cleanly by creating `logs\backend.stop`; remove the task with
+`uninstall_windows_tasks.ps1`. Verify the service with
+`powershell -File .\dev-tools\healthcheck.ps1 -CheckModel`.
+
+For phone access, prefer serving the built dashboard from the backend on the same
+origin (`http://<PC-LAN-IP>:8000`) and keep `HOME_AGENT_API_KEY` set to a random
+long token. If Vite is served separately, add its exact origin to
+`HOME_AGENT_ALLOWED_ORIGINS`. Plain LAN HTTP is acceptable only for temporary
+trusted-home testing; for access outside the home network use a VPN such as
+Tailscale or a reverse proxy with HTTPS. Do not expose port 8000 directly to the
+public internet.
 
 ## Testing
 
@@ -91,6 +111,14 @@ Built-in safety workflows are approved by default; user-created skills start as 
 appear in the Approval Center as `SKILL`, and become selectable only after approval.
 The runtime selects skills by deterministic trigger overlap and treats their steps as
 workflow guidance, never as a way to bypass permissions or confirmations.
+
+Document Vault artifacts are stored under `DOCUMENT_VAULT_DIR` (default:
+`backend/document_vault`) while SQLite stores metadata and FTS5 chunk indexes.
+Supported ingestion formats are TXT, Markdown, CSV, JSON, HTML and text-based PDF;
+uploads are bounded to 20 MB and extracted text to 2 million characters. Document
+content is treated as untrusted external data and is never promoted to a memory fact
+automatically. Archive a document to remove it from retrieval without deleting its
+metadata; backups must include the configured vault directory alongside SQLite.
 
 ## Request budgets
 

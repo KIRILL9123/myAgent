@@ -21,6 +21,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 HISTORY_PATH = PROJECT_ROOT / "logs" / "release_gate.jsonl"
 MAX_OUTPUT_CHARS = 4000
 NPM_COMMAND = "npm.cmd" if sys.platform == "win32" else "npm"
+PROJECT_PYTHON = (
+    PROJECT_ROOT / ".venv" / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+)
+PYTHON_COMMAND = str(PROJECT_PYTHON) if PROJECT_PYTHON.exists() else sys.executable
 
 
 def _summarize_output(stdout: str, stderr: str) -> str:
@@ -94,7 +98,7 @@ def run_release_gate(
     if backend:
         checks.append(_run_check(
             "backend_tests",
-            [sys.executable, "-m", "pytest", "backend/tests", "-q"],
+            [PYTHON_COMMAND, "-m", "pytest", "backend/tests", "-q"],
             PROJECT_ROOT,
             timeout_seconds,
         ))

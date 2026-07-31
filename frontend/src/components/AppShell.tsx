@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Brain, Calendar, CheckCircle2, ChevronDown, Clock, Code2, CreditCard,
+  Brain, Calendar, CheckCircle2, ChevronDown, Clock, Code2, CreditCard, FileStack,
   LayoutDashboard, ListTodo, Mail, Menu, MessageSquare, MonitorCog,
   ShieldCheck, Sparkles, Wallet, X,
 } from 'lucide-react';
@@ -53,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { path: '/memory', label: 'Память', mobile: 'Память', icon: Brain },
       { path: '/state', label: 'Состояние', mobile: 'Состояние', icon: Sparkles },
+      { path: '/documents', label: 'Документы', mobile: 'Документы', icon: FileStack },
     ],
   },
   {

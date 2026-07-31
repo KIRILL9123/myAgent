@@ -29,6 +29,24 @@ class WebFetchArgs(BaseModel):
     browser_mode: Literal["auto", "http", "lightpanda", "chromium"] = "auto"
 
 
+class SearchDocumentsArgs(BaseModel):
+    query: str = Field(min_length=1, max_length=300)
+    limit: int = Field(default=8, ge=1, le=20)
+
+
+class ListDocumentsArgs(BaseModel):
+    status: Literal["active", "all", "ready", "failed", "archived"] = "active"
+
+
+class HostDiagnosticsArgs(BaseModel):
+    pass
+
+
+class HostControlArgs(BaseModel):
+    action: Literal["open_url", "open_path"]
+    target: str = Field(min_length=1, max_length=2000)
+
+
 class CreateEventArgs(BaseModel):
     title: str
     start_datetime: str
@@ -135,6 +153,10 @@ TOOL_MODEL_REGISTRY: dict[str, type[BaseModel]] = {
     "get_weather": GetWeatherArgs,
     "web_search": WebSearchArgs,
     "web_fetch": WebFetchArgs,
+    "search_documents": SearchDocumentsArgs,
+    "list_documents": ListDocumentsArgs,
+    "get_host_diagnostics": HostDiagnosticsArgs,
+    "host_control": HostControlArgs,
     "create_event": CreateEventArgs,
     "modify_event": ModifyEventArgs,
     "delete_event": DeleteEventArgs,

@@ -170,6 +170,14 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [ ] Decay scoring (advisory only)
 - [ ] Auto-weight retrieval by confidence + recency
 
+**Document Vault / RAG v1**
+- [x] Separate local artifact storage with metadata, hashes and archive state
+- [x] Text/Markdown/CSV/JSON/HTML/PDF extraction and bounded chunking
+- [x] SQLite FTS5 retrieval with document provenance and untrusted-content wrapping
+- [x] Chat context injection for document-related questions and `/documents` management UI
+- [ ] Semantic embeddings, OCR for scans and reranking
+- [ ] Document deadlines and document-to-commitment proposals through Approval Center
+
 **Agent Brain — ideas inspired by Waku Agent**
 - [x] Retrieval Gate v1: deterministic pre-retrieval routing skips irrelevant operational turns, records the reason in `agent_turn` and fails open if the gate itself errors; semantic/LLM routing remains future work
 - [x] Procedural Memory / Skills v1: separate approved workflows with deterministic trigger selection, draft/approved/disabled lifecycle and Approval Center integration; richer editing and semantic selection remain future work
@@ -199,12 +207,19 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [ ] Contradiction-aware retrieval (prefer latest human-confirmed facts when conflicts exist)
 
 **Document / RAG Layer**
-- [ ] Semantic Document Vault — distinct from Memory Facts
+- [x] Document Vault v1 — distinct from Memory Facts, with local artifacts, extraction, chunks and FTS5 retrieval
 - [ ] Local embeddings (via Model Registry, role: `embeddings`)
 - [ ] Local vector store (Chroma or Qdrant)
 - [ ] Hybrid SQL + vector retrieval
-- [ ] Provenance and citations in answers
-- [ ] PDF / scan ingestion
+- [x] Provenance and document source cards in answers (lexical retrieval; semantic citations remain planned)
+- [x] PDF text ingestion (OCR for scans remains planned)
+
+**Host and Operations Foundation**
+- [x] Read-only host diagnostics for CPU, RAM, disk and processes
+- [x] Computer Control v1 capability contract with allowlisted URL/path opening and RED confirmation
+- [x] Windows watchdog and user-level Scheduled Task installer
+- [x] Healthcheck script and configurable CORS origins for LAN development
+- [ ] HTTPS/VPN deployment automation and macOS service adapter
 - [ ] Document deadline extraction → Calendar suggestions
 - [ ] Document → Commitment proposals
 

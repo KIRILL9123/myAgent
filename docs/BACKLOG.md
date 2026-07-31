@@ -51,6 +51,8 @@ Near-to-medium-term concrete features not yet scheduled. Long-term phase items b
 - [x] **Procedural Memory / Skills v1**: separate skill storage, built-in safe workflows, deterministic trigger selection, draft/approved/disabled lifecycle and Approval Center integration; richer editing remains future work.
 - [x] **Evaluation Release Gate v1**: `python dev-tools/release_gate.py` runs backend tests plus frontend lint/build, exits non-zero on regression and appends verdicts to ignored `logs/release_gate.jsonl`; optional LLM quality judging remains future work.
 - [x] **Per-turn Agent Trace v1**: `agent_turn` aggregates memory decisions, tool calls, loop iterations, latency, token estimates and final outcome without storing message content.
+- [x] **Document Vault + RAG v1**: separate local artifact storage, bounded extraction/chunking, SQLite FTS5 retrieval, document-related chat context, provenance and `/documents` UI; embeddings, OCR and document proposals remain future work.
+- [x] **Computer Control v1 + always-on Windows foundation**: allowlisted URL/path opening behind RED confirmation, host capability endpoint, watchdog, healthcheck and Scheduled Task installer; process control, HTTPS/VPN automation and macOS adapter remain future work.
 
 **Notifications**
 - [x] **Quiet hours configuration**: suppress non-urgent Telegram notifications during user-defined hours.

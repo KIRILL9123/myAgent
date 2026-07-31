@@ -8,6 +8,8 @@ export interface PendingFact extends FactNode { confidence: number; source_conve
 export interface MemoryFact extends FactNode { confidence: number; status: string; source_conversation_id: number | null; created_at: string; updated_at: string; last_confirmed_at: string | null; valid_from: string | null; valid_to: string | null; source_type: string; approval_mode: string; provenance: Record<string, unknown>; is_pinned: boolean; }
 export interface MemoryNote { id: number; title: string; content: string; tags: string[]; status: 'active' | 'archived'; created_at: string; updated_at: string; }
 export interface MemoryOverview { notes: number; approved_facts: number; pending_facts: number; stale_facts: number; }
+export type SkillStatus = 'draft' | 'approved' | 'disabled';
+export interface ProceduralSkill { id: number; name: string; description: string; triggers: string[]; steps: string[]; category: string; source: 'builtin' | 'user'; status: SkillStatus; version: number; use_count: number; last_used_at: string | null; created_at: string; updated_at: string; approval_id?: string; }
 export interface ConsolidationSuggestion { fact_ids: number[]; source_facts: FactNode[]; suggested_merged_content: string; category: FactCategory; }
 const API_BASE = '/api/memory';
 
@@ -28,3 +30,6 @@ export const updateFact = (id: number, input: { content?: string; category?: Fac
 export const confirmFact = (id: number) => apiRequest<MemoryFact>(`${API_BASE}/facts/${id}/confirm`, { method: 'POST' });
 export const setFactValidity = (id: number, valid_to: string | null) => apiRequest(`${API_BASE}/facts/${id}/validity`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valid_to }) });
 export const searchMemory = (query: string) => apiRequest<{ results: Array<{ type: 'fact' | 'note'; item: MemoryFact | MemoryNote }> }>(`${API_BASE}/search?${new URLSearchParams({ query })}`);
+export const fetchSkills = (status = 'all') => apiRequest<{ skills: ProceduralSkill[] }>(`${API_BASE}/skills?${new URLSearchParams({ status })}`);
+export const createSkill = (input: Pick<ProceduralSkill, 'name' | 'description' | 'triggers' | 'steps' | 'category'>) => apiRequest<ProceduralSkill>(`${API_BASE}/skills`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+export const disableSkill = (id: number) => apiRequest<{ status: string; skill_id: number }>(`${API_BASE}/skills/${id}/disable`, { method: 'POST' });

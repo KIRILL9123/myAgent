@@ -267,7 +267,7 @@ class TestDeleteCountdownArgs:
 
 def test_registry_has_all_tools():
     expected = {
-        "list_events", "search_events", "get_weather", "web_search", "web_fetch", "create_event", "modify_event", "delete_event",
+        "list_events", "search_events", "get_weather", "web_search", "web_fetch", "search_documents", "list_documents", "get_host_diagnostics", "host_control", "create_event", "modify_event", "delete_event",
         "list_unread_emails", "search_emails", "send_email",
         "add_transaction", "get_transactions", "get_summary",
         "add_countdown", "get_all_countdowns", "delete_countdown",

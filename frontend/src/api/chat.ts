@@ -7,6 +7,7 @@ export interface ChatResponse {
   weather?: WeatherData | null;
   web_sources?: WebSource[] | null;
   memory_used?: Array<{ type: 'fact' | 'note'; id: number; title: string }> | null;
+  documents_used?: Array<{ document_id: number; document_name: string; chunk_id: number }> | null;
 }
 
 export interface WebSource {

@@ -22,9 +22,9 @@ and priorities while requiring human approval for high-impact actions.
 | Fact decay and reconfirmation | **Planned** | Memory Evolution backlog |
 | Poisoned-memory quarantine | **Planned** | Add contradiction/review state before deletion |
 | SQL-backed knowledge graph | **Partially implemented** | Fact relations exist; entity types and broader links remain planned |
-| Document Vault and document RAG | **Planned** | Separate artifact storage, parsing/OCR, chunks, embeddings, retrieval, reranking |
+| Document Vault and document RAG | **Implemented v1** | `backend/app/documents/*`, `/api/documents`, FTS5 chunks and `/documents` UI; embeddings, OCR and reranking remain planned |
 | Document deadlines and document-to-memory proposals | **Planned** | Approval-gated document workflow |
-| Evidence-based answers and citations | **Partially implemented** | Web search/fetch source cards now include URL, method and retrieval time; fact/email/document provenance remains planned |
+| Evidence-based answers and citations | **Partially implemented** | Web source cards plus document names/chunk provenance are exposed in chat; fact/email citations and richer quote spans remain planned |
 | Personal State Engine | **First persistent layer implemented** | Deterministic snapshot, daily history, State of Me report, priority signals, Dashboard/`/state` view and morning-summary input; projects, decisions and policy-driven notifications remain |
 | Goals → Projects → Tasks → Actions | **Planned** | Project entities and hierarchy |
 | Commitment Tracker | **Core + first integrations implemented** | Commitment Center, email proposals, calendar links and Telegram reminders; Personal State consumption remains |
@@ -63,7 +63,7 @@ and priorities while requiring human approval for high-impact actions.
 | Hybrid retrieval | **Planned** | SQL filters → vector retrieval → reranking → LLM |
 | Adversarial security testing | **Planned** | Corpus for prompt injection, poisoned memory and malicious tool arguments |
 | Security model | **Partially implemented** | API auth, deny-by-default permissions, untrusted content wrapping, RED confirmations |
-| Sandboxed diagnostics | **v1 implemented** | Read-only backend/model health, ports, CPU, memory, disk and top-process diagnostics; sandboxed process control remains planned |
+| Sandboxed diagnostics | **v1 implemented** | Read-only backend/model health, ports, CPU, memory, disk and top-process diagnostics; Computer Control v1 adds allowlisted URL/path opening behind RED confirmation; process control remains planned |
 | Self-improvement sandbox | **MVP implemented / hardening pending** | `docs/design/CODE_SANDBOX.md`; Docker isolation, workspace checks, diff/baseline preview, conflict-safe backup/apply and UI exist, while broader evaluation and task history remain planned |
 | Ausbildung learning system | **Deferred** | Separate learning module with RAG, flashcards, tests and progress |
 | Home Assistant | **Deferred** | Long-term integration; not part of the current cycle |

@@ -238,11 +238,12 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:8000",
         "http://127.0.0.1:5173",
-        "http://127.0.0.1:8000"
+        "http://127.0.0.1:8000",
+        *[item.strip() for item in os.getenv("HOME_AGENT_ALLOWED_ORIGINS", "").split(",") if item.strip()],
     ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key", "X-Correlation-ID"],
 )
 
 @app.middleware("http")
@@ -309,6 +310,9 @@ app.include_router(countdown_router, prefix="/api/countdown")
 from backend.app.api.memory import router as memory_router
 app.include_router(memory_router, prefix="/api/memory")
 
+from backend.app.api.documents import router as documents_router
+app.include_router(documents_router, prefix="/api/documents")
+
 from backend.app.api.calendar import router as calendar_router
 app.include_router(calendar_router, prefix="/api/calendar")
 
@@ -338,6 +342,9 @@ app.include_router(sandbox_router, prefix="/api/sandbox")
 
 from backend.app.api.system import router as system_router
 app.include_router(system_router, prefix="/api/system")
+
+from backend.app.api.host_control import router as host_control_router
+app.include_router(host_control_router, prefix="/api/system/control")
 
 from fastapi.staticfiles import StaticFiles
 

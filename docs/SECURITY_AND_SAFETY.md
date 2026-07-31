@@ -10,6 +10,9 @@ kept in `docs/archive/` for traceability.
 - External email, calendar and document content is untrusted input.
 - High-impact actions require explicit human confirmation.
 - No unrestricted shell or production code execution is exposed to the agent.
+- Host control v1 is limited to read-only diagnostics and approval-gated opening of
+  HTTP/HTTPS URLs or paths under configured roots; process termination, shutdown and
+  arbitrary command execution are not available.
 - Secrets stay in environment/configuration boundaries and are never placed in prompts.
 - New autonomous behavior starts in observe/shadow mode before approval-gated automation.
 - Destructive schema or data changes require backup, migration review and rollback planning.

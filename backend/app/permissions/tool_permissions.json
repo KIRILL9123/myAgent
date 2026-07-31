@@ -20,6 +20,14 @@
     "permission_level": "green"
   },
   {
+    "action_name": "get_host_diagnostics",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "host_control",
+    "permission_level": "red"
+  },
+  {
     "action_name": "list_unread_emails",
     "permission_level": "green"
   },

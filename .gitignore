@@ -39,6 +39,7 @@ logs/
 
 # Qdrant Database
 backend/qdrant_db/
+backend/document_vault/
 
 # Node / JS / React Frontend
 node_modules/

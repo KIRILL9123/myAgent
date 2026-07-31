@@ -11,6 +11,7 @@ interface Message {
   weather?: ChatResponse['weather'];
   webSources?: ChatResponse['web_sources'];
   memoryUsed?: ChatResponse['memory_used'];
+  documentsUsed?: ChatResponse['documents_used'];
 }
 
 interface ChatPageProps {
@@ -68,7 +69,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
 
     try {
       const resp: ChatResponse = await sendChatMessage(textToSend, sessionId);
-      const assistantMsg: Message = { role: 'assistant', content: resp.response, weather: resp.weather, webSources: resp.web_sources, memoryUsed: resp.memory_used };
+      const assistantMsg: Message = { role: 'assistant', content: resp.response, weather: resp.weather, webSources: resp.web_sources, memoryUsed: resp.memory_used, documentsUsed: resp.documents_used };
       setMessages((prev) => [...prev, assistantMsg]);
 
       if (resp.requires_confirmation) {
@@ -92,7 +93,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
 
     try {
       const resp: ChatResponse = await sendChatMessage(reply, sessionId);
-      const assistantMsg: Message = { role: 'assistant', content: resp.response, weather: resp.weather, webSources: resp.web_sources, memoryUsed: resp.memory_used };
+      const assistantMsg: Message = { role: 'assistant', content: resp.response, weather: resp.weather, webSources: resp.web_sources, memoryUsed: resp.memory_used, documentsUsed: resp.documents_used };
       setMessages((prev) => [...prev, assistantMsg]);
 
       if (resp.requires_confirmation) {
@@ -168,6 +169,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
                 {msg.content}
                 {msg.weather && <div className="mt-4"><WeatherCard weather={msg.weather} /></div>}
                 {msg.webSources && <WebSourcesCard sources={msg.webSources} />}
+                {msg.documentsUsed && msg.documentsUsed.length > 0 && <details className="mt-3 rounded-xl border border-cyan-500/15 bg-cyan-500/5 px-3 py-2 text-xs text-zinc-400"><summary className="cursor-pointer font-semibold text-cyan-200">Использованы документы: {msg.documentsUsed.length}</summary><ul className="mt-2 space-y-1 text-zinc-500">{msg.documentsUsed.map(item => <li key={`${item.document_id}-${item.chunk_id}`}>{item.document_name}</li>)}</ul></details>}
                 {msg.memoryUsed && msg.memoryUsed.length > 0 && <details className="mt-3 rounded-xl border border-purple-500/15 bg-purple-500/5 px-3 py-2 text-xs text-zinc-400"><summary className="cursor-pointer font-semibold text-purple-200">Использовано из памяти: {msg.memoryUsed.length}</summary><ul className="mt-2 space-y-1 text-zinc-500">{msg.memoryUsed.map(item => <li key={`${item.type}-${item.id}`}>{item.type === 'note' ? 'Заметка: ' : 'Факт: '}{item.title}</li>)}</ul></details>}
               </div>
             </div>

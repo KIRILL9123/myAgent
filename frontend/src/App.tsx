@@ -7,6 +7,7 @@ import { generateSessionId } from './api/chat';
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
 const MemoryPage = lazy(() => import('./pages/MemoryPage'));
+const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
 const CommitmentsPage = lazy(() => import('./pages/CommitmentsPage'));
 const ApprovalsPage = lazy(() => import('./pages/ApprovalsPage'));
 const SystemPage = lazy(() => import('./pages/SystemPage'));
@@ -41,6 +42,7 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/chat" element={<ChatPage sessionId={sessionId} />} />
             <Route path="/memory" element={<MemoryPage />} />
+            <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/commitments" element={<CommitmentsPage />} />
             <Route path="/approvals" element={<ApprovalsPage />} />
             <Route path="/system" element={<SystemPage />} />
