@@ -6,6 +6,5 @@ playwright==1.61.0
 python-dotenv==1.0.1
 pydantic==2.8.0
 apscheduler==3.10.4
-ollama
 openai-whisper
 pytest-asyncio
