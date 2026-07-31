@@ -72,9 +72,9 @@ A local AI agent running 24/7 on a Mac as a home server, designed to manage dail
 6. **Start the Application**:
    Launch the FastAPI web server from the project root:
    ```bash
-   uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+   powershell -ExecutionPolicy Bypass -File .\dev-tools\start_backend.ps1
    ```
-   The server will initialize the SQLite database and run any missing migrations automatically on startup. The web dashboard will be available at [http://localhost:8000/dashboard](http://localhost:8000/dashboard) (with `/memory` and other modules routed inside the SPA).
+   The start script checks port 8000 first and stops with an explicit PID message if an old backend is already listening; it never terminates another process automatically. The server will initialize the SQLite database and run any missing migrations automatically on startup. The web dashboard will be available at [http://localhost:8000/dashboard](http://localhost:8000/dashboard) (with `/memory` and other modules routed inside the SPA).
 
 ## Development
 

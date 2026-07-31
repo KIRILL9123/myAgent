@@ -28,6 +28,7 @@ Near-to-medium-term concrete features not yet scheduled. Long-term phase items b
 **Agent and proactivity**
 - [x] **Weather and forecast connector**: read-only weather tool with location resolution, current conditions, forecast, units, provider timeouts, source/timestamp and a structured chat card.
 - [x] **Internet access MVP**: add read-only `web_search`/`web_fetch` tools with public-network checks, size/time limits, short caching, provenance, untrusted-content wrapping and browser fallback.
+- [x] **Web Research price reliability v1**: normalize common RU product queries for Germany, extract EUR price evidence with confidence, and fall back to search snippets when a source returns HTTP 403.
 - **Internet access hardening**: add robots-policy coverage, stronger per-session budgets and a broader Lightpanda/Chromium compatibility matrix.
 - [x] **Browser runtime PoC**: compare Lightpanda via Docker/CDP with Playwright/Chromium on a local JavaScript fixture; external-site compatibility and fallback policy remain to be validated.
 - **Host computer control**: design an approval-gated, sandboxed capability for diagnostics and selected actions on the host OS, with separate Windows and macOS adapters.

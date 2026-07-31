@@ -211,6 +211,7 @@ read-only-first, provenance-aware, budgeted and approval-gated for any side effe
 - [x] Run an initial Lightpanda-vs-Playwright/Chromium browser-runtime PoC; keep production integration pending external compatibility tests
 - [x] Treat web pages and retrieved text as untrusted content; wrap it before the model sees it
 - [x] Store provenance and retrieval timestamps for externally sourced answers
+- [x] Add Web Research price evidence extraction, RU product-query normalization for Germany, and explicit 403-to-search-snippet fallback
 - [ ] Add robots-policy coverage, stronger per-session budgets and broader browser compatibility tests
 
 **Host computer control**

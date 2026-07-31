@@ -8,6 +8,7 @@ The returned page text is deliberately treated as untrusted by the agent.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import socket
@@ -18,6 +19,8 @@ from typing import Any
 from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlsplit
 
 import httpx
+
+from backend.app.connectors.price_extractor import extract_price_info
 
 
 HTTP_TIMEOUT_SECONDS = float(os.getenv("WEB_HTTP_TIMEOUT_SECONDS", "10"))
@@ -30,12 +33,28 @@ CACHE_TTL_SECONDS = 120
 LIGHTPANDA_CDP_URL = os.getenv("WEB_LIGHTPANDA_CDP_URL", "http://127.0.0.1:9222")
 SEARCH_URL = "https://html.duckduckgo.com/html/"
 SEARCH_REGION = os.getenv("WEB_SEARCH_REGION", "de-de")
+logger = logging.getLogger(__name__)
 
 _cache: dict[str, tuple[float, dict[str, Any]]] = {}
+_search_snippet_cache: dict[str, tuple[float, dict[str, str]]] = {}
+
+_PRODUCT_QUERY_MAPPINGS = (
+    (re.compile(r"\b(?:айфон|айфоны)\b", re.IGNORECASE), "iPhone"),
+    (re.compile(r"\b(?:пс\s*5|пс5|плейстейшен\s*5|плейстейшн\s*5)\b", re.IGNORECASE), "PlayStation 5"),
+    (re.compile(r"\b(?:наушники|беспроводные\s+наушники)\b", re.IGNORECASE), "Kopfhörer"),
+)
+_GERMAN_REGION_TERMS = ("germany", "deutschland", "германи", "германия", "немец")
 
 
 class WebAccessError(RuntimeError):
     """Expected, user-safe web access failure."""
+
+
+class WebHTTPError(WebAccessError):
+    def __init__(self, status_code: int, url: str) -> None:
+        self.status_code = status_code
+        self.url = url
+        super().__init__(f"Сайт вернул HTTP {status_code}.")
 
 
 def _configured_domains() -> set[str]:
@@ -113,7 +132,7 @@ def _download(url: str) -> tuple[str, str, bytes]:
                         current_url = urljoin(current_url, location)
                         continue
                     if response.status_code >= 400:
-                        raise WebAccessError(f"Сайт вернул HTTP {response.status_code}.")
+                        raise WebHTTPError(response.status_code, current_url)
                     chunks: list[bytes] = []
                     size = 0
                     for chunk in response.iter_bytes():
@@ -127,6 +146,41 @@ def _download(url: str) -> tuple[str, str, bytes]:
         except httpx.HTTPError as exc:
             raise WebAccessError("Не удалось подключиться к сайту.") from exc
     raise WebAccessError("Слишком много перенаправлений.")
+
+
+def normalize_search_query(query: str) -> str:
+    """Normalize common RU product terms while keeping unknown text intact."""
+    normalized = re.sub(r"\s+", " ", (query or "").strip())
+    for pattern, replacement in _PRODUCT_QUERY_MAPPINGS:
+        normalized = pattern.sub(replacement, normalized)
+
+    lowered = normalized.lower()
+    if not any(term in lowered for term in _GERMAN_REGION_TERMS):
+        normalized = f"{normalized} Deutschland"
+    elif "германи" in lowered or "германия" in lowered:
+        normalized = re.sub(r"германи(?:я|и)?", "Deutschland", normalized, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _remember_search_snippet(item: dict[str, str]) -> None:
+    url = item.get("url", "")
+    if not url:
+        return
+    if len(_search_snippet_cache) >= MAX_CACHE_ITEMS:
+        oldest = min(_search_snippet_cache, key=lambda key: _search_snippet_cache[key][0])
+        _search_snippet_cache.pop(oldest, None)
+    _search_snippet_cache[url] = (datetime.now(timezone.utc).timestamp(), dict(item))
+
+
+def _search_snippet_for_url(url: str) -> dict[str, str] | None:
+    cached = _search_snippet_cache.get(url)
+    if not cached:
+        return None
+    created_at, item = cached
+    if datetime.now(timezone.utc).timestamp() - created_at > CACHE_TTL_SECONDS:
+        _search_snippet_cache.pop(url, None)
+        return None
+    return dict(item)
 
 
 class _PageTextParser(HTMLParser):
@@ -199,7 +253,7 @@ def _http_fetch(url: str) -> dict[str, Any]:
     final_url, content_type, body = _download(url)
     title, content, has_javascript = _parse_page(body, content_type)
     retrieved_at = datetime.now(timezone.utc).isoformat()
-    return {
+    result = {
         "status": "success",
         "url": url,
         "final_url": final_url,
@@ -211,6 +265,8 @@ def _http_fetch(url: str) -> dict[str, Any]:
         "source": _source(final_url, "http", retrieved_at),
         "retrieved_at": retrieved_at,
     }
+    result["price_info"] = extract_price_info(f"{title}\n{content}", final_url)
+    return result
 
 
 def _browser_fetch(url: str, mode: str) -> dict[str, Any]:
@@ -257,7 +313,7 @@ def _browser_fetch(url: str, mode: str) -> dict[str, Any]:
             content = page.locator("body").inner_text(timeout=3000)
             content = re.sub(r"\n{3,}", "\n\n", content).strip()[:MAX_TEXT_CHARS]
             retrieved_at = datetime.now(timezone.utc).isoformat()
-            return {
+            result = {
                 "status": "success",
                 "url": url,
                 "final_url": final_url,
@@ -268,6 +324,8 @@ def _browser_fetch(url: str, mode: str) -> dict[str, Any]:
                 "source": _source(final_url, method, retrieved_at),
                 "retrieved_at": retrieved_at,
             }
+            result["price_info"] = extract_price_info(f"{title}\n{content}", final_url)
+            return result
         except WebAccessError:
             raise
         except Exception as exc:
@@ -343,6 +401,43 @@ def web_fetch(url: str, render_js: bool = False, browser_mode: str = "auto") -> 
                 http_result["warning"] = f"JavaScript-режим недоступен: {exc}"
         _cache_put(cache_key, http_result)
         return http_result
+    except WebHTTPError as exc:
+        if exc.status_code == 403:
+            snippet = _search_snippet_for_url(url)
+            if snippet:
+                retrieved_at = datetime.now(timezone.utc).isoformat()
+                content = snippet.get("snippet", "")
+                return {
+                    "status": "success",
+                    "url": url,
+                    "final_url": url,
+                    "title": snippet.get("title", ""),
+                    "content": content,
+                    "content_type": "text/plain",
+                    "content_truncated": False,
+                    "source": _source(url, "search-snippet-fallback", retrieved_at),
+                    "retrieved_at": retrieved_at,
+                    "source_blocked": True,
+                    "source_status": 403,
+                    "price_info": extract_price_info(
+                        f"{snippet.get('title', '')}\n{content}", url
+                    ),
+                }
+            return {
+                "status": "error",
+                "message": str(exc),
+                "url": url,
+                "source_blocked": True,
+                "source_status": 403,
+            }
+        if browser_mode != "http":
+            try:
+                browser_result = _browser_fetch(url, browser_mode)
+                _cache_put(cache_key, browser_result)
+                return browser_result
+            except WebAccessError as browser_exc:
+                return {"status": "error", "message": f"Web fetch failed: {exc}; fallback: {browser_exc}"}
+        return {"status": "error", "message": str(exc)}
     except WebAccessError as exc:
         if browser_mode != "http":
             try:
@@ -356,21 +451,32 @@ def web_fetch(url: str, render_js: bool = False, browser_mode: str = "auto") -> 
 
 def web_search(query: str, max_results: int = 5) -> dict[str, Any]:
     """Search the public web and return a small list of source links."""
-    query = re.sub(r"\s+", " ", query.strip())
-    if len(query) < 2:
+    normalized_query = normalize_search_query(query)
+    if len(normalized_query) < 2:
         return {"status": "error", "message": "Укажите поисковый запрос."}
     max_results = max(1, min(max_results, 10))
-    search_url = f"{SEARCH_URL}?q={quote_plus(query)}&kl={quote_plus(SEARCH_REGION)}"
+    logger.info("web_search.normalized_query=%r original_query=%r", normalized_query, query)
+    search_url = f"{SEARCH_URL}?q={quote_plus(normalized_query)}&kl={quote_plus(SEARCH_REGION)}"
     try:
         final_url, content_type, body = _download(search_url)
         parser = _SearchParser()
         parser.feed(_decode(body, content_type))
         results = [item for item in parser.results if item.get("url", "").startswith(("http://", "https://"))][:max_results]
+        enriched_results = []
+        for item in results:
+            item_copy = dict(item)
+            item_copy["price_info"] = extract_price_info(
+                f"{item_copy.get('title', '')}\n{item_copy.get('snippet', '')}",
+                item_copy.get("url", ""),
+            )
+            _remember_search_snippet(item_copy)
+            enriched_results.append(item_copy)
         retrieved_at = datetime.now(timezone.utc).isoformat()
         return {
             "status": "success",
-            "query": query,
-            "results": results,
+            "query": normalized_query,
+            "original_query": query,
+            "results": enriched_results,
             "source": _source(final_url, "duckduckgo-html", retrieved_at),
             "retrieved_at": retrieved_at,
         }
