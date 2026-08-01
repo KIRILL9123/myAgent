@@ -15,6 +15,12 @@ export interface Transaction {
   category: string;
   description: string;
   date: string;
+  recurring_template_id: number | null;
+}
+
+export interface FinanceCategory {
+  name: string;
+  type: 'income' | 'expense';
 }
 
 export interface FinanceSummary {
@@ -34,6 +40,14 @@ export interface TransactionCreateInput {
   description?: string;
   date?: string;
   is_recurring?: boolean;
+}
+
+export interface TransactionUpdateInput {
+  type?: 'income' | 'expense';
+  amount?: number;
+  category?: string;
+  description?: string;
+  date?: string;
 }
 
 export interface RecurringTemplate {

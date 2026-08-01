@@ -1,3 +1,5 @@
+import { apiRequest } from './client';
+
 export interface Countdown {
   id: number;
   title: string;
@@ -15,26 +17,8 @@ export interface CountdownCreateInput {
 
 const API_BASE = '/api/countdown';
 
-const getHeaders = (withJson = false) => {
-  const apiKey = (import.meta.env.VITE_API_KEY as string) || '';
-  const headers: Record<string, string> = {
-    'X-API-Key': apiKey,
-  };
-  if (withJson) {
-    headers['Content-Type'] = 'application/json';
-  }
-  return headers;
-};
-
 export async function fetchCountdowns(): Promise<Countdown[]> {
-  const resp = await fetch(`${API_BASE}/`, {
-    headers: getHeaders(),
-  });
-  if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(errorText || `Failed to fetch countdowns: ${resp.statusText}`);
-  }
-  const result = await resp.json();
+  const result = await apiRequest<{ status?: string; message?: string; countdowns: Countdown[] }>(`${API_BASE}/`);
   if (result.status === 'error') {
     throw new Error(result.message);
   }
@@ -42,16 +26,11 @@ export async function fetchCountdowns(): Promise<Countdown[]> {
 }
 
 export async function createCountdown(input: CountdownCreateInput): Promise<{ id: number; message: string }> {
-  const resp = await fetch(`${API_BASE}/`, {
+  const result = await apiRequest<{ status?: string; message: string; id: number }>(`${API_BASE}/`, {
     method: 'POST',
-    headers: getHeaders(true),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(errorText || `Failed to create countdown: ${resp.statusText}`);
-  }
-  const result = await resp.json();
   if (result.status === 'error') {
     throw new Error(result.message);
   }
@@ -59,15 +38,9 @@ export async function createCountdown(input: CountdownCreateInput): Promise<{ id
 }
 
 export async function deleteCountdown(id: number): Promise<{ message: string }> {
-  const resp = await fetch(`${API_BASE}/${id}`, {
+  const result = await apiRequest<{ status?: string; message: string }>(`${API_BASE}/${id}`, {
     method: 'DELETE',
-    headers: getHeaders(),
   });
-  if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(errorText || `Failed to delete countdown: ${resp.statusText}`);
-  }
-  const result = await resp.json();
   if (result.status === 'error') {
     throw new Error(result.message);
   }

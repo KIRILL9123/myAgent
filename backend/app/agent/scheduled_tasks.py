@@ -30,7 +30,12 @@ async def morning_summary():
     """
     Generates a morning summary of today's calendar events and unread emails,
     then sends it via Telegram.
+
+    In DRY_RUN mode: still fetches data (reads are safe) but skips the
+    Telegram notification (which is independently guarded by the notifier).
     """
+    from backend.app.core.execution_mode import is_dry_run
+
     log_action("morning_summary", "STARTED", "Executing scheduled morning summary task.")
     
     # 1. Fetch Calendar Events for Today
@@ -45,8 +50,8 @@ async def morning_summary():
     if isinstance(events, dict) and events.get("status") == "error":
         events = []
 
-    # 2. Fetch Unread Emails
-    emails = list_unread_emails(limit=10)
+    # 2. Fetch Unread Emails (sync-state mutation now guarded inside the function)
+    emails = list_unread_emails(limit=10, bypass_last_seen=is_dry_run())
     if isinstance(emails, dict) and emails.get("status") == "error":
         emails = []
 

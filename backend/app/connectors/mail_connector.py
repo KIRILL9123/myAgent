@@ -135,6 +135,7 @@ def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen
         if not bypass_last_seen:
             # Filter messages by last_seen_uid
             from backend.app.storage.db import get_last_seen_uid, update_last_seen_uid
+            from backend.app.core.execution_mode import is_dry_run
             last_seen = get_last_seen_uid(account)
 
             new_msg_ids = [mid for mid in msg_ids if int(mid) > last_seen]
@@ -144,8 +145,11 @@ def list_unread_emails(account: str = "gmail", limit: int = 10, bypass_last_seen
                 return []
 
             # Update last seen to the highest sequence number we found
-            highest_id = max([int(mid) for mid in new_msg_ids])
-            update_last_seen_uid(account, highest_id)
+            # Only persist sync state in REAL mode; DRY_RUN must not consume
+            # unseen email markers permanently.
+            if not is_dry_run():
+                highest_id = max([int(mid) for mid in new_msg_ids])
+                update_last_seen_uid(account, highest_id)
             target_ids = new_msg_ids
         else:
             target_ids = msg_ids

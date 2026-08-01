@@ -2,9 +2,22 @@ from typing import Any, Dict, List
 import datetime
 from backend.app.storage.db import get_db_connection
 from backend.app.audit.audit_log import log_action
+from backend.app.core.execution_mode import is_dry_run
 
 def add_countdown(title: str, target_date: str, category: str = "другое") -> Dict[str, Any]:
     """Add a new countdown deadline."""
+    if is_dry_run():
+        log_action("add_countdown", "DRY_RUN", f"Would add deadline '{title}' for {target_date}")
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "add_countdown",
+                "title": title,
+                "target_date": target_date,
+                "category": category,
+            },
+        }
+
     try:
         # Validate date format
         datetime.datetime.strptime(target_date, "%Y-%m-%d")
@@ -58,6 +71,16 @@ def get_all_countdowns() -> Dict[str, Any]:
 
 def delete_countdown(countdown_id: int) -> Dict[str, Any]:
     """Delete a countdown by ID."""
+    if is_dry_run():
+        log_action("delete_countdown", "DRY_RUN", f"Would delete deadline {countdown_id}")
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "delete_countdown",
+                "countdown_id": countdown_id,
+            },
+        }
+
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()

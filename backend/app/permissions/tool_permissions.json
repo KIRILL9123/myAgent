@@ -20,6 +20,14 @@
     "permission_level": "green"
   },
   {
+    "action_name": "search_documents",
+    "permission_level": "green"
+  },
+  {
+    "action_name": "list_documents",
+    "permission_level": "green"
+  },
+  {
     "action_name": "get_host_diagnostics",
     "permission_level": "green"
   },

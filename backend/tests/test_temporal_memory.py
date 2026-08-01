@@ -12,7 +12,7 @@ def _mock_llm(monkeypatch):
 
 
 @pytest.fixture
-def test_db(monkeypatch, tmp_path):
+def test_db(monkeypatch, tmp_path, real_mode):
     db_path = str(tmp_path / "test_temporal_memory.db")
     monkeypatch.setattr("backend.app.storage.db.DB_PATH", db_path)
     from backend.app.storage.db import init_db

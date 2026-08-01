@@ -10,7 +10,7 @@ from backend.app.subscriptions.subscription_service import create_subscription, 
 
 
 @pytest.fixture
-def approval_db(tmp_path, monkeypatch):
+def approval_db(tmp_path, monkeypatch, real_mode):
     monkeypatch.setattr(db, "DB_PATH", str(tmp_path / "approvals.db"))
     db.init_db()
 

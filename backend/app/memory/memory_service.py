@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime as _dt
+from backend.app.core.execution_mode import is_dry_run
 from backend.app.storage.db import get_db_connection
 from typing import Any
 
@@ -22,6 +23,9 @@ AUTO_APPROVE_CONFIDENCE = 0.90
 
 def save_pending_fact(content: str, category: str, confidence: float, source_conversation_id: int | None = None,
                       source_type: str = "llm_extraction", provenance: dict[str, Any] | None = None) -> int:
+    if is_dry_run():
+        return -1
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -264,6 +268,9 @@ def get_all_facts(status: str | None = None) -> list[dict[str, Any]]:
     return [_row_to_fact(r, include_status=True) for r in rows]
 
 def update_fact_timestamp(fact_id: int):
+    if is_dry_run():
+        return
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -296,6 +303,9 @@ async def approve_fact(fact_id: int) -> bool:
         if fact["status"] != "pending_approval":
             # Already approved or rejected
             return False
+
+        if is_dry_run():
+            return True
             
         # 2. Update status to approved
         cursor.execute(
@@ -339,6 +349,9 @@ def reject_fact(fact_id: int) -> bool:
             
         if row[1] != "pending_approval":
             return False
+
+        if is_dry_run():
+            return True
             
         cursor.execute(
             "UPDATE user_facts SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -349,6 +362,9 @@ def reject_fact(fact_id: int) -> bool:
     return True
 
 def save_relation(fact_a_id: int, fact_b_id: int, relation_type: str) -> bool:
+    if is_dry_run():
+        return True
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
         # Check if relation already exists in either direction
@@ -642,6 +658,9 @@ async def find_consolidation_candidates() -> list[dict]:
         return []
 
 def save_approved_fact(content: str, category: str, confidence: float) -> int:
+    if is_dry_run():
+        return -1
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -657,6 +676,9 @@ def save_approved_fact(content: str, category: str, confidence: float) -> int:
     return new_id
 
 def mark_facts_as_merged(fact_ids: list[int], merged_into_id: int):
+    if is_dry_run():
+        return
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
         placeholders = ",".join(["?"] * len(fact_ids))
@@ -671,6 +693,9 @@ def mark_facts_as_merged(fact_ids: list[int], merged_into_id: int):
         conn.commit()
 
 def consolidate_facts(fact_ids: list[int], merged_content: str, category: str) -> int:
+    if is_dry_run():
+        return -1
+
     # 1. Create new approved fact
     new_id = save_approved_fact(merged_content, category, 0.95)
     

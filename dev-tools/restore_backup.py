@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
+"""
+Interactive backup restore CLI.
+WARNING: This replaces the active database. Requires EXECUTION_MODE=real.
+"""
 import os
 import sys
+
+# Safety: require explicit REAL mode
+if os.getenv("EXECUTION_MODE", "dry_run").strip().lower() != "real":
+    print("ERROR: This script requires EXECUTION_MODE=real. Aborting for safety.")
+    print("Set EXECUTION_MODE=real in your .env file or environment, then re-run.")
+    sys.exit(1)
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 

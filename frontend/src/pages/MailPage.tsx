@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Mail, 
-  Search, 
-  Send, 
-  Loader2, 
-  AlertCircle, 
-  Eye, 
-  ChevronLeft, 
+import {
+  Mail,
+  Search,
+  Send,
+  Loader2,
+  AlertCircle,
+  Eye,
+  ChevronLeft,
   CheckCircle,
   Inbox,
   AlertTriangle,
-  X
+  X,
 } from 'lucide-react';
 import { sendEmail } from '../api/mail';
 import type { EmailMessage } from '../api/mail';
@@ -19,6 +19,11 @@ import { extractEmailCommitments } from '../api/commitments';
 import { useMailInbox } from '../hooks/useMailInbox';
 import type { MailAccount, MailFormState } from '../types';
 import EmailCard from '../components/mail/EmailCard';
+
+const MAILBOX_LABELS = {
+  gmail: (import.meta.env.VITE_GMAIL_ADDRESS as string | undefined) || 'Gmail account',
+  ukrnet: (import.meta.env.VITE_UKRNET_ADDRESS as string | undefined) || 'Ukr.net account',
+};
 
 export default function MailPage() {
   const navigate = useNavigate();
@@ -68,7 +73,10 @@ export default function MailPage() {
         setNotice({ tone: 'info', text: 'Явных обязательств в письме не найдено.' });
       }
     } catch (err: unknown) {
-      setNotice({ tone: 'error', text: err instanceof Error ? `Ошибка анализа письма: ${err.message}` : 'Не удалось проанализировать письмо.' });
+      setNotice({
+        tone: 'error',
+        text: err instanceof Error ? `Ошибка анализа письма: ${err.message}` : 'Не удалось проанализировать письмо.',
+      });
     } finally {
       setAnalyzingEmail(null);
     }
@@ -81,8 +89,8 @@ export default function MailPage() {
 
   const handleReplyClick = (emailItem: EmailMessage) => {
     const replyTo = extractEmailAddress(emailItem.from);
-    const replySubject = emailItem.subject.toLowerCase().startsWith('re:') 
-      ? emailItem.subject 
+    const replySubject = emailItem.subject.toLowerCase().startsWith('re:')
+      ? emailItem.subject
       : `Re: ${emailItem.subject}`;
 
     setFormState({
@@ -117,7 +125,7 @@ export default function MailPage() {
         to: formState.to,
         subject: formState.subject,
         body: formState.body,
-        account: account
+        account: account,
       });
       setSendSuccess(true);
       setTimeout(() => {
@@ -127,7 +135,10 @@ export default function MailPage() {
         loadEmails();
       }, 2000);
     } catch (err: unknown) {
-      setNotice({ tone: 'error', text: err instanceof Error ? `Ошибка отправки письма: ${err.message}` : 'Не удалось отправить письмо.' });
+      setNotice({
+        tone: 'error',
+        text: err instanceof Error ? `Ошибка отправки письма: ${err.message}` : 'Не удалось отправить письмо.',
+      });
     } finally {
       setSending(false);
     }
@@ -135,9 +146,7 @@ export default function MailPage() {
 
   const cleanPreviewText = (text: string): string => {
     // Remove prompt injection guard tags from UI display
-    return text
-      .replace(/<untrusted_external_content>/g, '')
-      .replace(/<\/untrusted_external_content>/g, '');
+    return text.replace(/<untrusted_external_content>/g, '').replace(/<\/untrusted_external_content>/g, '');
   };
 
   const formatEmailDate = (dateStr: string): string => {
@@ -148,15 +157,17 @@ export default function MailPage() {
     if (isNaN(date.getTime())) return cleanStr;
 
     const now = new Date();
-    const isToday = date.getDate() === now.getDate() &&
-                    date.getMonth() === now.getMonth() &&
-                    date.getFullYear() === now.getFullYear();
+    const isToday =
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
 
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
-    const isYesterday = date.getDate() === yesterday.getDate() &&
-                        date.getMonth() === yesterday.getMonth() &&
-                        date.getFullYear() === yesterday.getFullYear();
+    const isYesterday =
+      date.getDate() === yesterday.getDate() &&
+      date.getMonth() === yesterday.getMonth() &&
+      date.getFullYear() === yesterday.getFullYear();
 
     const timeStr = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
@@ -180,7 +191,6 @@ export default function MailPage() {
             Почтовый Клиент
           </h1>
         </div>
-
       </header>
 
       {/* Main content body */}
@@ -244,7 +254,7 @@ export default function MailPage() {
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="text-xs font-medium text-zinc-550 hover:text-zinc-350 transition-colors shrink-0"
+                className="text-xs font-medium text-zinc-500 hover:text-zinc-400 transition-colors shrink-0"
               >
                 Сбросить
               </button>
@@ -254,7 +264,20 @@ export default function MailPage() {
 
         {/* Display Content Area */}
         <div className="flex-1 w-full p-6">
-          {notice && <div className={`mb-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs ${notice.tone === 'error' ? 'border-rose-500/20 bg-rose-500/5 text-rose-200' : 'border-sky-500/20 bg-sky-500/5 text-sky-100'}`}><span>{notice.text}</span><button onClick={() => setNotice(null)} aria-label="Закрыть уведомление" className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"><X className="h-4 w-4" /></button></div>}
+          {notice && (
+            <div
+              className={`mb-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs ${notice.tone === 'error' ? 'border-rose-500/20 bg-rose-500/5 text-rose-200' : 'border-sky-500/20 bg-sky-500/5 text-sky-100'}`}
+            >
+              <span>{notice.text}</span>
+              <button
+                onClick={() => setNotice(null)}
+                aria-label="Закрыть уведомление"
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="w-full h-64 flex flex-col items-center justify-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
@@ -266,7 +289,7 @@ export default function MailPage() {
               <div className="flex-1">
                 <span className="font-bold">Ошибка:</span> {error}
               </div>
-              <button 
+              <button
                 onClick={() => loadEmails(searchQuery)}
                 className="bg-red-950/40 hover:bg-red-900/40 text-red-300 font-semibold px-3 py-1.5 rounded-lg text-[10px] tracking-wide transition-all uppercase border border-red-500/20"
               >
@@ -275,20 +298,19 @@ export default function MailPage() {
             </div>
           ) : emails.length === 0 ? (
             <div className="w-full max-w-md mx-auto h-64 flex flex-col items-center justify-center gap-4 text-center border border-zinc-900 border-dashed rounded-2xl bg-zinc-950/20 px-6 mt-6">
-              <Inbox className="h-10 w-10 text-zinc-650" />
+              <Inbox className="h-10 w-10 text-zinc-600" />
               <div>
                 <h3 className="text-sm font-semibold text-zinc-300">
                   {isSearching ? 'Письма не найдены' : 'Почтовый ящик пуст'}
                 </h3>
                 <p className="text-zinc-500 text-xs mt-1">
-                  {isSearching 
-                    ? 'Попробуйте изменить поисковый запрос.' 
-                    : `У вас нет новых непрочитанных писем в аккаунте ${account.toUpperCase()}.`
-                  }
+                  {isSearching
+                    ? 'Попробуйте изменить поисковый запрос.'
+                    : `У вас нет новых непрочитанных писем в аккаунте ${account.toUpperCase()}.`}
                 </p>
               </div>
               {isSearching && (
-                <button 
+                <button
                   onClick={handleClearSearch}
                   className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
                 >
@@ -319,7 +341,7 @@ export default function MailPage() {
       {/* Compose / Edit Form Modal */}
       {isComposeOpen && (
         <div className="fixed inset-0 bg-black/65 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div 
+          <div
             className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 relative flex flex-col gap-5 text-zinc-100 shadow-[0_10px_35px_rgba(0,0,0,0.55)] max-h-[92vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -334,9 +356,7 @@ export default function MailPage() {
 
             {/* Modal Title */}
             <div>
-              <h2 className="text-base font-bold text-zinc-200">
-                Новое письмо ({account.toUpperCase()})
-              </h2>
+              <h2 className="text-base font-bold text-zinc-200">Новое письмо ({account.toUpperCase()})</h2>
               <p className="text-zinc-500 text-[11px] mt-0.5">
                 Заполните форму для отправки электронного письма через SMTP-сервер
               </p>
@@ -355,7 +375,7 @@ export default function MailPage() {
                   placeholder="name@example.com"
                   value={formState.to}
                   onChange={(e) => setFormState((prev) => ({ ...prev, to: e.target.value }))}
-                  className="w-full bg-zinc-950 border border-zinc-850 focus:border-blue-500 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition-all"
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition-all"
                 />
               </div>
 
@@ -370,7 +390,7 @@ export default function MailPage() {
                   placeholder="Тема"
                   value={formState.subject}
                   onChange={(e) => setFormState((prev) => ({ ...prev, subject: e.target.value }))}
-                  className="w-full bg-zinc-950 border border-zinc-850 focus:border-blue-500 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition-all"
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition-all"
                 />
               </div>
 
@@ -385,7 +405,7 @@ export default function MailPage() {
                   rows={6}
                   value={formState.body}
                   onChange={(e) => setFormState((prev) => ({ ...prev, body: e.target.value }))}
-                  className="w-full bg-zinc-950 border border-zinc-850 focus:border-blue-500 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition-all resize-none font-sans"
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition-all resize-none font-sans"
                 />
               </div>
 
@@ -394,7 +414,7 @@ export default function MailPage() {
                 <button
                   type="button"
                   onClick={() => setIsComposeOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
                 >
                   Отмена
                 </button>
@@ -415,27 +435,26 @@ export default function MailPage() {
       {isPreviewOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 relative flex flex-col gap-5 text-zinc-100 shadow-[0_15px_40px_rgba(0,0,0,0.65)] max-h-[92vh] overflow-y-auto animate-scale-in">
-            
             {/* Header info */}
             <div className="flex items-center gap-3 border-b border-zinc-800 pb-4">
               <div className="p-2.5 rounded-xl bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-zinc-200">
-                  Подтверждение отправки
-                </h2>
-                <p className="text-zinc-550 text-[11px] mt-0.5">
+                <h2 className="text-base font-bold text-zinc-200">Подтверждение отправки</h2>
+                <p className="text-zinc-500 text-[11px] mt-0.5">
                   Внимательно проверьте все данные. Действие совершит реальную отправку письма!
                 </p>
               </div>
             </div>
 
             {/* Email Layout Preview */}
-            <div className="flex flex-col gap-4 bg-zinc-950/70 border border-zinc-850 rounded-xl p-5 font-mono text-[11px]">
+            <div className="flex flex-col gap-4 bg-zinc-950/70 border border-zinc-800 rounded-xl p-5 font-mono text-[11px]">
               <div>
                 <span className="text-zinc-500 uppercase font-bold mr-2">Отправитель:</span>
-                <span className="text-zinc-350">{account.toUpperCase()} account ({account === 'gmail' ? 'naumov.3111@gmail.com' : 'your_email@ukr.net'})</span>
+                <span className="text-zinc-400">
+                  {account.toUpperCase()} account ({MAILBOX_LABELS[account]})
+                </span>
               </div>
               <div className="border-t border-zinc-900 pt-3">
                 <span className="text-zinc-500 uppercase font-bold mr-2">Кому:</span>
@@ -465,7 +484,7 @@ export default function MailPage() {
                 <button
                   onClick={() => setIsPreviewOpen(false)}
                   disabled={sending}
-                  className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Назад к редактированию
@@ -475,11 +494,7 @@ export default function MailPage() {
                   disabled={sending}
                   className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-zinc-100 rounded-xl px-6 py-2.5 text-xs font-bold tracking-wide transition-all shadow-md shadow-blue-900/30 cursor-pointer"
                 >
-                  {sending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-3.5 w-3.5" />
-                  )}
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                   {sending ? 'Отправка...' : 'Подтвердить и отправить'}
                 </button>
               </div>

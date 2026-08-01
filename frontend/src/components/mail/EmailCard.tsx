@@ -51,7 +51,7 @@ export default function EmailCard({
         </h2>
 
         {email.preview && (
-          <p className="text-xs text-zinc-550 leading-relaxed font-sans line-clamp-3 mt-1.5 min-h-[3rem]">
+          <p className="text-xs text-zinc-500 leading-relaxed font-sans line-clamp-3 mt-1.5 min-h-[3rem]">
             {cleanPreviewText(email.preview)}
           </p>
         )}
@@ -68,7 +68,7 @@ export default function EmailCard({
         </button>
         <button
           onClick={() => onReply(email)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-zinc-450 hover:text-blue-400 hover:bg-blue-500/10 transition-all border border-transparent hover:border-blue-500/25 cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 transition-all border border-transparent hover:border-blue-500/25 cursor-pointer"
         >
           <CornerUpLeft className="h-3.5 w-3.5" />
           Ответить
