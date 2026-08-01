@@ -36,6 +36,14 @@ export interface TransactionCreateInput {
   is_recurring?: boolean;
 }
 
+export interface TransactionUpdateInput {
+  type?: 'income' | 'expense';
+  amount?: number;
+  category?: string;
+  description?: string;
+  date?: string;
+}
+
 export interface RecurringTemplate {
   id: number;
   type: 'income' | 'expense';

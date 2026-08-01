@@ -1,3 +1,5 @@
+import { apiRequest } from './client';
+
 export type CommitmentStatus = 'PROPOSED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
 
 export interface Commitment {
@@ -27,19 +29,11 @@ export interface EmailCommitmentInput {
 
 const API_BASE = '/api/commitments';
 
-const headers = (json = false): Record<string, string> => ({
-  'X-API-Key': (import.meta.env.VITE_API_KEY as string) || '',
-  ...(json ? { 'Content-Type': 'application/json' } : {}),
-});
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+const request = <T>(path: string, init: RequestInit = {}) =>
+  apiRequest<T>(`${API_BASE}${path}`, {
     ...init,
-    headers: { ...headers(Boolean(init.body)), ...(init.headers || {}) },
+    headers: init.body ? { 'Content-Type': 'application/json', ...init.headers } : init.headers,
   });
-  if (!response.ok) throw new Error((await response.text()) || `Commitment request failed: ${response.status}`);
-  return response.json();
-}
 
 export async function fetchCommitments(includeCompleted = true): Promise<Commitment[]> {
   const params = new URLSearchParams({ include_completed: String(includeCompleted) });
@@ -48,7 +42,10 @@ export async function fetchCommitments(includeCompleted = true): Promise<Commitm
 }
 
 export async function approveCommitment(id: string): Promise<Commitment> {
-  return request<Commitment>(`/${id}/approve`, { method: 'POST', body: JSON.stringify({ provenance: { channel: 'web' } }) });
+  return request<Commitment>(`/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ provenance: { channel: 'web' } }),
+  });
 }
 
 export async function completeCommitment(id: string): Promise<Commitment> {

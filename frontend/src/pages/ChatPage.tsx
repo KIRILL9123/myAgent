@@ -23,7 +23,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [pendingConfirm, setPendingConfirm] = useState<{
     action: string;
     message: string;
@@ -44,13 +44,13 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
     async function loadHistory() {
       try {
         const data = await fetchChatHistory(sessionId);
-        const loaded: Message[] = (data.history || []).map((msg: any) => ({
+        const loaded: Message[] = data.history.map((msg) => ({
           role: msg.role === 'assistant' ? 'assistant' : 'user',
-          content: msg.content || '',
+          content: msg.content,
         }));
         setMessages(loaded);
-      } catch (err: any) {
-        console.warn('Failed to load chat history:', err);
+      } catch {
+        setError('Не удалось загрузить историю чата. Можно продолжить новый диалог.');
       }
     }
     loadHistory();
@@ -58,10 +58,10 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
 
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim()) return;
-    
+
     setError(null);
     setPendingConfirm(null);
-    
+
     const userMsg: Message = { role: 'user', content: textToSend };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
@@ -69,7 +69,14 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
 
     try {
       const resp: ChatResponse = await sendChatMessage(textToSend, sessionId);
-      const assistantMsg: Message = { role: 'assistant', content: resp.response, weather: resp.weather, webSources: resp.web_sources, memoryUsed: resp.memory_used, documentsUsed: resp.documents_used };
+      const assistantMsg: Message = {
+        role: 'assistant',
+        content: resp.response,
+        weather: resp.weather,
+        webSources: resp.web_sources,
+        memoryUsed: resp.memory_used,
+        documentsUsed: resp.documents_used,
+      };
       setMessages((prev) => [...prev, assistantMsg]);
 
       if (resp.requires_confirmation) {
@@ -78,8 +85,8 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
           message: resp.response,
         });
       }
-    } catch (err: any) {
-      setError(err.message || 'Не удалось отправить сообщение. Проверьте соединение с сервером.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Не удалось отправить сообщение. Проверьте соединение с сервером.');
     } finally {
       setLoading(false);
     }
@@ -93,7 +100,14 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
 
     try {
       const resp: ChatResponse = await sendChatMessage(reply, sessionId);
-      const assistantMsg: Message = { role: 'assistant', content: resp.response, weather: resp.weather, webSources: resp.web_sources, memoryUsed: resp.memory_used, documentsUsed: resp.documents_used };
+      const assistantMsg: Message = {
+        role: 'assistant',
+        content: resp.response,
+        weather: resp.weather,
+        webSources: resp.web_sources,
+        memoryUsed: resp.memory_used,
+        documentsUsed: resp.documents_used,
+      };
       setMessages((prev) => [...prev, assistantMsg]);
 
       if (resp.requires_confirmation) {
@@ -104,8 +118,10 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
       } else {
         setPendingConfirm(null);
       }
-    } catch (err: any) {
-      setError(err.message || 'Не удалось отправить подтверждение. Проверьте соединение с сервером.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : 'Не удалось отправить подтверждение. Проверьте соединение с сервером.',
+      );
     } finally {
       setConfirming(false);
     }
@@ -121,9 +137,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
             Чат с ассистентом
           </h1>
         </div>
-        <div className="text-xs text-zinc-500 font-mono hidden md:block">
-          Сессия: {sessionId.substring(0, 8)}...
-        </div>
+        <div className="text-xs text-zinc-500 font-mono hidden md:block">Сессия: {sessionId.substring(0, 8)}...</div>
       </header>
 
       {/* Message List Area */}
@@ -134,7 +148,8 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
             <div>
               <p className="font-semibold text-zinc-300">Добро пожаловать в MyAgent!</p>
               <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-                Я могу управлять вашим календарем, читать почту, вести учет финансов и напоминать о дедлайнах. Напишите что-нибудь!
+                Я могу управлять вашим календарем, читать почту, вести учет финансов и напоминать о дедлайнах. Напишите
+                что-нибудь!
               </p>
             </div>
           </div>
@@ -145,9 +160,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
           return (
             <div
               key={index}
-              className={`flex gap-3 max-w-[85%] md:max-w-[70%] ${
-                isUser ? 'ml-auto flex-row-reverse' : 'mr-auto'
-              }`}
+              className={`flex gap-3 max-w-[85%] md:max-w-[70%] ${isUser ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
             >
               <div
                 className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 border ${
@@ -167,10 +180,39 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
                 }`}
               >
                 {msg.content}
-                {msg.weather && <div className="mt-4"><WeatherCard weather={msg.weather} /></div>}
+                {msg.weather && (
+                  <div className="mt-4">
+                    <WeatherCard weather={msg.weather} />
+                  </div>
+                )}
                 {msg.webSources && <WebSourcesCard sources={msg.webSources} />}
-                {msg.documentsUsed && msg.documentsUsed.length > 0 && <details className="mt-3 rounded-xl border border-cyan-500/15 bg-cyan-500/5 px-3 py-2 text-xs text-zinc-400"><summary className="cursor-pointer font-semibold text-cyan-200">Использованы документы: {msg.documentsUsed.length}</summary><ul className="mt-2 space-y-1 text-zinc-500">{msg.documentsUsed.map(item => <li key={`${item.document_id}-${item.chunk_id}`}>{item.document_name}</li>)}</ul></details>}
-                {msg.memoryUsed && msg.memoryUsed.length > 0 && <details className="mt-3 rounded-xl border border-purple-500/15 bg-purple-500/5 px-3 py-2 text-xs text-zinc-400"><summary className="cursor-pointer font-semibold text-purple-200">Использовано из памяти: {msg.memoryUsed.length}</summary><ul className="mt-2 space-y-1 text-zinc-500">{msg.memoryUsed.map(item => <li key={`${item.type}-${item.id}`}>{item.type === 'note' ? 'Заметка: ' : 'Факт: '}{item.title}</li>)}</ul></details>}
+                {msg.documentsUsed && msg.documentsUsed.length > 0 && (
+                  <details className="mt-3 rounded-xl border border-cyan-500/15 bg-cyan-500/5 px-3 py-2 text-xs text-zinc-400">
+                    <summary className="cursor-pointer font-semibold text-cyan-200">
+                      Использованы документы: {msg.documentsUsed.length}
+                    </summary>
+                    <ul className="mt-2 space-y-1 text-zinc-500">
+                      {msg.documentsUsed.map((item) => (
+                        <li key={`${item.document_id}-${item.chunk_id}`}>{item.document_name}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {msg.memoryUsed && msg.memoryUsed.length > 0 && (
+                  <details className="mt-3 rounded-xl border border-purple-500/15 bg-purple-500/5 px-3 py-2 text-xs text-zinc-400">
+                    <summary className="cursor-pointer font-semibold text-purple-200">
+                      Использовано из памяти: {msg.memoryUsed.length}
+                    </summary>
+                    <ul className="mt-2 space-y-1 text-zinc-500">
+                      {msg.memoryUsed.map((item) => (
+                        <li key={`${item.type}-${item.id}`}>
+                          {item.type === 'note' ? 'Заметка: ' : 'Факт: '}
+                          {item.title}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </div>
             </div>
           );
@@ -182,9 +224,18 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
               <Bot className="h-4.5 w-4.5" />
             </div>
             <div className="p-3.5 bg-zinc-900/85 border border-zinc-800 rounded-2xl flex items-center gap-1.5 shadow-sm">
-              <span className="h-2 w-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-              <span className="h-2 w-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-              <span className="h-2 w-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+              <span
+                className="h-2 w-2 bg-zinc-400 rounded-full animate-bounce"
+                style={{ animationDelay: '0ms' }}
+              ></span>
+              <span
+                className="h-2 w-2 bg-zinc-400 rounded-full animate-bounce"
+                style={{ animationDelay: '150ms' }}
+              ></span>
+              <span
+                className="h-2 w-2 bg-zinc-400 rounded-full animate-bounce"
+                style={{ animationDelay: '300ms' }}
+              ></span>
             </div>
           </div>
         )}
@@ -229,13 +280,13 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
               onClick={() => {
                 setError(null);
                 if (messages.length > 0) {
-                  const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+                  const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
                   if (lastUserMessage) {
                     handleSend(lastUserMessage.content);
                   }
                 }
               }}
-              className="py-1.5 px-4 bg-zinc-850 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 active:bg-zinc-900 text-zinc-300 text-xs font-semibold rounded-lg transition-all cursor-pointer"
+              className="py-1.5 px-4 bg-zinc-800 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 active:bg-zinc-900 text-zinc-300 text-xs font-semibold rounded-lg transition-all cursor-pointer"
             >
               Попробовать снова
             </button>
@@ -260,7 +311,7 @@ export default function ChatPage({ sessionId }: ChatPageProps) {
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
             placeholder={loading ? 'Ожидание ответа...' : 'Спросите ассистента...'}
-            className="flex-1 px-4 py-3 bg-zinc-900/70 border border-zinc-850 focus:border-purple-650 rounded-2xl text-sm text-zinc-200 placeholder-zinc-500 outline-none transition-all disabled:opacity-60"
+            className="flex-1 px-4 py-3 bg-zinc-900/70 border border-zinc-800 focus:border-purple-650 rounded-2xl text-sm text-zinc-200 placeholder-zinc-500 outline-none transition-all disabled:opacity-60"
           />
           <button
             type="submit"

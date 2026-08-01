@@ -14,6 +14,7 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const NotificationPreferencesPage = lazy(() => import('./pages/NotificationPreferencesPage'));
 const ErrorsPage = lazy(() => import('./pages/ErrorsPage'));
 const SystemPage = lazy(() => import('./pages/SystemPage'));
+const LlmSettingsPage = lazy(() => import('./pages/LlmSettingsPage'));
 const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const MailPage = lazy(() => import('./pages/MailPage'));
 const FinancePage = lazy(() => import('./pages/FinancePage'));
@@ -52,6 +53,7 @@ function App() {
             <Route path="/notifications/preferences" element={<NotificationPreferencesPage />} />
             <Route path="/errors" element={<ErrorsPage />} />
             <Route path="/system" element={<SystemPage />} />
+            <Route path="/settings/llm" element={<LlmSettingsPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/mail" element={<MailPage />} />
             <Route path="/finance" element={<FinancePage />} />

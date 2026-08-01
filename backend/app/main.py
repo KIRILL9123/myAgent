@@ -194,14 +194,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     print(f"[SCHEDULER] Started. Morning summary at {hour:02d}:{minute:02d}, consolidation at 03:00")
     
     import asyncio
+    from backend.app.core.execution_mode import is_dry_run
     from backend.app.notifications.telegram_listener import start_polling
-    telegram_task = asyncio.create_task(start_polling())
-    _background_tasks.add(telegram_task)
-    telegram_task.add_done_callback(_background_tasks.discard)
-    telegram_task.add_done_callback(_log_task_exception)
+    telegram_task = None
+    if not is_dry_run():
+        telegram_task = asyncio.create_task(start_polling())
+        _background_tasks.add(telegram_task)
+        telegram_task.add_done_callback(_background_tasks.discard)
+        telegram_task.add_done_callback(_log_task_exception)
+        print("[TELEGRAM] Listener started (REAL mode).")
+    else:
+        print("[TELEGRAM] Listener disabled (DRY_RUN mode).")
     yield
     
-    telegram_task.cancel()
+    if telegram_task is not None:
+        telegram_task.cancel()
     scheduler.shutdown()
     print("[SCHEDULER] Shutdown.")
     

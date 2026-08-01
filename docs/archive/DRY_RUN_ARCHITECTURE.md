@@ -3,24 +3,40 @@
 ## Why this is required
 A prior regression executed a real-world side effect. The system must prevent this by construction, not by convention.
 
-## Current side-effect paths
-- SMTP send: `backend/app/connectors/mail_connector.py` (`send_email`)
-- IMAP read (network + local sync-state mutation): `backend/app/connectors/mail_connector.py`
-- CalDAV create/modify/delete: `backend/app/connectors/caldav_connector.py`
-- Telegram send/polling: `backend/app/notifications/telegram_notifier.py`, `backend/app/notifications/telegram_listener.py`
-- Finance DB mutations: `backend/app/finance/finance_service.py`
-- Scheduler-triggered effects: `backend/app/agent/scheduled_tasks.py`, `backend/app/main.py`
+## Current side-effect paths (all guarded as of Cycle 1)
 
-## Dangerous paths today
-- `dev-tools/test_*` scripts can call real services when credentials are present.
-- App startup launches Telegram polling task automatically.
-- Read operations can still mutate state (`mail_sync_state` updates in unread-mail flow).
+### External side effects (network)
+- SMTP send: `backend/app/connectors/mail_connector.py` (`send_email`) — **guarded**
+- CalDAV create/modify/delete: `backend/app/connectors/caldav_connector.py` — **guarded**
+- Telegram send: `backend/app/notifications/telegram_notifier.py` (`send_notification`) — **guarded**
+- Telegram polling: `backend/app/notifications/telegram_listener.py` — **skipped in dry_run at startup** (main.py)
+- IMAP read (network): `backend/app/connectors/mail_connector.py` — read is safe, but sync-state mutation now **guarded**
 
-## Proposed architecture boundaries
-1. **Execution policy object** (`ExecutionMode = DRY_RUN | REAL`) injected at app edges (API, orchestrator, scheduler).
-2. **Connector boundary**: all networked connectors require policy and return structured intent in dry-run.
-3. **Mutation boundary**: service-level write functions require policy; dry-run path returns `{"status":"dry_run","would_do":...}`.
-4. **Scheduler boundary**: scheduler jobs run dry-run in CI/sandbox unless explicitly enabled.
+### Local persistent writes (SQLite)
+- Finance: `add_transaction`, `delete_transaction` — **guarded**
+- Countdown: `add_countdown`, `delete_countdown` — **guarded** (Cycle 1)
+- Memory: `save_pending_fact`, `approve_fact`, `reject_fact`, `consolidate_facts`, `save_relation`, `update_fact_timestamp`, `save_approved_fact`, `mark_facts_as_merged` — **all guarded** (Cycle 1)
+- Email sync state: `update_last_seen_uid` in `list_unread_emails` — **guarded** (Cycle 1)
+- Recurring templates: `add_recurring_template`, `delete_recurring_template` — **guarded** (Cycle 1)
+- Recurring transaction processing: `process_recurring_transactions` — **guarded** (Cycle 1)
+
+### Background / scheduler
+- Morning summary: Telegram notification guarded; CalDAV/IMAP reads are safe; sync-state now uses `bypass_last_seen` in dry_run (Cycle 1)
+- Nightly consolidation: uses `find_consolidation_candidates` (read-only); writes guarded
+- Recurring transactions: scheduler job **guarded** (Cycle 1)
+
+## Safety invariant (Cycle 1)
+
+**In DRY_RUN mode:**
+- No external network side effects (email, calendar mutations, Telegram messages)
+- No persistent SQLite state mutation (facts, transactions, countdowns, templates, sync state)
+- No Telegram polling (listener disabled at startup)
+- Scheduler reads are allowed; writes are suppressed
+- All guarded functions return `{"status": "dry_run", "would_do": {...}}` or sentinel values
+
+**Developer tools (dev-tools/):**
+- Scripts that cause side effects require `EXECUTION_MODE=real` and abort with an error otherwise
+- Read-only scripts are explicitly documented as safe
 
 ## Required test doubles/fakes
 - `FakeMailConnector` (captures outgoing email payloads)

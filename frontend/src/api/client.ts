@@ -34,7 +34,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   const response = await fetch(path, { ...init, headers: getHeaders(init.headers) });
   if (!response.ok) {
     const detail = await readError(response);
-    throw new ApiError(detail, response.status, detail);
+    throw new ApiError(`HTTP ${response.status}: ${detail}`, response.status, detail);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

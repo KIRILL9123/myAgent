@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchPendingFacts, approveFact, rejectFact } from '../api/memory';
 import type { PendingFact } from '../api/memory';
 import { Check, Trash2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Button, Dialog } from './ui';
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   preference: { bg: 'bg-purple-950/30', text: 'text-purple-300', border: 'border-purple-800/40' },
@@ -20,6 +21,10 @@ export default function PendingFactsQueue({ onFactProcessed }: PendingFactsQueue
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [pendingRejectId, setPendingRejectId] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const errorMessage = (err: unknown, fallback: string) => (err instanceof Error ? err.message : fallback);
 
   async function loadPending() {
     setLoading(true);
@@ -27,8 +32,8 @@ export default function PendingFactsQueue({ onFactProcessed }: PendingFactsQueue
     try {
       const data = await fetchPendingFacts();
       setFacts(data.facts || []);
-    } catch (err: any) {
-      setError(err.message || 'Не удалось загрузить очередь подтверждения');
+    } catch (err: unknown) {
+      setError(errorMessage(err, 'Не удалось загрузить очередь подтверждения'));
     } finally {
       setLoading(false);
     }
@@ -39,6 +44,7 @@ export default function PendingFactsQueue({ onFactProcessed }: PendingFactsQueue
   }, []);
 
   const handleApprove = async (id: number) => {
+    setActionError(null);
     setProcessingId(id);
     // Optimistic UI update: hold previous state in case of error
     const previousFacts = [...facts];
@@ -47,8 +53,8 @@ export default function PendingFactsQueue({ onFactProcessed }: PendingFactsQueue
     try {
       await approveFact(id);
       onFactProcessed();
-    } catch (err: any) {
-      alert(`Ошибка при подтверждении факта: ${err.message}`);
+    } catch (err: unknown) {
+      setActionError(`Не удалось подтвердить факт: ${errorMessage(err, 'попробуйте ещё раз')}`);
       // Rollback optimistic update
       setFacts(previousFacts);
     } finally {
@@ -56,17 +62,20 @@ export default function PendingFactsQueue({ onFactProcessed }: PendingFactsQueue
     }
   };
 
-  const handleReject = async (id: number) => {
-    if (!confirm('Вы уверены, что хотите отклонить этот факт?')) return;
+  const confirmReject = async () => {
+    if (pendingRejectId === null) return;
+    const id = pendingRejectId;
+    setActionError(null);
     setProcessingId(id);
     const previousFacts = [...facts];
     setFacts((prev) => prev.filter((f) => f.id !== id));
 
     try {
       await rejectFact(id);
+      setPendingRejectId(null);
       onFactProcessed();
-    } catch (err: any) {
-      alert(`Ошибка при отклонении факта: ${err.message}`);
+    } catch (err: unknown) {
+      setActionError(`Не удалось отклонить факт: ${errorMessage(err, 'попробуйте ещё раз')}`);
       setFacts(previousFacts);
     } finally {
       setProcessingId(null);
@@ -116,6 +125,14 @@ export default function PendingFactsQueue({ onFactProcessed }: PendingFactsQueue
 
   return (
     <div className="w-full max-w-4xl mx-auto px-6 py-8 flex flex-col gap-6">
+      {actionError && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-xs text-rose-200">
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} className="text-rose-300 hover:text-rose-100">
+            Закрыть
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
         <div className="flex items-center gap-3">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-500/10 text-xs font-bold text-purple-400 border border-purple-500/20">
@@ -149,15 +166,11 @@ export default function PendingFactsQueue({ onFactProcessed }: PendingFactsQueue
                 >
                   {fact.category}
                 </span>
-                <span className="text-[10px] text-zinc-500 font-mono">
-                  ID: {fact.id}
-                </span>
+                <span className="text-[10px] text-zinc-500 font-mono">ID: {fact.id}</span>
               </div>
 
               {/* Main content */}
-              <p className="text-sm font-medium text-zinc-200 leading-relaxed flex-grow mb-6">
-                {fact.content}
-              </p>
+              <p className="text-sm font-medium text-zinc-200 leading-relaxed flex-grow mb-6">{fact.content}</p>
 
               {/* Confidence Progress bar */}
               <div className="flex flex-col gap-1.5 mb-6">
@@ -178,11 +191,14 @@ export default function PendingFactsQueue({ onFactProcessed }: PendingFactsQueue
                 <span className="text-[10px] text-zinc-600 font-mono">
                   {new Date(fact.created_at).toLocaleDateString('ru-RU')}
                 </span>
-                
+
                 <div className="flex items-center gap-2">
                   <button
                     disabled={processingId === fact.id}
-                    onClick={() => handleReject(fact.id)}
+                    onClick={() => {
+                      setActionError(null);
+                      setPendingRejectId(fact.id);
+                    }}
                     className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-rose-950/30 hover:text-rose-400 hover:border-rose-900/30 border border-zinc-800 text-zinc-400 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Отклонить
@@ -200,6 +216,20 @@ export default function PendingFactsQueue({ onFactProcessed }: PendingFactsQueue
           );
         })}
       </div>
+      {pendingRejectId !== null && (
+        <Dialog
+          title="Отклонить факт?"
+          description="Факт не будет сохранён в персональной памяти агента."
+          onClose={() => setPendingRejectId(null)}
+        >
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setPendingRejectId(null)}>Отмена</Button>
+            <Button tone="danger" onClick={confirmReject} loading={processingId === pendingRejectId}>
+              Отклонить
+            </Button>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

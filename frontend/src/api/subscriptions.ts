@@ -1,3 +1,5 @@
+import { apiRequest } from './client';
+
 export type SubscriptionStatus = 'PROPOSED' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED';
 export type SubscriptionType = 'TRIAL' | 'PAID' | 'UNKNOWN';
 
@@ -39,19 +41,11 @@ export interface SubscriptionCreateInput {
 
 const API_BASE = '/api/subscriptions';
 
-const headers = (json = false): Record<string, string> => ({
-  'X-API-Key': (import.meta.env.VITE_API_KEY as string) || '',
-  ...(json ? { 'Content-Type': 'application/json' } : {}),
-});
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+const request = <T>(path: string, init: RequestInit = {}) =>
+  apiRequest<T>(`${API_BASE}${path}`, {
     ...init,
-    headers: { ...headers(Boolean(init.body)), ...(init.headers || {}) },
+    headers: init.body ? { 'Content-Type': 'application/json', ...init.headers } : init.headers,
   });
-  if (!response.ok) throw new Error((await response.text()) || `Subscription request failed: ${response.status}`);
-  return response.json();
-}
 
 export async function fetchSubscriptions(status?: SubscriptionStatus): Promise<Subscription[]> {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
@@ -64,14 +58,20 @@ export async function createSubscription(input: SubscriptionCreateInput): Promis
 }
 
 export async function approveSubscription(id: string): Promise<Subscription> {
-  return request<Subscription>(`/${id}/approve`, { method: 'POST', body: JSON.stringify({ provenance: { channel: 'web' } }) });
+  return request<Subscription>(`/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ provenance: { channel: 'web' } }),
+  });
 }
 
 export async function cancelSubscription(id: string): Promise<Subscription> {
   return request<Subscription>(`/${id}/cancel`, { method: 'POST' });
 }
 
-export async function scanEmailForSubscriptions(account: string, limit = 20): Promise<{
+export async function scanEmailForSubscriptions(
+  account: string,
+  limit = 20,
+): Promise<{
   account: string;
   scanned: number;
   proposals: Subscription[];

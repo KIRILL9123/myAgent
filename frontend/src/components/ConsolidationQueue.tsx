@@ -24,6 +24,9 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
   // States to allow user edits of suggestions inline
   const [editedContents, setEditedContents] = useState<Record<number, string>>({});
   const [editedCategories, setEditedCategories] = useState<Record<number, string>>({});
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const errorMessage = (err: unknown, fallback: string) => (err instanceof Error ? err.message : fallback);
 
   async function loadSuggestions() {
     setLoading(true);
@@ -31,7 +34,7 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
     try {
       const data = await fetchConsolidationSuggestions();
       setSuggestions(data.suggestions || []);
-      
+
       // Initialize edit states
       const contents: Record<number, string> = {};
       const categories: Record<number, string> = {};
@@ -41,8 +44,8 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
       });
       setEditedContents(contents);
       setEditedCategories(categories);
-    } catch (err: any) {
-      setError(err.message || 'Не удалось загрузить предложения по объединению');
+    } catch (err: unknown) {
+      setError(errorMessage(err, 'Не удалось загрузить предложения по объединению'));
     } finally {
       setLoading(false);
     }
@@ -58,10 +61,11 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
     const finalCategory = editedCategories[index] || sug.category;
 
     if (!finalContent.trim()) {
-      alert('Текст объединенного факта не может быть пустым.');
+      setActionError('Текст объединённого факта не может быть пустым.');
       return;
     }
 
+    setActionError(null);
     setProcessingIndex(index);
     // Optimistically filter out
     const previousSuggestions = [...suggestions];
@@ -70,8 +74,8 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
     try {
       await consolidateFacts(sug.fact_ids, finalContent, finalCategory);
       onConsolidationProcessed();
-    } catch (err: any) {
-      alert(`Ошибка при объединении фактов: ${err.message}`);
+    } catch (err: unknown) {
+      setActionError(`Не удалось объединить факты: ${errorMessage(err, 'попробуйте ещё раз')}`);
       setSuggestions(previousSuggestions);
     } finally {
       setProcessingIndex(null);
@@ -126,6 +130,14 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
 
   return (
     <div className="w-full max-w-4xl mx-auto px-6 py-8 flex flex-col gap-6">
+      {actionError && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-xs text-rose-200">
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} className="text-rose-300 hover:text-rose-100">
+            Закрыть
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
         <div className="flex items-center gap-3">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-500/10 text-xs font-bold text-purple-400 border border-purple-500/20">
@@ -153,7 +165,6 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
               className="flex flex-col bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 shadow-lg backdrop-blur-sm relative overflow-hidden"
             >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
                 {/* Left side: Source duplicate/similar facts */}
                 <div className="flex flex-col border-r border-zinc-800/50 pr-0 lg:pr-6 gap-3">
                   <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
@@ -163,9 +174,14 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
                     {sug.source_facts.map((srcFact) => {
                       const badgeStyle = CATEGORY_COLORS[srcFact.category] || CATEGORY_COLORS.other;
                       return (
-                        <div key={srcFact.id} className="flex flex-col bg-zinc-950/40 rounded-xl p-3 border border-zinc-900">
+                        <div
+                          key={srcFact.id}
+                          className="flex flex-col bg-zinc-950/40 rounded-xl p-3 border border-zinc-900"
+                        >
                           <div className="flex items-center justify-between mb-1.5">
-                            <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}
+                            >
                               {srcFact.category}
                             </span>
                             <span className="text-[9px] text-zinc-600 font-mono">ID: {srcFact.id}</span>
@@ -183,13 +199,13 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
                     <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
                       Предложение по слиянию:
                     </h3>
-                    
+
                     {/* Merged Content Edit */}
                     <div className="flex flex-col gap-1.5 mt-2">
                       <label className="text-[10px] text-zinc-500 font-medium">Объединенная формулировка</label>
                       <textarea
                         value={contentVal}
-                        onChange={(e) => setEditedContents(prev => ({ ...prev, [index]: e.target.value }))}
+                        onChange={(e) => setEditedContents((prev) => ({ ...prev, [index]: e.target.value }))}
                         className="w-full bg-zinc-950/80 border border-zinc-800/80 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-purple-500/80 shadow-inner font-sans min-h-[70px] resize-y leading-relaxed"
                       />
                     </div>
@@ -199,7 +215,7 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
                       <label className="text-[10px] text-zinc-500 font-medium">Категория нового факта</label>
                       <select
                         value={categoryVal}
-                        onChange={(e) => setEditedCategories(prev => ({ ...prev, [index]: e.target.value as any }))}
+                        onChange={(e) => setEditedCategories((prev) => ({ ...prev, [index]: e.target.value }))}
                         className="bg-zinc-950 border border-zinc-800/80 rounded-xl px-3 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-purple-500/80 cursor-pointer"
                       >
                         <option value="preference">Preference (Предпочтение)</option>
@@ -228,7 +244,6 @@ export default function ConsolidationQueue({ onConsolidationProcessed }: Consoli
                       <Merge className="h-3.5 w-3.5" /> Объединить факты
                     </button>
                   </div>
-
                 </div>
               </div>
             </div>

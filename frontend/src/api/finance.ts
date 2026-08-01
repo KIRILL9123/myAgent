@@ -3,6 +3,7 @@ import type {
   RecurringTemplate,
   Transaction,
   TransactionCreateInput,
+  TransactionUpdateInput,
 } from '../types';
 import { apiRequest } from './client';
 
@@ -11,6 +12,7 @@ export type {
   RecurringTemplate,
   Transaction,
   TransactionCreateInput,
+  TransactionUpdateInput,
 } from '../types';
 
 const API_BASE = '/api/finance';
@@ -38,6 +40,14 @@ export async function createTransaction(input: TransactionCreateInput): Promise<
 export async function deleteTransaction(id: number): Promise<{ status: string; message: string }> {
   return apiRequest<{ status: string; message: string }>(`${API_BASE}/transactions/${id}`, {
     method: 'DELETE',
+  });
+}
+
+export async function updateTransaction(id: number, input: TransactionUpdateInput): Promise<{ status: string; message: string }> {
+  return apiRequest<{ status: string; message: string }>(`${API_BASE}/transactions/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
   });
 }
 

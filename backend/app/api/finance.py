@@ -7,6 +7,7 @@ from backend.app.finance.finance_service import (
     add_transaction, 
     get_transactions, 
     get_summary,
+    update_transaction,
     add_recurring_template,
     get_recurring_templates,
     delete_recurring_template
@@ -21,6 +22,13 @@ class TransactionCreate(BaseModel):
     description: Optional[str] = ""
     date: Optional[str] = None
     is_recurring: Optional[bool] = False
+
+class TransactionUpdate(BaseModel):
+    type: Optional[str] = None
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    date: Optional[str] = None
 
 class RecurringTemplateCreate(BaseModel):
     type: str
@@ -95,6 +103,30 @@ async def api_get_summary(
             datetime.strptime(end_date, "%Y-%m-%d")
             
         return get_summary(start_date, end_date)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(ve)}. Use YYYY-MM-DD.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/transactions/{transaction_id}")
+async def api_update_transaction(transaction_id: int, txn: TransactionUpdate):
+    try:
+        if txn.date:
+            datetime.strptime(txn.date, "%Y-%m-%d")
+        result = update_transaction(
+            transaction_id,
+            type=txn.type,
+            amount=txn.amount,
+            category=txn.category,
+            description=txn.description,
+            transaction_date=txn.date,
+        )
+        if isinstance(result, dict) and result.get("status") == "error":
+            status_code = 404 if "not found" in result.get("message", "").lower() else 400
+            raise HTTPException(status_code=status_code, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=f"Invalid date format: {str(ve)}. Use YYYY-MM-DD.")
     except Exception as e:

@@ -8,10 +8,10 @@ interface FinanceSummaryCardsProps {
 
 export default function FinanceSummaryCards({ summary, formatCurrency }: FinanceSummaryCardsProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-      <div className="bg-zinc-900/30 border border-zinc-900 rounded-2xl p-4.5 flex items-center justify-between">
+    <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+      <div className="flex min-w-0 items-center justify-between rounded-2xl border border-zinc-900 bg-zinc-900/30 p-4.5">
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-widest">Доходы</span>
+          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Доходы</span>
           <span className="text-base font-bold text-emerald-400 font-mono">
             {formatCurrency(summary.total_income)}
           </span>
@@ -21,9 +21,9 @@ export default function FinanceSummaryCards({ summary, formatCurrency }: Finance
         </div>
       </div>
 
-      <div className="bg-zinc-900/30 border border-zinc-900 rounded-2xl p-4.5 flex items-center justify-between">
+      <div className="flex min-w-0 items-center justify-between rounded-2xl border border-zinc-900 bg-zinc-900/30 p-4.5">
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-widest">Расходы</span>
+          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Расходы</span>
           <span className="text-base font-bold text-rose-400 font-mono">
             {formatCurrency(summary.total_expense)}
           </span>
@@ -33,10 +33,10 @@ export default function FinanceSummaryCards({ summary, formatCurrency }: Finance
         </div>
       </div>
 
-      <div className="bg-zinc-900/30 border border-zinc-900 rounded-2xl p-4.5 flex items-center justify-between">
+      <div className="flex min-w-0 items-center justify-between rounded-2xl border border-zinc-900 bg-zinc-900/30 p-4.5">
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold text-zinc-550 uppercase tracking-widest">Баланс</span>
-          <span className={`text-base font-bold font-mono ${summary.net_balance >= 0 ? 'text-emerald-400' : 'text-rose-450'}`}>
+          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Баланс</span>
+          <span className={`text-base font-bold font-mono ${summary.net_balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             {formatCurrency(summary.net_balance)}
           </span>
         </div>

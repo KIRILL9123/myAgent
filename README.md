@@ -87,6 +87,18 @@ If you are developing the React interface and want Hot Module Replacement (HMR):
    ```
    This will start the Vite dev server at [http://localhost:5173/dashboard](http://localhost:5173/dashboard) and proxy API requests automatically to the backend.
 
+## Testing
+
+Run the automated test suite:
+```bash
+pytest
+```
+This runs 170+ tests covering tool validation, dry-run safety, permissions, memory lifecycle, API security, and more. Tests use isolated temporary databases and mocked external services — no real credentials or network access required.
+
+CI runs automatically on push/PR via GitHub Actions.
+
+See [docs/TESTING.md](docs/TESTING.md) for details on test architecture and fixtures.
+
 ## Architecture & Design
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ROADMAP.md](docs/ROADMAP.md) for deeper details.
 

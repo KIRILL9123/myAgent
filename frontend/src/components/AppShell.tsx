@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Brain, Calendar, CheckCircle2, ChevronDown, Clock, Code2, CreditCard, FileStack,
   LayoutDashboard, ListTodo, Mail, Menu, MessageSquare, MonitorCog,
-  ShieldCheck, Sparkles, TriangleAlert, Wallet, X, Bell,
+  ShieldCheck, Sparkles, TriangleAlert, Wallet, X, Bell, SlidersHorizontal,
 } from 'lucide-react';
 
 interface AppShellProps { children: React.ReactNode; }
@@ -64,6 +64,7 @@ const NAV_GROUPS: NavGroup[] = [
       { path: '/errors', label: 'Ошибки', mobile: 'Ошибки', icon: TriangleAlert },
       { path: '/approvals', label: 'Подтверждения', mobile: 'Подтверждения', icon: ShieldCheck },
       { path: '/system', label: 'Система', mobile: 'Система', icon: MonitorCog },
+      { path: '/settings/llm', label: 'LLM-провайдер', mobile: 'LLM', icon: SlidersHorizontal },
       { path: '/sandbox', label: 'Песочница', mobile: 'Песочница', icon: Code2 },
     ],
   },

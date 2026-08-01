@@ -9,13 +9,14 @@ from backend.app.agent import llm
 from backend.app.observability.host_diagnostics import get_host_diagnostics
 
 
-def _check_endpoint(name: str, url: str) -> dict:
+def _check_endpoint(name: str, url: str, headers: dict[str, str] | None = None) -> dict:
     started = time.monotonic()
     parsed = urlparse(url)
     result = {"name": name, "url": url, "host": parsed.hostname, "port": parsed.port,
               "status": "unreachable", "latency_ms": None, "detail": None}
     try:
-        request = Request(url, headers={"User-Agent": "HomeAgent-health/1.0"})
+        request_headers = {"User-Agent": "HomeAgent-health/1.0", **(headers or {})}
+        request = Request(url, headers=request_headers)
         with urlopen(request, timeout=3) as response:
             result["status"] = "ok" if 200 <= response.status < 400 else "degraded"
             result["detail"] = f"HTTP {response.status}"
@@ -40,15 +41,20 @@ def _check_port(host: str | None, port: int | None) -> dict:
 
 
 def get_system_status() -> dict:
-    provider = llm.LLM_PROVIDER
-    bonsai_url = f"{llm.OPENAI_BASE_URL}/models"
-    ollama_url = f"{llm.OLLAMA_URL}/api/tags"
-    bonsai = _check_endpoint("bonsai", bonsai_url)
-    ollama = _check_endpoint("ollama", ollama_url)
-    model = bonsai if provider == "openai_compatible" else ollama
+    provider = llm.get_active_provider()
+    profiles = {item["id"]: item for item in llm.get_provider_profiles()}
+    local_url = f"{llm.OLLAMA_URL}/api/tags"
+    deepseek_url = f"{llm.DEEPSEEK_BASE_URL}/models"
+    local = _check_endpoint("local", local_url)
+    deepseek = _check_endpoint("deepseek", deepseek_url, {"Authorization": f"Bearer {llm.DEEPSEEK_API_KEY}"}) if profiles["deepseek"]["configured"] else {
+        "name": "deepseek", "url": deepseek_url, "host": urlparse(deepseek_url).hostname,
+        "port": urlparse(deepseek_url).port, "status": "not_configured", "latency_ms": None,
+        "detail": "DEEPSEEK_API_KEY is not configured",
+    }
+    model = deepseek if provider == "deepseek" else local
     parsed = urlparse(model["url"])
-    bonsai_parsed = urlparse(bonsai_url)
-    ollama_parsed = urlparse(ollama_url)
+    deepseek_parsed = urlparse(deepseek_url)
+    local_parsed = urlparse(local_url)
     host_metrics = get_host_diagnostics()
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -60,10 +66,10 @@ def get_system_status() -> dict:
             "endpoint": f"{parsed.scheme}://{parsed.hostname}:{parsed.port or (443 if parsed.scheme == 'https' else 80)}",
             **model,
         },
-        "services": {"bonsai": bonsai, "ollama": ollama},
+        "services": {"deepseek": deepseek, "ollama": local},
         "ports": [
-            _check_port(bonsai_parsed.hostname, bonsai_parsed.port or (443 if bonsai_parsed.scheme == "https" else 80)),
-            _check_port(ollama_parsed.hostname, ollama_parsed.port or (443 if ollama_parsed.scheme == "https" else 80)),
+            _check_port(deepseek_parsed.hostname, deepseek_parsed.port or (443 if deepseek_parsed.scheme == "https" else 80)),
+            _check_port(local_parsed.hostname, local_parsed.port or (443 if local_parsed.scheme == "https" else 80)),
             _check_port("127.0.0.1", 8000),
         ],
         "host": {"platform": platform.platform(), "hostname": socket.gethostname(),

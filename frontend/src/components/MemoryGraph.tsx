@@ -1,25 +1,62 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, type ComponentType, type Ref } from 'react';
 import { fetchMemoryGraph } from '../api/memory';
-import type { MemoryGraphData, FactNode } from '../api/memory';
+import type { MemoryGraphData, FactEdge, FactNode } from '../api/memory';
 import { Maximize, Search, X } from 'lucide-react';
 
 const CATEGORY_COLORS: Record<string, string> = {
-  preference: '#c084fc',    // Purple
-  habit: '#4ade80',         // Green
-  relationship: '#f472b6',  // Pink
-  project: '#facc15',       // Yellow
-  other: '#a1a1aa',         // Zinc Gray
+  preference: '#c084fc', // Purple
+  habit: '#4ade80', // Green
+  relationship: '#f472b6', // Pink
+  project: '#facc15', // Yellow
+  other: '#a1a1aa', // Zinc Gray
 };
 
 const RELATION_COLORS: Record<string, string> = {
-  related_to: '#475569',    // Slate Gray
-  contradicts: '#ef4444',   // Red
-  clarifies: '#0284c7',     // Sky Blue
-  causes: '#f97316',        // Orange
+  related_to: '#475569', // Slate Gray
+  contradicts: '#ef4444', // Red
+  clarifies: '#0284c7', // Sky Blue
+  causes: '#f97316', // Orange
 };
 
 interface MemoryGraphProps {
   refreshTrigger: number;
+}
+
+type GraphNode = FactNode & { x?: number; y?: number };
+type GraphLink = { source: number | GraphNode; target: number | GraphNode; relation_type: FactEdge['relation_type'] };
+
+interface ForceGraphApi {
+  d3ReheatSimulation(): void;
+  d3Force(name: string): { strength(value: number): void; distance(value: number): void } | undefined;
+  zoomToFit(duration: number): void;
+  centerAt(x: number, y: number, duration: number): void;
+}
+
+interface ForceGraphProps {
+  ref?: Ref<ForceGraphApi>;
+  graphData: { nodes: GraphNode[]; links: GraphLink[] };
+  width: number;
+  height: number;
+  backgroundColor: string;
+  nodeRelSize: number;
+  nodeVal(node: GraphNode): number;
+  nodeCanvasObject(node: GraphNode, context: CanvasRenderingContext2D, globalScale: number): void;
+  nodeCanvasObjectMode(): 'replace';
+  linkColor(link: GraphLink): string;
+  linkWidth(link: GraphLink): number;
+  linkLineDash(link: GraphLink): number[] | undefined;
+  linkDirectionalArrowLength(link: GraphLink): number;
+  linkDirectionalArrowRelPos: number;
+  linkDirectionalArrowColor(link: GraphLink): string;
+  onNodeClick(node: GraphNode): void;
+  onEngineStop(): void;
+}
+
+type ForceGraphComponent = ComponentType<ForceGraphProps>;
+
+function getNodeId(endpoint: number | FactNode): number | null {
+  if (typeof endpoint === 'number') return endpoint;
+  return typeof endpoint.id === 'number' ? endpoint.id : null;
 }
 
 export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
@@ -28,21 +65,20 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<FactNode | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
-  const graphRef = useRef<any>(null);
-  
+  const graphRef = useRef<ForceGraphApi | null>(null);
+
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-  const [ForceGraph2D, setForceGraph2D] = useState<any>(null);
+  const [ForceGraph2D, setForceGraph2D] = useState<ForceGraphComponent | null>(null);
 
   // Dynamic import of react-force-graph-2d to handle ESM/CommonJS interop cleanly
   useEffect(() => {
     import('react-force-graph-2d')
       .then((module) => {
-        setForceGraph2D(() => module.default);
+        setForceGraph2D(() => module.default as unknown as ForceGraphComponent);
       })
-      .catch((err) => {
-        console.error('Failed to dynamically import react-force-graph-2d:', err);
+      .catch(() => {
         setError('Failed to initialize graph visualization engine');
       });
   }, []);
@@ -52,8 +88,8 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
       try {
         const data = await fetchMemoryGraph();
         setGraphData(data);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load graph data');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load graph data');
       } finally {
         setLoading(false);
       }
@@ -94,13 +130,13 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
       if (charge) {
         charge.strength(-350);
       }
-      
+
       // 2. Longer default distance between connected nodes
       const link = graphRef.current.d3Force('link');
       if (link) {
         link.distance(120);
       }
-      
+
       // Reheat the physics engine to settle nodes in new spaced coordinates
       graphRef.current.d3ReheatSimulation();
     }
@@ -108,7 +144,6 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
 
   const handleEngineStop = () => {
     if (!hasAutoFitRun.current) {
-      console.log('onEngineStop: Auto-fitting graph to view');
       if (graphRef.current) {
         graphRef.current.zoomToFit(300);
       }
@@ -124,10 +159,10 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
         degrees[n.id] = 0;
       });
       (graphData.edges || []).forEach((edge) => {
-        const sId = typeof edge.source === 'object' ? (edge.source as any).id : edge.source;
-        const tId = typeof edge.target === 'object' ? (edge.target as any).id : edge.target;
-        if (degrees[sId] !== undefined) degrees[sId]++;
-        if (degrees[tId] !== undefined) degrees[tId]++;
+        const sId = getNodeId(edge.source);
+        const tId = getNodeId(edge.target);
+        if (sId !== null && degrees[sId] !== undefined) degrees[sId]++;
+        if (tId !== null && degrees[tId] !== undefined) degrees[tId]++;
       });
     }
     return degrees;
@@ -144,15 +179,15 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
     if (!selectedNode || !graphData) return [];
     const list: { node: FactNode; relation: string }[] = [];
     (graphData.edges || []).forEach((edge) => {
-      const sId = typeof edge.source === 'object' ? (edge.source as any).id : edge.source;
-      const tId = typeof edge.target === 'object' ? (edge.target as any).id : edge.target;
+      const sId = getNodeId(edge.source);
+      const tId = getNodeId(edge.target);
 
-      if (sId === selectedNode.id) {
+      if (sId === selectedNode.id && tId !== null) {
         const targetNode = graphData.nodes.find((n) => n.id === tId);
         if (targetNode) {
           list.push({ node: targetNode, relation: edge.relation_type });
         }
-      } else if (tId === selectedNode.id) {
+      } else if (tId === selectedNode.id && sId !== null) {
         const sourceNode = graphData.nodes.find((n) => n.id === sId);
         if (sourceNode) {
           list.push({ node: sourceNode, relation: edge.relation_type });
@@ -163,7 +198,6 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
   }, [selectedNode, graphData]);
 
   const handleFitView = () => {
-    console.log('handleFitView (zoomToFit) triggered');
     if (graphRef.current) {
       graphRef.current.zoomToFit(400);
     }
@@ -196,12 +230,7 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-zinc-950 text-zinc-400">
         <div className="text-center p-6 border border-dashed border-zinc-800 rounded-lg max-w-sm">
-          <svg
-            className="mx-auto h-12 w-12 text-zinc-600 mb-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
+          <svg className="mx-auto h-12 w-12 text-zinc-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -210,9 +239,7 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
             />
           </svg>
           <p className="font-medium text-zinc-300">Пока нет утвержденных фактов</p>
-          <p className="text-xs text-zinc-500 mt-1">
-            Факты появляются здесь после подтверждения на бэкенде.
-          </p>
+          <p className="text-xs text-zinc-500 mt-1">Факты появляются здесь после подтверждения на бэкенде.</p>
         </div>
       </div>
     );
@@ -280,21 +307,21 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
         width={dimensions.width}
         height={dimensions.height}
         backgroundColor="transparent"
-        
+
         // Node physics parameters
         nodeRelSize={6}
-        nodeVal={(node: any) => 4 + (nodeDegrees[node.id] || 0) * 2}
-        
+        nodeVal={(node: GraphNode) => 4 + (nodeDegrees[node.id] || 0) * 2}
+
         // Custom rendering for Obsidian style
-        nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+        nodeCanvasObject={(node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
           const degree = nodeDegrees[node.id] || 0;
           const size = 4 + degree * 1.5;
           const category = node.category || 'other';
           const color = CATEGORY_COLORS[category] || '#a1a1aa';
-          
+
           const x = typeof node.x === 'number' ? node.x : 0;
           const y = typeof node.y === 'number' ? node.y : 0;
-          
+
           const matched = isMatched(node);
 
           // Render with transparency if doesn't match search
@@ -338,41 +365,41 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
             ctx.fillStyle = '#e4e4e7'; // zinc-200
-            
+
             // Text shadow
             ctx.shadowColor = '#0e0e1a';
             ctx.shadowBlur = 4;
-            
+
             ctx.fillText(label, x, y + size + 4.5);
           }
-          
+
           ctx.restore();
         }}
         nodeCanvasObjectMode={() => 'replace'}
 
         // Built-in Link Customization
-        linkColor={(link: any) => {
-          const sId = typeof link.source === 'object' ? link.source.id : link.source;
-          const tId = typeof link.target === 'object' ? link.target.id : link.target;
-          
-          const sNode = graphData?.nodes.find(n => n.id === sId);
-          const tNode = graphData?.nodes.find(n => n.id === tId);
-          
+        linkColor={(link: GraphLink) => {
+          const sId = getNodeId(link.source);
+          const tId = getNodeId(link.target);
+
+          const sNode = graphData?.nodes.find((n) => n.id === sId);
+          const tNode = graphData?.nodes.find((n) => n.id === tId);
+
           const matched = (!sNode || isMatched(sNode)) && (!tNode || isMatched(tNode));
-          
+
           const baseColor = RELATION_COLORS[link.relation_type] || '#475569';
           return matched ? baseColor : `${baseColor}15`; // Faded if not matched
         }}
-        linkWidth={(link: any) => link.relation_type === 'clarifies' ? 1 : 2}
-        linkLineDash={(link: any) => link.relation_type === 'contradicts' ? [4, 4] : undefined}
-        
+        linkWidth={(link: GraphLink) => (link.relation_type === 'clarifies' ? 1 : 2)}
+        linkLineDash={(link: GraphLink) => (link.relation_type === 'contradicts' ? [4, 4] : undefined)}
+
         // Directional arrows for causes
-        linkDirectionalArrowLength={(link: any) => link.relation_type === 'causes' ? 6 : 0}
+        linkDirectionalArrowLength={(link: GraphLink) => (link.relation_type === 'causes' ? 6 : 0)}
         linkDirectionalArrowRelPos={1}
-        linkDirectionalArrowColor={(link: any) => RELATION_COLORS[link.relation_type] || '#475569'}
+        linkDirectionalArrowColor={(link: GraphLink) => RELATION_COLORS[link.relation_type] || '#475569'}
 
         // Event Handlers
-        onNodeClick={(node: any) => {
+        onNodeClick={(node: GraphNode) => {
           setSelectedNode(node);
         }}
         onEngineStop={handleEngineStop}
@@ -404,9 +431,7 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
           {/* Fact Content */}
           <div className="flex flex-col gap-2">
             <span className="text-[10px] text-zinc-500 font-semibold tracking-wider font-mono">СОДЕРЖАНИЕ ФАКТА</span>
-            <h3 className="text-sm font-bold text-zinc-200 leading-relaxed">
-              {selectedNode.content}
-            </h3>
+            <h3 className="text-sm font-bold text-zinc-200 leading-relaxed">{selectedNode.content}</h3>
           </div>
 
           {/* AI Confidence Meter */}
@@ -460,18 +485,14 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
                         {rf.node.category}
                       </span>
                     </div>
-                    <p className="text-xs font-semibold text-zinc-300 leading-snug line-clamp-2">
-                      {rf.node.content}
-                    </p>
+                    <p className="text-xs font-semibold text-zinc-300 leading-snug line-clamp-2">{rf.node.content}</p>
                   </div>
                 ))
               )}
             </div>
           </div>
-          
-          <div className="text-[9px] text-zinc-600 font-mono border-t border-zinc-900 pt-3">
-            ID: {selectedNode.id}
-          </div>
+
+          <div className="text-[9px] text-zinc-600 font-mono border-t border-zinc-900 pt-3">ID: {selectedNode.id}</div>
         </div>
       )}
     </div>

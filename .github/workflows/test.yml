@@ -1,0 +1,33 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          # CI-safe defaults: no external services, dry_run execution
+          EXECUTION_MODE: dry_run
+          HOME_AGENT_API_KEY: ci-test-key-placeholder
+        run: |
+          python -m pytest backend/tests/ -v

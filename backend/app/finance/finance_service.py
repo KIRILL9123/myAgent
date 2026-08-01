@@ -128,6 +128,62 @@ def get_summary(start_date: str | None = None, end_date: str | None = None) -> d
         "income_breakdown": income_breakdown
     }
 
+def update_transaction(
+    transaction_id: int,
+    *,
+    type: str | None = None,
+    amount: float | None = None,
+    category: str | None = None,
+    description: str | None = None,
+    transaction_date: str | None = None,
+) -> dict[str, Any]:
+    updates = {
+        "type": type,
+        "amount": amount,
+        "category": category,
+        "description": description,
+        "date": transaction_date,
+    }
+    changes = {field: value for field, value in updates.items() if value is not None}
+
+    if not changes:
+        return {"status": "error", "message": "No transaction changes supplied."}
+    if type is not None and type not in ["income", "expense"]:
+        return {"status": "error", "message": "type must be 'income' or 'expense'"}
+    if amount is not None and amount <= 0:
+        return {"status": "error", "message": "amount must be greater than zero"}
+
+    from backend.app.core.execution_mode import is_dry_run
+    if is_dry_run():
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "update_transaction",
+                "transaction_id": transaction_id,
+                "changes": changes,
+            },
+        }
+
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM transactions WHERE id = ?", (transaction_id,))
+        if not cursor.fetchone():
+            return {"status": "error", "message": f"Transaction with ID {transaction_id} not found."}
+
+        if category is not None:
+            cursor.execute("SELECT name FROM categories WHERE name = ?", (category,))
+            if not cursor.fetchone():
+                return {"status": "error", "message": f"Category '{category}' does not exist."}
+
+        assignments = ", ".join(f"{field} = ?" for field in changes)
+        cursor.execute(
+            f"UPDATE transactions SET {assignments} WHERE id = ?",
+            [*changes.values(), transaction_id],
+        )
+        conn.commit()
+
+    return {"status": "success", "message": f"Transaction {transaction_id} updated."}
+
 def delete_transaction(transaction_id: int) -> dict[str, Any]:
     from backend.app.core.execution_mode import is_dry_run
     if is_dry_run():
@@ -154,6 +210,20 @@ def add_recurring_template(type: str, amount: float, category: str, description:
         return {"status": "error", "message": "type must be 'income' or 'expense'"}
     if not (1 <= day_of_month <= 31):
         return {"status": "error", "message": "day_of_month must be between 1 and 31"}
+
+    from backend.app.core.execution_mode import is_dry_run
+    if is_dry_run():
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "add_recurring_template",
+                "type": type,
+                "amount": amount,
+                "category": category,
+                "description": description,
+                "day_of_month": day_of_month,
+            },
+        }
         
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -193,6 +263,16 @@ def get_recurring_templates() -> list[dict[str, Any]]:
     ]
 
 def delete_recurring_template(template_id: int) -> dict[str, Any]:
+    from backend.app.core.execution_mode import is_dry_run
+    if is_dry_run():
+        return {
+            "status": "dry_run",
+            "would_do": {
+                "action": "delete_recurring_template",
+                "template_id": template_id,
+            },
+        }
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM recurring_templates WHERE id = ?", (template_id,))
@@ -206,7 +286,10 @@ def process_recurring_transactions() -> None:
     """
     Checks daily if any recurring templates should trigger.
     Inserts a normal transaction if it hasn't been created yet for this month.
+
+    In DRY_RUN mode: logs what would be created but does not insert transactions.
     """
+    from backend.app.core.execution_mode import is_dry_run
     import logging
     logger = logging.getLogger("home_agent")
     
@@ -239,10 +322,16 @@ def process_recurring_transactions() -> None:
                     (t_type, amount, category, description, f"{current_month_str}-%")
                 )
                 if not cursor.fetchone():
-                    cursor.execute(
-                        "INSERT INTO transactions (type, amount, category, description, date) VALUES (?, ?, ?, ?, ?)",
-                        (t_type, amount, category, description, today.strftime("%Y-%m-%d"))
-                    )
-                    logger.info(f"[FINANCE] Recurring template {t_id} triggered: Added {t_type} of {amount} in {category}")
+                    if is_dry_run():
+                        logger.info(
+                            f"[DRY_RUN] Would trigger recurring template {t_id}: "
+                            f"{t_type} of {amount} in {category}"
+                        )
+                    else:
+                        cursor.execute(
+                            "INSERT INTO transactions (type, amount, category, description, date) VALUES (?, ?, ?, ?, ?)",
+                            (t_type, amount, category, description, today.strftime("%Y-%m-%d"))
+                        )
+                        logger.info(f"[FINANCE] Recurring template {t_id} triggered: Added {t_type} of {amount} in {category}")
                     
         conn.commit()

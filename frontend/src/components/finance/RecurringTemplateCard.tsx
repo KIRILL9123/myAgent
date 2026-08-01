@@ -13,7 +13,7 @@ export default function RecurringTemplateCard({ template, formatCurrency, onDele
       <div className="flex flex-col gap-2.5">
         <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono">
           <span>Каждое {template.day_of_month} число месяца</span>
-          <span className="uppercase text-emerald-555 font-bold bg-emerald-500/5 px-2 py-0.5 rounded-lg border border-emerald-500/10 flex items-center gap-0.5">
+          <span className="uppercase text-emerald-500 font-bold bg-emerald-500/5 px-2 py-0.5 rounded-lg border border-emerald-500/10 flex items-center gap-0.5">
             <Repeat className="h-2.5 w-2.5" />
             Авто
           </span>
@@ -21,16 +21,16 @@ export default function RecurringTemplateCard({ template, formatCurrency, onDele
 
         <div className="flex justify-between items-center gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="p-2 rounded-xl bg-zinc-800/40 text-zinc-450 shrink-0">
+            <div className="p-2 rounded-xl bg-zinc-800/40 text-zinc-500 shrink-0">
               <Tag className="h-4 w-4" />
             </div>
-            <span className="text-xs font-semibold text-zinc-350 truncate pr-1">{template.category}</span>
+            <span className="text-xs font-semibold text-zinc-400 truncate pr-1">{template.category}</span>
           </div>
           <span className="text-xs font-bold text-rose-400 font-mono shrink-0">-{formatCurrency(template.amount)}</span>
         </div>
 
         {template.description && (
-          <p className="text-xs text-zinc-550 line-clamp-1 italic font-sans pl-8">{template.description}</p>
+          <p className="text-xs text-zinc-500 line-clamp-1 italic font-sans pl-8">{template.description}</p>
         )}
       </div>
 
