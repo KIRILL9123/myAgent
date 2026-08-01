@@ -9,6 +9,8 @@ from backend.app.finance.finance_service import (
     get_summary,
     update_transaction,
     add_recurring_template,
+    create_recurring_transaction,
+    get_categories,
     get_recurring_templates,
     delete_recurring_template
 )
@@ -41,31 +43,37 @@ class RecurringTemplateCreate(BaseModel):
 async def api_add_transaction(txn: TransactionCreate):
     try:
         txn_date = txn.date if txn.date else date.today().strftime("%Y-%m-%d")
-        result = add_transaction(
-            type=txn.type,
-            amount=txn.amount,
-            category=txn.category,
-            description=txn.description,
-            transaction_date=txn_date
-        )
+        description = (txn.description or "").strip()
+        if txn.is_recurring:
+            result = create_recurring_transaction(
+                type=txn.type,
+                amount=txn.amount,
+                category=txn.category,
+                description=description,
+                transaction_date=txn_date,
+            )
+        else:
+            result = add_transaction(
+                type=txn.type,
+                amount=txn.amount,
+                category=txn.category,
+                description=description,
+                transaction_date=txn_date,
+            )
         if isinstance(result, dict) and result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message"))
             
-        if txn.is_recurring:
-            try:
-                dt_obj = datetime.strptime(txn_date, "%Y-%m-%d")
-                day_of_month = dt_obj.day
-                add_recurring_template(
-                    type=txn.type,
-                    amount=txn.amount,
-                    category=txn.category,
-                    description=txn.description,
-                    day_of_month=day_of_month
-                )
-            except Exception as e:
-                result["warning"] = f"Failed to save recurring template: {str(e)}"
-                
-        return result
+        if result.get("status") == "dry_run":
+            return result
+        return {
+            "id": result["transaction_id"],
+            "type": txn.type,
+            "amount": txn.amount,
+            "category": txn.category,
+            "description": description,
+            "date": txn_date,
+            "recurring_template_id": result.get("template_id"),
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -87,6 +95,14 @@ async def api_get_transactions(
         return get_transactions(start_date, end_date, category)
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=f"Invalid date format: {str(ve)}. Use YYYY-MM-DD.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/categories")
+async def api_get_categories():
+    try:
+        return get_categories()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

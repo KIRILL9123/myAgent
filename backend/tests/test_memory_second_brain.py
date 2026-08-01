@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.fixture
-def memory_db(monkeypatch, tmp_path):
+def memory_db(monkeypatch, tmp_path, real_mode):
     from backend.app.storage import db
     db_path = str(tmp_path / "memory_second_brain.db")
     monkeypatch.setattr(db, "DB_PATH", db_path)

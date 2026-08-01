@@ -84,9 +84,9 @@ def mock_llm():
 
     patches = [
         # Source module
-        "backend.app.agent.llm_client.chat_with_ollama",
+        "backend.app.agent.llm.chat",
         # Modules that import chat_with_ollama at module level
-        "backend.app.agent.orchestrator.chat_with_ollama",
+        "backend.app.agent.orchestrator.chat",
         "backend.app.agent.scheduled_tasks.chat_with_ollama",
         "backend.app.memory.fact_extractor.chat_with_ollama",
         "backend.app.memory.relation_builder.chat_with_ollama",

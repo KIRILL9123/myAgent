@@ -1,15 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  fetchRecurringTemplates,
-  fetchSummary,
-  fetchTransactions,
-} from '../api/finance';
-import type {
-  FinanceRange,
-  RecurringTemplate,
-  Transaction,
-} from '../types';
+import { fetchRecurringTemplates, fetchFinanceCategories, fetchSummary, fetchTransactions } from '../api/finance';
+import type { FinanceRange, FinanceCategory, RecurringTemplate, Transaction } from '../types';
 
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -40,16 +32,41 @@ function getRangeDates(range: FinanceRange): { startDate: string; endDate: strin
   return { startDate: formatLocalDate(firstDay), endDate: formatLocalDate(lastDay) };
 }
 
-export function useFinanceData(range: FinanceRange) {
+export function useFinanceData(range: FinanceRange, category?: string) {
   const dates = useMemo(() => getRangeDates(range), [range]);
-  const query = useQuery({ queryKey: ['finance', range, dates.startDate, dates.endDate], queryFn: async () => {
+  const query = useQuery({
+    queryKey: ['finance', range, dates.startDate, dates.endDate, category ?? 'all'],
+    queryFn: async () => {
       const [transactions, summary, recurringTemplates] = await Promise.all([
-        fetchTransactions(dates.startDate, dates.endDate),
+        fetchTransactions(dates.startDate, dates.endDate, category),
         fetchSummary(dates.startDate, dates.endDate),
         fetchRecurringTemplates(),
       ]);
       return { transactions, summary, recurringTemplates };
-  }, staleTime: 30_000 });
+    },
+    staleTime: 30_000,
+  });
+  const categoriesQuery = useQuery({
+    queryKey: ['finance', 'categories'],
+    queryFn: fetchFinanceCategories,
+    staleTime: 5 * 60_000,
+  });
 
-  return { transactions: query.data?.transactions ?? ([] as Transaction[]), summary: query.data?.summary ?? null, recurringTemplates: query.data?.recurringTemplates ?? ([] as RecurringTemplate[]), loading: query.isLoading, error: query.error instanceof Error ? query.error.message : null, reload: () => query.refetch() };
+  return {
+    transactions: query.data?.transactions ?? ([] as Transaction[]),
+    summary: query.data?.summary ?? null,
+    recurringTemplates: query.data?.recurringTemplates ?? ([] as RecurringTemplate[]),
+    categories: categoriesQuery.data ?? ([] as FinanceCategory[]),
+    loading: query.isLoading || categoriesQuery.isLoading,
+    error:
+      query.error instanceof Error
+        ? query.error.message
+        : categoriesQuery.error instanceof Error
+          ? categoriesQuery.error.message
+          : null,
+    reload: () => {
+      void query.refetch();
+      void categoriesQuery.refetch();
+    },
+  };
 }

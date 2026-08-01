@@ -1,5 +1,6 @@
 import type {
   FinanceSummary,
+  FinanceCategory,
   RecurringTemplate,
   Transaction,
   TransactionCreateInput,
@@ -9,6 +10,7 @@ import { apiRequest } from './client';
 
 export type {
   FinanceSummary,
+  FinanceCategory,
   RecurringTemplate,
   Transaction,
   TransactionCreateInput,
@@ -20,13 +22,17 @@ const API_BASE = '/api/finance';
 export async function fetchTransactions(startDate: string, endDate: string, category?: string): Promise<Transaction[]> {
   const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
   if (category) params.append('category', category);
-  
+
   return apiRequest<Transaction[]>(`${API_BASE}/transactions?${params}`);
 }
 
 export async function fetchSummary(startDate: string, endDate: string): Promise<FinanceSummary> {
   const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
   return apiRequest<FinanceSummary>(`${API_BASE}/summary?${params}`);
+}
+
+export async function fetchFinanceCategories(): Promise<FinanceCategory[]> {
+  return apiRequest<FinanceCategory[]>(`${API_BASE}/categories`);
 }
 
 export async function createTransaction(input: TransactionCreateInput): Promise<Transaction> {
@@ -43,7 +49,10 @@ export async function deleteTransaction(id: number): Promise<{ status: string; m
   });
 }
 
-export async function updateTransaction(id: number, input: TransactionUpdateInput): Promise<{ status: string; message: string }> {
+export async function updateTransaction(
+  id: number,
+  input: TransactionUpdateInput,
+): Promise<{ status: string; message: string }> {
   return apiRequest<{ status: string; message: string }>(`${API_BASE}/transactions/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

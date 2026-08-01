@@ -1,4 +1,4 @@
-import { Calendar, Edit3, FileText, MinusCircle, PlusCircle, Tag, Trash2 } from 'lucide-react';
+import { Calendar, Edit3, FileText, MinusCircle, PlusCircle, Repeat, Tag, Trash2 } from 'lucide-react';
 import type { Transaction } from '../../types';
 
 interface TransactionCardProps {
@@ -7,9 +7,17 @@ interface TransactionCardProps {
   formatCurrency: (value: number) => string;
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: number) => void;
+  showDate?: boolean;
 }
 
-export default function TransactionCard({ transaction, formatDate, formatCurrency, onEdit, onDelete }: TransactionCardProps) {
+export default function TransactionCard({
+  transaction,
+  formatDate,
+  formatCurrency,
+  onEdit,
+  onDelete,
+  showDate = true,
+}: TransactionCardProps) {
   const isIncome = transaction.type === 'income';
 
   return (
@@ -17,10 +25,22 @@ export default function TransactionCard({ transaction, formatDate, formatCurrenc
       <div className="flex flex-col gap-3.5">
         <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono">
           <div className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            <span>{formatDate(transaction.date)}</span>
+            {showDate && (
+              <>
+                <Calendar className="h-3 w-3" />
+                <span>{formatDate(transaction.date)}</span>
+              </>
+            )}
+            {transaction.recurring_template_id && (
+              <span className="inline-flex items-center gap-1 rounded-lg border border-purple-500/15 bg-purple-500/5 px-2 py-0.5 text-purple-300">
+                <Repeat className="h-3 w-3" />
+                Авто
+              </span>
+            )}
           </div>
-          <span className={`uppercase font-bold px-2 py-0.5 rounded-lg border flex items-center gap-1 ${isIncome ? 'text-emerald-400 bg-emerald-500/5 border-emerald-500/10' : 'text-rose-400 bg-rose-500/5 border-rose-500/10'}`}>
+          <span
+            className={`uppercase font-bold px-2 py-0.5 rounded-lg border flex items-center gap-1 ${isIncome ? 'text-emerald-400 bg-emerald-500/5 border-emerald-500/10' : 'text-rose-400 bg-rose-500/5 border-rose-500/10'}`}
+          >
             {isIncome ? <PlusCircle className="h-3 w-3" /> : <MinusCircle className="h-3 w-3" />}
             {isIncome ? 'доход' : 'расход'}
           </span>
@@ -28,15 +48,16 @@ export default function TransactionCard({ transaction, formatDate, formatCurrenc
 
         <div className="flex justify-between items-start gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className={`p-2.5 rounded-xl border shrink-0 ${isIncome ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' : 'bg-rose-500/10 text-rose-400 border-rose-500/25'}`}>
+            <div
+              className={`p-2.5 rounded-xl border shrink-0 ${isIncome ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' : 'bg-rose-500/10 text-rose-400 border-rose-500/25'}`}
+            >
               <Tag className="h-4.5 w-4.5" />
             </div>
-            <h2 className="text-sm font-semibold text-zinc-200 tracking-wide pr-1 truncate">
-              {transaction.category}
-            </h2>
+            <h2 className="text-sm font-semibold text-zinc-200 tracking-wide pr-1 truncate">{transaction.category}</h2>
           </div>
           <span className={`text-base font-bold font-mono shrink-0 ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
+            {isIncome ? '+' : '-'}
+            {formatCurrency(transaction.amount)}
           </span>
         </div>
 

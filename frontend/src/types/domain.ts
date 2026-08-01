@@ -15,6 +15,12 @@ export interface Transaction {
   category: string;
   description: string;
   date: string;
+  recurring_template_id: number | null;
+}
+
+export interface FinanceCategory {
+  name: string;
+  type: 'income' | 'expense';
 }
 
 export interface FinanceSummary {
