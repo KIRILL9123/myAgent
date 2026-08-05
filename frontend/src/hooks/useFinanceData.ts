@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   fetchRecurringTemplates,
+  fetchForecast,
   fetchSummary,
   fetchTransactions,
 } from '../api/finance';
@@ -43,13 +44,14 @@ function getRangeDates(range: FinanceRange): { startDate: string; endDate: strin
 export function useFinanceData(range: FinanceRange) {
   const dates = useMemo(() => getRangeDates(range), [range]);
   const query = useQuery({ queryKey: ['finance', range, dates.startDate, dates.endDate], queryFn: async () => {
-      const [transactions, summary, recurringTemplates] = await Promise.all([
+      const [transactions, summary, recurringTemplates, forecast] = await Promise.all([
         fetchTransactions(dates.startDate, dates.endDate),
         fetchSummary(dates.startDate, dates.endDate),
         fetchRecurringTemplates(),
+        fetchForecast(3),
       ]);
-      return { transactions, summary, recurringTemplates };
+      return { transactions, summary, recurringTemplates, forecast };
   }, staleTime: 30_000 });
 
-  return { transactions: query.data?.transactions ?? ([] as Transaction[]), summary: query.data?.summary ?? null, recurringTemplates: query.data?.recurringTemplates ?? ([] as RecurringTemplate[]), loading: query.isLoading, error: query.error instanceof Error ? query.error.message : null, reload: () => query.refetch() };
+  return { transactions: query.data?.transactions ?? ([] as Transaction[]), summary: query.data?.summary ?? null, recurringTemplates: query.data?.recurringTemplates ?? ([] as RecurringTemplate[]), forecast: query.data?.forecast ?? null, loading: query.isLoading, error: query.error instanceof Error ? query.error.message : null, reload: () => query.refetch() };
 }

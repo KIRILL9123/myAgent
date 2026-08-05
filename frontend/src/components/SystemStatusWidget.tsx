@@ -7,23 +7,13 @@ export default function SystemStatusWidget() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-
-  const load = async () => {
-    setLoading(true); setError(false);
-    try { setStatus(await fetchSystemStatus()); }
-    catch { setError(true); }
-    finally { setLoading(false); }
-  };
+  const load = async () => { setLoading(true); setError(false); try { setStatus(await fetchSystemStatus()); } catch { setError(true); } finally { setLoading(false); } };
   useEffect(() => { load(); }, []);
-
-  const healthy = status?.overall === 'ok';
   return (
-    <section className="mx-auto mb-6 max-w-5xl rounded-2xl border border-zinc-900 bg-zinc-900/30 p-4 shadow-md sm:p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3"><div className={`rounded-xl p-2.5 ${healthy ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-300'}`}><Activity className="h-5 w-5" /></div><h2 className="text-sm font-semibold text-zinc-200">Состояние системы</h2></div>
-        <button onClick={load} className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200" aria-label="Обновить состояние"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
-      </div>
+    <section className="surface-card mx-auto mb-6 max-w-5xl p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><div className="dashboard-card-icon"><Activity className="h-4 w-4" /></div><h2 className="text-sm font-semibold text-zinc-200">Состояние системы</h2></div><button type="button" onClick={load} className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200" aria-label="Обновить состояние"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button></div>
       {!loading && !error && status && <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-6"><StatusItem label="Backend" ok={status.backend.status === 'ok'} detail="API" /><StatusItem label="Модель" ok={status.llm.status === 'ok'} detail={status.llm.latency_ms == null ? status.llm.detail || 'offline' : `${Math.round(status.llm.latency_ms)} ms`} /><StatusItem label="Порт модели" ok={status.ports[0]?.reachable === true} detail={status.ports[0]?.port ? String(status.ports[0].port) : '—'} /><StatusItem label="CPU" ok={(status.host_metrics.cpu.percent ?? 0) < 90} detail={status.host_metrics.cpu.percent == null ? '—' : `${status.host_metrics.cpu.percent.toFixed(0)}%`} /><StatusItem label="RAM" ok={(status.host_metrics.memory.used_percent ?? 0) < 90} detail={status.host_metrics.memory.used_percent == null ? '—' : `${status.host_metrics.memory.used_percent.toFixed(0)}%`} /><StatusItem label="Проверка" ok detail={new Date(status.generated_at).toLocaleTimeString('ru-RU')} /></div>}
+      {!loading && error && <p className="mt-3 text-xs text-zinc-500">Не удалось получить состояние системы.</p>}
     </section>
   );
 }

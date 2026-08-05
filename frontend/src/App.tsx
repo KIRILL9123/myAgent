@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useCallback, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import QueryProvider from './components/QueryProvider';
@@ -24,9 +24,9 @@ const SandboxPage = lazy(() => import('./pages/SandboxPage'));
 
 function PageFallback() {
   return (
-    <div className="flex min-h-[50vh] items-center justify-center text-slate-400">
-      <div className="flex items-center gap-3 rounded-xl border border-slate-700/60 bg-slate-900/60 px-5 py-4">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-600 border-t-cyan-400" />
+    <div className="flex min-h-[50vh] items-center justify-center text-zinc-400">
+      <div className="state-box min-h-0 border-solid px-5 py-4">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-emerald-400" />
         <span>Загрузка раздела…</span>
       </div>
     </div>
@@ -34,16 +34,19 @@ function PageFallback() {
 }
 
 function App() {
-  const [sessionId] = useState<string>(() => generateSessionId());
+  const [sessionId, setSessionId] = useState<string>(() => generateSessionId());
+  const startNewChat = useCallback(() => {
+    setSessionId(generateSessionId());
+  }, []);
 
   return (
     <BrowserRouter>
       <QueryProvider>
-        <AppShell>
+        <AppShell onNewChat={startNewChat}>
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/chat" element={<ChatPage sessionId={sessionId} />} />
+            <Route path="/chat" element={<ChatPage key={sessionId} sessionId={sessionId} />} />
             <Route path="/memory" element={<MemoryPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/commitments" element={<CommitmentsPage />} />

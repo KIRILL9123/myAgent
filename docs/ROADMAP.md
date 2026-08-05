@@ -1,4 +1,4 @@
-# myAgent — Long-Term Roadmap and Product Vision
+# Mira — Long-Term Roadmap and Product Vision
 
 > **Responsibility**: Complete long-term vision, phased roadmap, and product direction.
 > For runtime and current implementation guidance, see [ARCHITECTURE.md](ARCHITECTURE.md) and [OPERATIONS.md](OPERATIONS.md).
@@ -9,7 +9,7 @@
 
 ## A. North Star
 
-**myAgent is a local-first Personal Operating System — a Personal Chief of Staff for one person.**
+**Mira is a local-first Personal Operating System — a Personal Chief of Staff for one person.**
 
 The long-term system will:
 
@@ -50,14 +50,16 @@ The long-term system conceptually manages eight categories of structured knowled
 
 ## C. Unified Approval Control Plane
 
-The long-term design converges on a single **Unified Approval Inbox / Approval Control Plane** as the gateway for all high-impact proposed changes. A first implementation now projects memory facts, commitments and RED actions into a shared approval record, API and web center; full event history and policy unification remain future work.
+The long-term design converges on a single **Unified Approval Inbox / Approval Control Plane** as the gateway for all high-impact proposed changes. The current implementation projects memory facts, commitments, subscription proposals, document-derived proposals, RED actions and sandbox applies into shared approval records, API and web surfaces; full event history and policy unification remain future work.
 
 This control plane handles:
 
-- Memory fact approvals (currently implemented in isolation)
-- RED tool action confirmations (currently implemented in isolation)
+- Memory fact approvals
+- RED tool action confirmations
 - Commitment activation proposals
-- Document merge/extraction proposals
+- Subscription proposals
+- Document-derived task/event proposals
+- Sandbox-apply proposals
 - Future self-improvement code change proposals
 - Other high-impact state changes requiring human review
 
@@ -82,13 +84,24 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 
 *Prerequisites for all future work. The system must be safe to test, safe to run, and maintainable.*
 
+#### Current hardening cycle — closed 2026-08-05
+
+The documentation reconciliation and bounded reliability hardening cycle is
+closed. It is recorded in [RELIABILITY_AUDIT_2026-08-04.md](decisions/RELIABILITY_AUDIT_2026-08-04.md).
+The first Goals/Projects/Decision Journal slice is implemented and recorded in
+[BACKLOG.md](BACKLOG.md) and [GOALS_PROJECTS_DECISION_JOURNAL.md](design/GOALS_PROJECTS_DECISION_JOURNAL.md).
+The next product cycle is projection polish in Today and Action Center; see
+[BACKLOG.md](BACKLOG.md).
+No new top-level product domain is scheduled until its acceptance criteria are
+verified. This is intentionally scoped for Mira as a personal local-first system.
+
 - [x] Dry-run / side-effect isolation (see [SECURITY_AND_SAFETY.md](SECURITY_AND_SAFETY.md))
 - [x] Pydantic tool argument validation (see [SECURITY_AND_SAFETY.md](SECURITY_AND_SAFETY.md))
 - [x] SQLite backup and restore (see [OPERATIONS.md](OPERATIONS.md))
 - [x] Fix known contract inconsistencies:
   - `scheduled_tasks.py` parses connector outputs as JSON strings (connectors return Python objects)
   - `mail_connector.py` `send_email()` uses `{"error": ...}` instead of `{"status": "error", ...}`
-  - Missing permissions for countdown tools in `tool_permissions.json`
+  - Missing permissions for countdown tools in the former permission matrix
   - `delete_countdown` should have explicit permission level
 - [x] Set up test runner (pytest) + CI
 - [x] Type hints across all backend modules
@@ -123,11 +136,12 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 
 *Tool definitions are duplicated in 3+ places. A tool registry eliminates this.*
 
-- [ ] Centralized Tool Registry (schema, Pydantic model, permission level, dispatch handler, audit metadata in one place)
-- [ ] Replace inline `AVAILABLE_TOOLS` in `orchestrator.py` with registry-driven generation
+- [x] Centralized Tool Registry (schema, Pydantic model, permission level, dispatch handler, audit metadata in one place)
+- [x] Replace inline `AVAILABLE_TOOLS` in `orchestrator.py` with registry-driven generation
+- [x] Add a CI drift check so every registered tool has matching schema, validation, permission and dispatch coverage
 - [ ] Standardize all tool return contracts to `{"status": "success"|"error", ...}`
-- [ ] Auto-generate OpenAI-compatible tool definitions from Pydantic models
-- [ ] Shadow mode for new tools (log intent without executing)
+- [x] Auto-generate OpenAI-compatible tool definitions from Pydantic models through the central registry
+- [ ] Shadow mode for new tools (dry-run exists, but intent comparison reports are not implemented)
 - [ ] `ExecutionMode` fully integrated (DRY_RUN → return `would_do` payloads)
 
 ### Phase 4 — Domain Services
@@ -143,6 +157,7 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [x] Calendar / deadline linkage for commitments (explicit event links; events never auto-complete commitments)
 - [x] Commitment reminders via Telegram
 - [x] Commitment expiry and review flow
+- [x] Task flow v1 through Chat and Telegram: create active personal tasks, list, reschedule, complete, cancel, and explicitly link a calendar event (see [design/TASK_FLOW.md](design/TASK_FLOW.md))
 
 **Subscription Tracker**
 - [x] Separate SQLite entity for trials and recurring subscriptions with provenance
@@ -155,16 +170,21 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 
 **Personal State Engine**
 - [x] Deterministic read-only state snapshot aggregating commitments, subscriptions, deadlines and monthly finance
+- [x] Today Overview v2: one cached `/dashboard` projection for schedule, active tasks, deadlines, attention items and next actions (see [design/TODAY_OVERVIEW.md](design/TODAY_OVERVIEW.md))
 - [x] Priority signals for overdue items, near-term charges and pending approvals
 - [x] Dashboard widget and full `/state` view
 - [x] Morning summary receives the current state signal
 - [x] Daily state snapshots, history and deterministic "State of Me" report
 - [x] Unified Action Center read model for priorities, deadlines, reminders and approval-required actions (see [design/ACTION_CENTER.md](design/ACTION_CENTER.md))
-- [ ] Calendar and email state history, quiet hours and notification budgets
-- [ ] Decision Journal and project/goal hierarchy
+- [x] Action Center v1.1: read/unread, snooze, dismiss, and Commitment complete/reschedule controls shared by Today and Notification Center (see [design/ACTION_CENTER.md](design/ACTION_CENTER.md))
+- [x] Shared temporal context for local-day boundaries, countdowns, Action Center, Personal State and Telegram delivery
+- [ ] Calendar and email state history
+- [x] Decision Journal and project/goal hierarchy — bounded v1 implemented;
+  projection polish remains
+  the bounded first slice from [GOALS_PROJECTS_DECISION_JOURNAL.md](design/GOALS_PROJECTS_DECISION_JOURNAL.md)
 
 **Memory Evolution**
-- [ ] Provenance bundle (source type, source ref, extractor metadata)
+- [x] Provenance and Evidence Bundle contract documented with source, locator, derivation, reference-time and approval rules; normalized persistence and user-visible citations remain future work
 - [ ] `last_confirmed_at` field
 - [ ] Temporal validity window (`valid_from`, `valid_to`)
 - [ ] Decay scoring (advisory only)
@@ -175,8 +195,8 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [x] Text/Markdown/CSV/JSON/HTML/PDF extraction and bounded chunking
 - [x] SQLite FTS5 retrieval with document provenance and untrusted-content wrapping
 - [x] Chat context injection for document-related questions and `/documents` management UI
-- [ ] Semantic embeddings, OCR for scans and reranking
-- [ ] Document deadlines and document-to-commitment proposals through Approval Center
+- [ ] Semantic embeddings, OCR for scans and reranking (OCR design reference: [Paperless-ngx audit](decisions/OSS_AUDIT_2026-08-04.md))
+- [x] High-confidence document obligation/date candidates can create task or calendar proposals through Approval Center; OCR, semantic extraction, embeddings, reranking and document-to-memory proposals remain future work
 
 **Agent Brain — ideas inspired by Waku Agent**
 - [x] Retrieval Gate v1: deterministic pre-retrieval routing skips irrelevant operational turns, records the reason in `agent_turn` and fails open if the gate itself errors; semantic/LLM routing remains future work
@@ -191,8 +211,21 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [x] Shared Action Center delivery layer for Telegram
 - [x] Notification preferences UI; future mobile-client delivery remains planned
 
+**Runtime reliability**
+- [x] Shared async I/O boundary for IMAP, CalDAV, document ingestion/search, State/Action Center reads, subscription scans and morning summaries
+- [x] Confirmation audit hardening and channel identity enforcement: atomic claim/cancel, Telegram action-id binding, failure persistence and replay/race regression coverage
+- [x] Safety/test hygiene: local dry-run example defaults, explicit manual live-script boundary, credential-safe diagnostics and protected pytest discovery
+
+**Calendar runtime contract**
+- [x] Route all calendar consumers through the configured provider service; remove direct CalDAV bypasses from Assistant, Personal State, scheduled summaries, and notification delivery
+- [x] Expand local recurrence instances for future calendar ranges and reminders
+- [x] Preserve the complete calendar tool contract across LLM schema, Pydantic validation, Chat, and Telegram
+- [x] Smart Scheduling v1: shared read-only free-slot search with TemporalContext and approved Memory preferences (see [design/SMART_SCHEDULING.md](design/SMART_SCHEDULING.md))
+
 **Cross-domain**
-- [ ] Calendar × Memory conflict detection (flag when new event conflicts with known preferences)
+- [x] Calendar × Commitments conflict detection v1: read-only event/event and deadline/event warnings in Calendar, Today, Action Center, Chat and Telegram (see [design/CONFLICT_DETECTION.md](design/CONFLICT_DETECTION.md))
+- [x] Calendar × Memory conflict detection v1.1: explicit approved preference checks and pre-save warning
+  (implemented 2026-08-04; see [design/CONFLICT_DETECTION.md](design/CONFLICT_DETECTION.md))
 - [ ] Receipt → Expense proposal (agent notices a purchase receipt and proposes adding it to Finance)
 
 ### Phase 5 — Personal State and RAG (Only If Justified)
@@ -201,13 +234,17 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 
 **Personal State Engine**
 - [ ] Consumes commitment, memory, and calendar signals
-- [ ] Decision Journal (explicit record of choices with rationale)
-- [ ] Project entities: Goals → Projects → Tasks → Commitments hierarchy
+- [x] Decision Journal (explicit record of choices with rationale; approved
+  proposal: [GOALS_PROJECTS_DECISION_JOURNAL.md](design/GOALS_PROJECTS_DECISION_JOURNAL.md))
+- [x] Project entities: Goals → Projects → Tasks → Commitments hierarchy (task
+  flow v1 currently remains a Commitment-backed projection; UX references:
+  [Super Productivity/Vikunja audit](decisions/OSS_AUDIT_2026-08-04.md))
 - [ ] Nightly "State of Me" summary
 - [ ] Contradiction-aware retrieval (prefer latest human-confirmed facts when conflicts exist)
 
 **Document / RAG Layer**
 - [x] Document Vault v1 — distinct from Memory Facts, with local artifacts, extraction, chunks and FTS5 retrieval
+- [x] Explicit Document Vault links to commitments, calendar events, and subscriptions — relation metadata only; see [`docs/design/DOCUMENT_LINKS.md`](design/DOCUMENT_LINKS.md)
 - [ ] Local embeddings (via Model Registry, role: `embeddings`)
 - [ ] Local vector store (Chroma or Qdrant)
 - [ ] Hybrid SQL + vector retrieval
@@ -220,8 +257,8 @@ Implementation note: Telegram and the web dashboard may share the same underlyin
 - [x] Windows watchdog and user-level Scheduled Task installer
 - [x] Healthcheck script and configurable CORS origins for LAN development
 - [ ] HTTPS/VPN deployment automation and macOS service adapter
-- [ ] Document deadline extraction → Calendar suggestions
-- [ ] Document → Commitment proposals
+- [x] Document deadline extraction → Calendar suggestions, approval-gated through the existing Action Center
+- [x] Document → Commitment proposals, approval-gated with provenance links
 
 ### Phase 6 — Selective Multi-Agent Architecture (Only If Justified)
 
@@ -275,19 +312,21 @@ These are worth preserving but not scheduled. Do not plan implementation time fo
 
 ### Selected Product Ideas Preserved for Future Scheduling
 
-The selected ideas are mirrored in [BACKLOG.md](BACKLOG.md). The Notification Center is the next priority; the remaining items stay unscheduled until the current foundation is stable.
+The selected ideas are mirrored in [BACKLOG.md](BACKLOG.md). Checked items are retained
+as delivery history; unchecked items are not scheduled until a new active cycle is opened.
+Notification Center v1 and v1.1 are implemented as Action Center projections.
 
-- Subscription → Finance recurring-transaction proposals, always approval-gated.
+- [x] Subscription → Finance recurring-transaction proposals, always approval-gated for supported monthly EUR subscriptions; Finance now also has native grouped currencies and weekly/monthly/yearly projections (2026-08-04; see [FINANCE_MODEL.md](design/FINANCE_MODEL.md)).
 - Security-backlog reminders and a monthly security report.
 - Focus mode layered on top of Quiet Hours.
 - Archive/recovery instead of destructive deletion.
-- Document links to commitments, calendar events and Personal State.
+- Document links to Personal State and richer evidence views.
 - OCR for scans and photos.
 - Version-to-version document comparison.
 - Clearly marked unverified external data with provenance and freshness.
-- Unified Notification Center for approvals, reminders, errors and proposals.
-- Mobile four-action mode for Chat, Tasks, Notifications and File Upload.
-- Safe cleanup of temporary sandbox, log, upload and cache artifacts.
+- [x] Unified Notification Center v1.1 for approvals, reminders, errors and proposals, including projection lifecycle and Commitment actions.
+- [x] Mobile four-action mode for Chat, Tasks, Notifications and File Upload; remaining sections live under «Ещё».
+- [ ] Safe cleanup of temporary sandbox, log, upload and cache artifacts.
 - [x] Persistent error reporting with correlation context and a fix lifecycle: new → fixing → fixed → verified → closed.
 
 - **Self-Improving Agent** — requires ALL safety phases complete, plus sandbox infrastructure. Earliest: after Phase 5.

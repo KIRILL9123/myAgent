@@ -1,4 +1,4 @@
-"""Deterministic release gate for the Home Agent.
+"""Deterministic release gate for Mira.
 
 The gate intentionally keeps deterministic checks separate from any optional
 LLM quality judging. It exits non-zero when a required check fails and stores a
@@ -97,6 +97,12 @@ def run_release_gate(
     checks: list[dict[str, Any]] = []
     if backend:
         checks.append(_run_check(
+            "tool_registry_drift",
+            [PYTHON_COMMAND, "dev-tools/check_tool_registry.py"],
+            PROJECT_ROOT,
+            timeout_seconds,
+        ))
+        checks.append(_run_check(
             "backend_tests",
             [PYTHON_COMMAND, "-m", "pytest", "backend/tests", "-q"],
             PROJECT_ROOT,
@@ -121,7 +127,7 @@ def run_release_gate(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the deterministic Home Agent release gate")
+    parser = argparse.ArgumentParser(description="Run the deterministic Mira release gate")
     parser.add_argument("--backend-only", action="store_true", help="run backend tests only")
     parser.add_argument("--frontend-only", action="store_true", help="run frontend checks only")
     parser.add_argument("--timeout", type=int, default=180, help="timeout per check in seconds")

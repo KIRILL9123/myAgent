@@ -679,11 +679,27 @@ def run_check(
 def workspace_snapshot(session_id: str) -> dict[str, Any]:
     """Return a machine-readable summary useful for API clients and the UI."""
     result = list_files(session_id)
+    baseline = _ensure_baseline(session_id, _workspace(session_id))
+    diff = diff_workspace(session_id)
+    runtime = runtime_status()
+    if not runtime.get("ready"):
+        lifecycle_state = "runtime_unavailable"
+    elif diff["summary"]["changed_files"]:
+        lifecycle_state = "draft_changed"
+    elif result["files"]:
+        lifecycle_state = "checkpointed"
+    else:
+        lifecycle_state = "empty"
     result["limits"] = {
         "max_file_bytes": MAX_FILE_BYTES,
         "max_workspace_bytes": MAX_WORKSPACE_BYTES,
         "max_output_chars": MAX_OUTPUT_CHARS,
         "max_timeout_seconds": MAX_TIMEOUT_SECONDS,
     }
-    result["runtime"] = runtime_status()
+    result["lifecycle"] = {
+        "state": lifecycle_state,
+        "changed_files": diff["summary"]["changed_files"],
+        "baseline_at": baseline["captured_at"],
+    }
+    result["runtime"] = runtime
     return result

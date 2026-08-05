@@ -1,18 +1,19 @@
 """Policy and coalescing layer for proactive notifications."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from backend.app.action_center_service import build_action_center
 from backend.app.notifications.telegram_notifier import send_notification
 from backend.app.storage.db import get_db_connection
+from backend.app.temporal.time_context import DEFAULT_TIMEZONE, build_temporal_context, parse_datetime
 
 PRIORITIES = {"critical", "high", "medium", "low"}
 DEFAULTS: dict[str, Any] = {
     "enabled": True,
-    "timezone": "Europe/Berlin",
+    "timezone": DEFAULT_TIMEZONE,
     "quiet_hours_start": "22:00",
     "quiet_hours_end": "08:00",
     "max_messages_per_window": 3,
@@ -23,7 +24,7 @@ DEFAULTS: dict[str, Any] = {
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc).replace(microsecond=0)
+    return build_temporal_context().now_utc
 
 
 def _parse_time(value: str) -> int:
@@ -145,7 +146,7 @@ def _record(status: str, action_ids: list[str], priority: str, *, dedupe_key: st
 
 
 def _format_message(actions: list[dict[str, Any]]) -> str:
-    lines = ["🔔 Home Agent — требует внимания", ""]
+    lines = ["🔔 Mira — требует внимания", ""]
     for action in actions:
         marker = "🚨" if action["priority"] == "critical" else "•"
         due = f" · срок: {action['due_at']}" if action.get("due_at") else ""
@@ -156,15 +157,13 @@ def _format_message(actions: list[dict[str, Any]]) -> str:
 
 
 async def deliver_action_notifications(reference_time: datetime | None = None) -> dict[str, Any]:
-    now = reference_time or _now()
-    if now.tzinfo is None:
-        raise ValueError("reference_time must include a timezone")
-    now = now.astimezone(timezone.utc)
     preferences = get_notification_preferences()
+    context = build_temporal_context(reference_time, preferences["timezone"])
+    now = context.now_utc
     if not preferences["enabled"]:
         return {"status": "suppressed", "reason": "disabled", "action_ids": []}
 
-    center = build_action_center(now, mode="attention", limit=100, include_external=False)
+    center = build_action_center(temporal_context=context, mode="attention", limit=100, include_external=False)
     minimum_rank = _priority_rank(preferences["min_priority"])
     candidates = [
         item for item in center["actions"]
@@ -209,3 +208,66 @@ async def deliver_action_notifications(reference_time: datetime | None = None) -
             except (KeyError, ValueError):
                 pass
     return {"status": "sent", "action_ids": action_ids, "coalesced": len(action_ids) > 1}
+
+
+async def deliver_calendar_reminders(reference_time: datetime | None = None) -> dict[str, Any]:
+    """Send due calendar reminders to Telegram with quiet hours and deduplication."""
+    preferences = get_notification_preferences()
+    context = build_temporal_context(reference_time, preferences["timezone"])
+    now = context.now_utc
+    if not preferences["enabled"]:
+        return {"status": "suppressed", "reason": "disabled", "event_ids": []}
+
+    local_now = context.now_local
+    query_start = local_now.replace(second=0, microsecond=0)
+    query_end = query_start + timedelta(days=2)
+    try:
+        from backend.app.calendar.calendar_service import list_events
+        import asyncio
+        events = await asyncio.to_thread(list_events, query_start.isoformat(), query_end.isoformat())
+    except Exception:
+        return {"status": "idle", "reason": "calendar_unavailable", "event_ids": []}
+    if not isinstance(events, list):
+        return {"status": "idle", "reason": "calendar_unavailable", "event_ids": []}
+
+    due: list[dict[str, Any]] = []
+    for event in events:
+        reminder = event.get("reminder_minutes")
+        if reminder is None:
+            continue
+        try:
+            event_start = parse_datetime(event.get("start"), default_timezone=context.zone)
+            if event_start is None:
+                continue
+            due_at = event_start - timedelta(minutes=int(reminder))
+            if not due_at <= now < due_at + timedelta(minutes=preferences["coalesce_window_minutes"]):
+                continue
+        except (TypeError, ValueError):
+            continue
+        dedupe_key = f"calendar:{event.get('uid', '')}:{event.get('start', '')}"
+        if not event.get("uid") or _already_sent(dedupe_key, now):
+            continue
+        due.append({**event, "_dedupe_key": dedupe_key})
+
+    if not due:
+        return {"status": "idle", "reason": "nothing_new", "event_ids": []}
+    if _in_quiet_hours(now, preferences):
+        return {"status": "suppressed", "reason": "quiet_hours", "event_ids": [event["uid"] for event in due]}
+
+    lines = ["🔔 Mira — напоминание о календаре", ""]
+    deliverable = due[: preferences["max_messages_per_window"]]
+    for event in deliverable:
+        start = str(event.get("start", ""))
+        lines.append(f"• {event.get('summary', 'Событие')} · {start.replace('T', ' ')}")
+    result = await send_notification("\n".join(lines))
+    due_event_ids = [event["uid"] for event in due]
+    if isinstance(result, dict) and result.get("status") == "dry_run":
+        _record("dry_run", due_event_ids, "medium", dedupe_key=f"calendar-batch:{now.isoformat()}", reason="execution_mode")
+        return {"status": "dry_run", "event_ids": due_event_ids}
+    if result is not True:
+        _record("failed", due_event_ids, "medium", dedupe_key=f"calendar-batch:{now.isoformat()}", reason="telegram_send_failed")
+        return {"status": "failed", "event_ids": due_event_ids}
+    event_ids = [event["uid"] for event in deliverable]
+    for event in deliverable:
+        _record("sent", [event["uid"]], "medium", dedupe_key=event["_dedupe_key"], sent_at=now)
+    return {"status": "sent", "event_ids": event_ids}

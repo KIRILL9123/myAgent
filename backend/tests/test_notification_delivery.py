@@ -74,3 +74,78 @@ async def test_delivery_respects_quiet_hours_for_noncritical_actions(notificatio
     assert result["status"] == "suppressed"
     assert result["reason"] == "quiet_hours"
     assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_calendar_delivery_only_dedupes_events_actually_sent(notification_db, monkeypatch):
+    from backend.app.calendar import calendar_service
+    from backend.app.notifications import delivery_service
+
+    delivery_service.update_notification_preferences(max_messages_per_window=1)
+    events = [
+        {
+            "uid": "event-1",
+            "summary": "Первое событие",
+            "start": "2030-01-10T12:05:00+00:00",
+            "reminder_minutes": 5,
+        },
+        {
+            "uid": "event-2",
+            "summary": "Второе событие",
+            "start": "2030-01-10T12:10:00+00:00",
+            "reminder_minutes": 10,
+        },
+    ]
+    sent: list[str] = []
+
+    def fake_list_events(start_date: str, end_date: str):
+        return events
+
+    async def fake_send(message: str, chat_id: str | None = None):
+        sent.append(message)
+        return True
+
+    monkeypatch.setattr(calendar_service, "list_events", fake_list_events)
+    monkeypatch.setattr(delivery_service, "send_notification", fake_send)
+    now = datetime(2030, 1, 10, 12, 0, tzinfo=timezone.utc)
+
+    first = await delivery_service.deliver_calendar_reminders(now)
+    second = await delivery_service.deliver_calendar_reminders(now)
+
+    assert first == {"status": "sent", "event_ids": ["event-1"]}
+    assert second == {"status": "sent", "event_ids": ["event-2"]}
+    assert len(sent) == 2
+    assert "Первое событие" in sent[0]
+    assert "Второе событие" not in sent[0]
+    assert "Второе событие" in sent[1]
+
+
+@pytest.mark.asyncio
+async def test_calendar_delivery_uses_coalesce_window(notification_db, monkeypatch):
+    from backend.app.calendar import calendar_service
+    from backend.app.notifications import delivery_service
+
+    delivery_service.update_notification_preferences(coalesce_window_minutes=15)
+    sent: list[str] = []
+
+    def fake_list_events(start_date: str, end_date: str):
+        return [{
+            "uid": "old-event",
+            "summary": "Старое событие",
+            "start": "2030-01-10T11:44:00+00:00",
+            "reminder_minutes": 0,
+        }]
+
+    async def fake_send(message: str, chat_id: str | None = None):
+        sent.append(message)
+        return True
+
+    monkeypatch.setattr(calendar_service, "list_events", fake_list_events)
+    monkeypatch.setattr(delivery_service, "send_notification", fake_send)
+
+    result = await delivery_service.deliver_calendar_reminders(
+        datetime(2030, 1, 10, 12, 0, tzinfo=timezone.utc)
+    )
+
+    assert result == {"status": "idle", "reason": "nothing_new", "event_ids": []}
+    assert sent == []

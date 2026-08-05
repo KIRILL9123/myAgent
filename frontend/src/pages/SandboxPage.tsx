@@ -26,7 +26,7 @@ export default function SandboxPage() {
   const queryClient = useQueryClient();
   const [sessionId] = useState(getWorkspaceId);
   const [selectedPath, setSelectedPath] = useState('main.py');
-  const [content, setContent] = useState('print("Hello from MyAgent sandbox")\n');
+  const [content, setContent] = useState('print("Hello from Mira sandbox")\n');
   const [check, setCheck] = useState<'python' | 'pytest' | 'node' | 'compile_python'>('python');
   const [output, setOutput] = useState('');
   const [status, setStatus] = useState<string | null>(null);
@@ -34,6 +34,14 @@ export default function SandboxPage() {
   const diff = useQuery({ queryKey: ['sandbox-diff', sessionId], queryFn: () => fetchSandboxDiff(sessionId), staleTime: 5_000 });
   const files = useMemo(() => snapshot.data?.files.filter(item => item.type === 'file') ?? [], [snapshot.data]);
   const runtime = snapshot.data?.runtime;
+  const lifecycle = snapshot.data?.lifecycle;
+  const lifecycleLabel = lifecycle?.state === 'draft_changed'
+    ? 'Есть изменения после checkpoint'
+    : lifecycle?.state === 'checkpointed'
+      ? 'Workspace зафиксирован'
+      : lifecycle?.state === 'runtime_unavailable'
+        ? 'Runner недоступен'
+        : 'Пустой workspace';
   const runtimeNotice = !runtime
     ? 'Песочница загружает runtime…'
     : runtime.ready && runtime.configured_runtime === 'docker'
@@ -100,6 +108,7 @@ export default function SandboxPage() {
         <ShieldCheck className={`mt-0.5 h-4 w-4 shrink-0 ${runtime?.ready ? 'text-emerald-300' : 'text-amber-300'}`} />
         <span><strong className="font-semibold text-zinc-300">{runtime?.ready ? 'Изолированный runner' : 'Runner недоступен'}</strong><br />{runtimeNotice}</span>
       </div>
+      {lifecycle && <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-xs text-zinc-400"><span><strong className="font-semibold text-zinc-200">Состояние workspace:</strong> {lifecycleLabel}</span><span>Checkpoint: {new Date(lifecycle.baseline_at).toLocaleString('ru-RU')}</span></div>}
       {error && <ErrorState message={error instanceof Error ? error.message : 'Операция песочницы не выполнена'} />}
       {snapshot.isLoading ? <LoadingState label="Загружаю рабочее пространство…" /> : <>
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[240px_minmax(0,1fr)]">

@@ -5,34 +5,24 @@ their active signals into one stable contract for the dashboard, chat and
 future notification channels.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Any
 
 from backend.app.approvals.approval_service import list_approvals
+from backend.app.action_state_service import list_action_states
 from backend.app.commitments.commitment_service import list_commitments
+from backend.app.conflicts.conflict_service import detect_conflicts
 from backend.app.countdown.countdown_service import get_all_countdowns
+from backend.app.finance.finance_service import get_forecast
+from backend.app.finance.subscription_link_service import linked_recurring_template_ids
 from backend.app.subscriptions.subscription_service import list_subscriptions
 from backend.app.observability.error_reports import list_error_reports
-
-
-def _parse_datetime(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
-
-
-def _reference_time(value: datetime | None) -> datetime:
-    if value is None:
-        return datetime.now(timezone.utc)
-    if value.tzinfo is None:
-        raise ValueError("reference_time must include a timezone")
-    return value.astimezone(timezone.utc)
+from backend.app.temporal.time_context import (
+    TemporalContext,
+    build_temporal_context,
+    classify_due,
+    classify_due_date,
+)
 
 
 def _priority_rank(priority: str) -> int:
@@ -74,22 +64,9 @@ def _action(
     }
 
 
-def _due_state(event_at: str | None, now: datetime, soon_days: int) -> tuple[str, str, bool]:
-    event = _parse_datetime(event_at)
-    if not event:
-        return "planned", "low", False
-    if event < now:
-        return "overdue", "critical", True
-    if event <= now.replace(hour=23, minute=59, second=59, microsecond=0):
-        return "due_today", "high", True
-    if event <= now + timedelta(days=soon_days):
-        return "upcoming", "high", True
-    return "planned", "low", False
-
-
-def _reminder_due(value: str | None, sent_at: str | None, now: datetime) -> bool:
-    reminder = _parse_datetime(value)
-    return bool(reminder and reminder <= now and not sent_at)
+def _reminder_due(value: str | None, sent_at: str | None, context: TemporalContext) -> bool:
+    reminder = context.parse(value)
+    return bool(reminder and reminder <= context.now_utc and not sent_at)
 
 
 def _include(item: dict[str, Any], mode: str) -> bool:
@@ -100,9 +77,41 @@ def _sort_key(item: dict[str, Any]) -> tuple[int, int, str]:
     return (_priority_rank(item["priority"]), 0 if item.get("due_at") else 1, item.get("due_at") or "9999")
 
 
+def _apply_interaction_states(items: list[dict[str, Any]], mode: str, now: datetime) -> list[dict[str, Any]]:
+    states = list_action_states()
+    visible: list[dict[str, Any]] = []
+    for item in items:
+        saved = states.get(item["id"])
+        state = saved["state"] if saved else "unread"
+        snoozed_until = saved.get("snoozed_until") if saved else None
+        if state == "dismissed" and mode == "attention":
+            continue
+        if state == "snoozed" and snoozed_until:
+            try:
+                snooze_end = datetime.fromisoformat(snoozed_until.replace("Z", "+00:00"))
+            except ValueError:
+                snooze_end = now
+            if snooze_end > now and mode == "attention":
+                continue
+            if snooze_end <= now:
+                state = "unread"
+                snoozed_until = None
+        if mode == "attention" and state == "read":
+            continue
+        item["interaction"] = {
+            "state": state,
+            "snoozed_until": snoozed_until,
+            "updated_at": saved.get("updated_at") if saved else None,
+        }
+        visible.append(item)
+    return visible
+
+
 def build_action_center(
     reference_time: datetime | None = None,
     *,
+    timezone_name: str | None = None,
+    temporal_context: TemporalContext | None = None,
     mode: str = "attention",
     limit: int = 25,
     include_external: bool = False,
@@ -110,7 +119,10 @@ def build_action_center(
     """Build the unified action feed without mutating domain data."""
     if mode not in {"attention", "all"}:
         raise ValueError("mode must be attention or all")
-    now = _reference_time(reference_time)
+    if temporal_context is not None and reference_time is not None:
+        raise ValueError("provide either reference_time or temporal_context")
+    context = temporal_context or build_temporal_context(reference_time, timezone_name)
+    now = context.now_utc
     limit = max(1, min(int(limit), 100))
     items: list[dict[str, Any]] = []
 
@@ -163,8 +175,9 @@ def build_action_center(
     for commitment in commitments:
         if commitment.get("status") != "ACTIVE":
             continue
-        deadline_state, priority, deadline_attention = _due_state(commitment.get("deadline_at"), now, 2)
-        reminder_due = _reminder_due(commitment.get("reminder_at"), commitment.get("reminder_sent_at"), now)
+        due = classify_due(commitment.get("deadline_at"), context, 2)
+        deadline_state, priority, deadline_attention = due.status, due.priority, due.attention
+        reminder_due = _reminder_due(commitment.get("reminder_at"), commitment.get("reminder_sent_at"), context)
         if reminder_due:
             priority = "high" if priority == "low" else priority
         if not deadline_attention and not reminder_due and mode != "all":
@@ -186,13 +199,39 @@ def build_action_center(
             metadata={"owner": commitment.get("owner"), "confidence": commitment.get("confidence")},
         ))
 
+    conflict_result = detect_conflicts(
+        temporal_context=context,
+        horizon_days=30,
+        include_external=include_external,
+    )
+    for conflict in conflict_result.get("conflicts", []):
+        items.append(_action(
+            action_id=f"conflict:{conflict['id']}",
+            kind="conflict",
+            source_id=conflict["id"],
+            title=conflict["title"],
+            summary=conflict["summary"],
+            status="conflict",
+            priority=conflict.get("priority", "high"),
+            due_at=conflict.get("due_at") or conflict.get("event_start"),
+            source="CONFLICT_DETECTION",
+            target="/calendar",
+            metadata={
+                "conflict_type": conflict.get("type"),
+                "event_uid": conflict.get("event_uid"),
+                "commitment_id": conflict.get("commitment_id"),
+                "related_event_uid": conflict.get("related_event_uid"),
+            },
+        ))
+
     subscriptions = list_subscriptions()
     for subscription in subscriptions:
         if subscription.get("status") != "ACTIVE":
             continue
         event_at = subscription.get("next_charge_at") or subscription.get("trial_ends_at")
-        event_state, priority, event_attention = _due_state(event_at, now, 7)
-        reminder_due = _reminder_due(subscription.get("reminder_at"), subscription.get("reminder_sent_at"), now)
+        due = classify_due(event_at, context, 7)
+        event_state, priority, event_attention = due.status, due.priority, due.attention
+        reminder_due = _reminder_due(subscription.get("reminder_at"), subscription.get("reminder_sent_at"), context)
         if reminder_due:
             priority = "high" if priority == "low" else priority
         if not event_attention and not reminder_due and mode != "all":
@@ -215,7 +254,44 @@ def build_action_center(
             metadata={"provider": subscription.get("provider"), "amount": subscription.get("amount"), "currency": subscription.get("currency")},
         ))
 
-    countdown_result = get_all_countdowns()
+    # Finance owns recurring templates; Action Center only projects the next
+    # occurrence. Linked subscription templates are omitted because the
+    # subscription signal above already represents the same upcoming charge.
+    linked_template_ids = linked_recurring_template_ids()
+    forecast = get_forecast(months=12, start_date=context.today.isoformat())
+    seen_templates: set[str] = set()
+    for occurrence in forecast.get("occurrences", []):
+        template_id = str(occurrence.get("template_id"))
+        if template_id in seen_templates or occurrence.get("template_id") in linked_template_ids:
+            continue
+        seen_templates.add(template_id)
+        due = classify_due_date(occurrence.get("date"), context, 7)
+        if not due.attention and mode != "all":
+            continue
+        label = occurrence.get("description") or occurrence.get("category") or "Регулярная операция"
+        direction = "Доход" if occurrence.get("type") == "income" else "Расход"
+        items.append(_action(
+            action_id=f"finance:{template_id}:{occurrence['date']}",
+            kind="finance",
+            source_id=f"{template_id}:{occurrence['date']}",
+            title=f"{direction}: {label}",
+            summary=f"{occurrence['amount']:g} {occurrence['currency']} · {occurrence.get('category') or 'Разное'} · {occurrence.get('frequency', 'monthly')}",
+            status=due.status,
+            priority=due.priority,
+            due_at=occurrence.get("date"),
+            reminder_due=due.status in {"due_today", "overdue"},
+            source="FINANCE",
+            target="/finance",
+            metadata={
+                "template_id": occurrence.get("template_id"),
+                "amount": occurrence.get("amount"),
+                "currency": occurrence.get("currency"),
+                "category": occurrence.get("category"),
+                "frequency": occurrence.get("frequency"),
+            },
+        ))
+
+    countdown_result = get_all_countdowns(temporal_context=context)
     countdowns = countdown_result.get("countdowns", []) if isinstance(countdown_result, dict) else []
     for countdown in countdowns:
         days = countdown.get("days_remaining")
@@ -262,12 +338,14 @@ def build_action_center(
                 ))
 
     items = [item for item in items if _include(item, mode)]
+    items = _apply_interaction_states(items, mode, now)
     items.sort(key=_sort_key)
     overdue = sum(item["status"] == "overdue" for item in items)
     due_today = sum(item["status"] == "due_today" for item in items)
     return {
         "generated_at": now.isoformat(),
-        "timezone": str(now.tzinfo),
+        "timezone": context.timezone_name,
+        "today": context.today.isoformat(),
         "mode": mode,
         "summary": {
             "total": len(items),
@@ -278,6 +356,9 @@ def build_action_center(
             "due_today": due_today,
             "requires_approval": sum(item["requires_approval"] for item in items),
             "reminders_due": sum(item["reminder_due"] for item in items),
+            "conflicts": sum(item["kind"] == "conflict" for item in items),
+            "unread": sum(item.get("interaction", {}).get("state") == "unread" for item in items),
+            "read": sum(item.get("interaction", {}).get("state") == "read" for item in items),
         },
         "actions": items[:limit],
     }

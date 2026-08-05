@@ -44,6 +44,7 @@ def _row_to_dict(row: tuple[Any, ...]) -> dict[str, Any]:
         "reminder_sent_at", "created_at", "updated_at", "activated_at",
         "completed_at", "cancelled_at", "expired_at", "approval_provenance",
         "related_fact_ids", "related_calendar_event_ids", "conflicts_with_ids",
+        "project_id",
     )
     result = dict(zip(keys, row))
     for key in (
@@ -63,7 +64,7 @@ def _get(commitment_id: str) -> dict[str, Any] | None:
                       reminder_sent_at, created_at, updated_at, activated_at,
                       completed_at, cancelled_at, expired_at, approval_provenance_json,
                       related_fact_ids_json, related_calendar_event_ids_json,
-                      conflicts_with_ids_json
+                      conflicts_with_ids_json, project_id
                FROM commitments WHERE id = ?""",
             (commitment_id,),
         ).fetchone()
@@ -129,6 +130,47 @@ def create_commitment(
     return _get(commitment_id)  # type: ignore[return-value]
 
 
+def create_active_commitment(
+    title: str,
+    description: str | None = None,
+    source_type: str = "CHAT",
+    source_ref: str | None = None,
+    owner: str = "user",
+    deadline_at: str | None = None,
+    reminder_at: str | None = None,
+    confidence: float = 1.0,
+    provenance: dict[str, Any] | None = None,
+    related_fact_ids: list[int] | None = None,
+    related_calendar_event_ids: list[str] | None = None,
+    conflicts_with_ids: list[str] | None = None,
+    approval_provenance: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Create a user-requested task as an active commitment.
+
+    Email and document extraction continue to use ``create_commitment`` and
+    the proposal/approval lifecycle. This helper is for an explicit local
+    command from the assistant, where the user's request is the approval.
+    """
+    commitment = create_commitment(
+        title=title,
+        description=description,
+        source_type=source_type,
+        source_ref=source_ref,
+        owner=owner,
+        deadline_at=deadline_at,
+        reminder_at=reminder_at,
+        confidence=confidence,
+        provenance=provenance,
+        related_fact_ids=related_fact_ids,
+        related_calendar_event_ids=related_calendar_event_ids,
+        conflicts_with_ids=conflicts_with_ids,
+    )
+    approval = dict(approval_provenance or {})
+    approval.setdefault("channel", "assistant")
+    approval.setdefault("explicit_user_request", True)
+    return transition_commitment(commitment["id"], "approve", approval)
+
+
 def list_commitments(status: str | None = None, owner: str | None = None,
                      include_completed: bool = True) -> list[dict[str, Any]]:
     if status and status.upper() not in STATUSES:
@@ -151,7 +193,7 @@ def list_commitments(status: str | None = None, owner: str | None = None,
                        reminder_sent_at, created_at, updated_at, activated_at,
                        completed_at, cancelled_at, expired_at, approval_provenance_json,
                        related_fact_ids_json, related_calendar_event_ids_json,
-                       conflicts_with_ids_json
+                        conflicts_with_ids_json, project_id
                 FROM commitments {where}
                 ORDER BY CASE WHEN deadline_at IS NULL THEN 1 ELSE 0 END, deadline_at, created_at""",
             params,
@@ -167,7 +209,7 @@ def list_commitments_by_source_prefix(prefix: str) -> list[dict[str, Any]]:
                        reminder_sent_at, created_at, updated_at, activated_at,
                        completed_at, cancelled_at, expired_at, approval_provenance_json,
                        related_fact_ids_json, related_calendar_event_ids_json,
-                       conflicts_with_ids_json
+                       conflicts_with_ids_json, project_id
                 FROM commitments WHERE source_ref LIKE ? ORDER BY created_at""",
             (f"{prefix}%",),
         ).fetchall()
@@ -183,7 +225,7 @@ def get_due_reminders(now: str | None = None) -> list[dict[str, Any]]:
                        reminder_sent_at, created_at, updated_at, activated_at,
                        completed_at, cancelled_at, expired_at, approval_provenance_json,
                        related_fact_ids_json, related_calendar_event_ids_json,
-                       conflicts_with_ids_json
+                       conflicts_with_ids_json, project_id
                 FROM commitments
                 WHERE status = 'ACTIVE' AND reminder_at IS NOT NULL
                   AND reminder_at <= ? AND reminder_sent_at IS NULL
@@ -216,7 +258,7 @@ def update_commitment(commitment_id: str, **changes: Any) -> dict[str, Any]:
         raise KeyError("commitment not found")
     if commitment["status"] in TERMINAL_STATUSES:
         raise ValueError("terminal commitments cannot be edited")
-    allowed = {"title", "description", "owner", "deadline_at", "reminder_at", "confidence"}
+    allowed = {"title", "description", "owner", "deadline_at", "reminder_at", "confidence", "project_id"}
     unknown = set(changes) - allowed
     if unknown:
         raise ValueError(f"unsupported fields: {sorted(unknown)}")

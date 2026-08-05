@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { 
   Plus, 
   Loader2, 
@@ -15,6 +17,8 @@ import {
 } from '../api/finance';
 import { useFinanceData } from '../hooks/useFinanceData';
 import type { FinanceRange } from '../types';
+import { fetchSubscriptions } from '../api/subscriptions';
+import type { Subscription } from '../api/subscriptions';
 import FinanceSummaryCards from '../components/finance/FinanceSummaryCards';
 import TransactionCard from '../components/finance/TransactionCard';
 import RecurringTemplateCard from '../components/finance/RecurringTemplateCard';
@@ -36,16 +40,22 @@ const FINANCE_CATEGORIES = [
 
 export default function FinancePage() {
   const [range, setRange] = useState<FinanceRange>('month');
-  const { transactions, summary, recurringTemplates, loading, error, reload: loadData } = useFinanceData(range);
+  const { transactions, summary, recurringTemplates, forecast, loading, error, reload: loadData } = useFinanceData(range);
+  const subscriptionsQuery = useQuery({ queryKey: ['subscriptions'], queryFn: () => fetchSubscriptions(), staleTime: 5 * 60 * 1000 });
+  const subscriptions = subscriptionsQuery.data ?? [];
+  const proposedSubscriptions = subscriptions.filter(item => item.status === 'PROPOSED');
+  const activeSubscriptions = subscriptions.filter(item => item.status === 'ACTIVE');
 
   // Form states
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [formType, setFormType] = useState<'income' | 'expense'>('expense');
   const [formAmount, setFormAmount] = useState<string>('');
+  const [formCurrency, setFormCurrency] = useState<string>('EUR');
   const [formCategory, setFormCategory] = useState<string>(FINANCE_CATEGORIES[0]);
   const [formDescription, setFormDescription] = useState<string>('');
   const [formDate, setFormDate] = useState<string>('');
   const [formIsRecurring, setFormIsRecurring] = useState<boolean>(false);
+  const [formFrequency, setFormFrequency] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<{ kind: 'transaction' | 'template'; id: number; label: string } | null>(null);
@@ -67,10 +77,12 @@ export default function FinancePage() {
     const todayStr = new Date().toISOString().substring(0, 10);
     setFormType('expense');
     setFormAmount('');
+    setFormCurrency('EUR');
     setFormCategory('Еда');
     setFormDescription('');
     setFormDate(todayStr);
     setFormIsRecurring(false);
+    setFormFrequency('monthly');
     setIsModalOpen(true);
   };
 
@@ -87,10 +99,12 @@ export default function FinancePage() {
       await createTransaction({
         type: formType,
         amount: amountNum,
+        currency: formCurrency,
         category: formCategory,
         description: formDescription,
         date: formDate,
-        is_recurring: formIsRecurring
+        is_recurring: formIsRecurring,
+        frequency: formFrequency,
       });
       setIsModalOpen(false);
       loadData();
@@ -101,8 +115,8 @@ export default function FinancePage() {
     }
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(val);
+  const formatCurrency = (val: number, currency = 'EUR') => {
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency, minimumFractionDigits: 2 }).format(val);
   };
 
   const formatDateString = (str: string) => {
@@ -254,13 +268,13 @@ export default function FinancePage() {
                 <div className="flex items-center gap-2 mb-4">
                   <Repeat className="h-4 w-4 text-emerald-500" />
                   <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                    Активные подписки (Ежемесячные шаблоны)
+                    Активные повторяющиеся операции
                   </h3>
                 </div>
                 
                 {recurringTemplates.length === 0 ? (
                   <div className="w-full h-24 flex items-center justify-center border border-zinc-900 border-dashed rounded-2xl bg-zinc-950/15">
-                    <p className="text-zinc-600 text-xs font-sans">Нет ежемесячных подписок.</p>
+                    <p className="text-zinc-600 text-xs font-sans">Нет повторяющихся операций.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -275,6 +289,54 @@ export default function FinancePage() {
                   </div>
                 )}
               </div>
+
+              {forecast && (
+                <section className="border-t border-zinc-900 pt-6">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Прогноз на 3 месяца</h3>
+                      <p className="mt-1 text-[11px] text-zinc-600">Только активные повторяющиеся шаблоны, без конвертации валют.</p>
+                    </div>
+                    <span className="text-[11px] text-zinc-600">{formatDateString(forecast.start_date)} — {formatDateString(forecast.end_date)}</span>
+                  </div>
+                  {forecast.currencies.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-zinc-800 px-4 py-5 text-xs text-zinc-600">Нет запланированных повторений.</div>
+                  ) : (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {forecast.currencies.map((currency) => {
+                        const totals = forecast.by_currency[currency];
+                        return (
+                          <div key={currency} className="rounded-xl border border-zinc-800 bg-zinc-950/25 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-xs font-semibold text-zinc-200">{currency}</span>
+                              <span className={`text-xs font-mono font-semibold ${totals.net_balance >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                {formatCurrency(totals.net_balance, currency)}
+                              </span>
+                            </div>
+                            <div className="mt-3 grid grid-cols-3 gap-2 text-[10px]">
+                              <div><span className="block text-zinc-600">Доходы</span><span className="text-emerald-300">{formatCurrency(totals.total_income, currency)}</span></div>
+                              <div><span className="block text-zinc-600">Расходы</span><span className="text-rose-300">{formatCurrency(totals.total_expense, currency)}</span></div>
+                              <div><span className="block text-zinc-600">Повторения</span><span className="text-zinc-300">{totals.occurrences}</span></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {forecast.occurrences.length > 0 && (
+                    <div className="mt-3 divide-y divide-zinc-900 rounded-xl border border-zinc-900 bg-zinc-950/15">
+                      {forecast.occurrences.slice(0, 6).map((occurrence) => (
+                        <div key={`${occurrence.template_id}-${occurrence.date}`} className="flex items-center justify-between gap-3 px-4 py-3 text-xs">
+                          <div className="min-w-0"><p className="truncate text-zinc-300">{occurrence.description || occurrence.category}</p><p className="mt-0.5 text-[10px] text-zinc-600">{formatDateString(occurrence.date)} · {occurrence.frequency}</p></div>
+                          <span className={`shrink-0 font-mono ${occurrence.type === 'income' ? 'text-emerald-300' : 'text-rose-300'}`}>{occurrence.type === 'income' ? '+' : '-'}{formatCurrency(occurrence.amount, occurrence.currency)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              <SubscriptionsSnapshot subscriptions={subscriptions} proposed={proposedSubscriptions} active={activeSubscriptions} loading={subscriptionsQuery.isLoading} error={subscriptionsQuery.error} formatDate={formatDateString} />
             </>
           )}
         </div>
@@ -357,6 +419,22 @@ export default function FinancePage() {
                 />
               </div>
 
+              {/* Currency */}
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
+                  Валюта *
+                </label>
+                <select
+                  value={formCurrency}
+                  onChange={(e) => setFormCurrency(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-850 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none transition-all font-sans cursor-pointer"
+                >
+                  {['EUR', 'USD', 'GBP', 'UAH'].map((currency) => (
+                    <option key={currency} value={currency}>{currency}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Category */}
               <div>
                 <label className="block text-[10px] font-bold text-zinc-550 uppercase tracking-widest mb-1.5">
@@ -415,13 +493,30 @@ export default function FinancePage() {
                 <div className="flex flex-col gap-0.5 cursor-pointer select-none min-w-0" onClick={() => setFormIsRecurring(!formIsRecurring)}>
                   <label htmlFor="formIsRecurring" className="text-xs font-semibold text-zinc-250 flex items-center gap-1.5 cursor-pointer">
                     <Repeat className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                    Повторять каждый месяц
+                    Повторять операцию
                   </label>
                   <span className="text-[10px] text-zinc-550 leading-relaxed font-sans">
-                    Создаст ежемесячную автоподписку на основе дня выбранной даты.
+                    Создаст шаблон операции с выбранной частотой.
                   </span>
                 </div>
               </div>
+
+              {formIsRecurring && (
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
+                    Частота повторения
+                  </label>
+                  <select
+                    value={formFrequency}
+                    onChange={(e) => setFormFrequency(e.target.value as 'weekly' | 'monthly' | 'yearly')}
+                    className="w-full bg-zinc-950 border border-zinc-850 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none transition-all font-sans cursor-pointer"
+                  >
+                    <option value="weekly">Каждую неделю</option>
+                    <option value="monthly">Каждый месяц</option>
+                    <option value="yearly">Каждый год</option>
+                  </select>
+                </div>
+              )}
 
               {/* Form Actions */}
               <div className="flex gap-3 justify-end border-t border-zinc-800/40 pt-4 mt-1.5">
@@ -445,7 +540,12 @@ export default function FinancePage() {
           </div>
         </div>
       )}
-      {pendingRemoval && <Dialog title={pendingRemoval.label} description={pendingRemoval.kind === 'template' ? 'Новые ежемесячные операции по этому шаблону больше не будут создаваться.' : 'Операция будет удалена из журнала финансов.'} onClose={() => setPendingRemoval(null)}><div className="flex justify-end gap-2"><Button onClick={() => setPendingRemoval(null)}>Отмена</Button><Button tone="danger" onClick={confirmRemoval}>Подтвердить</Button></div></Dialog>}
+      {pendingRemoval && <Dialog title={pendingRemoval.label} description={pendingRemoval.kind === 'template' ? 'Новые операции по этому шаблону больше не будут создаваться.' : 'Операция будет удалена из журнала финансов.'} onClose={() => setPendingRemoval(null)}><div className="flex justify-end gap-2"><Button onClick={() => setPendingRemoval(null)}>Отмена</Button><Button tone="danger" onClick={confirmRemoval}>Подтвердить</Button></div></Dialog>}
     </div>
   );
+}
+
+function SubscriptionsSnapshot({ subscriptions, proposed, active, loading, error, formatDate }: { subscriptions: Subscription[]; proposed: Subscription[]; active: Subscription[]; loading: boolean; error: unknown; formatDate: (value: string) => string }) {
+  const visible = [...proposed, ...active].slice(0, 4);
+  return <section className="border-t border-zinc-900 pt-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-semibold text-zinc-200">Подписки</h2><p className="mt-1 text-xs text-zinc-500">Регулярные платежи теперь рядом с финансами</p></div><Link to="/subscriptions" className="text-xs font-semibold text-emerald-300 hover:text-emerald-200">Открыть управление →</Link></div><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3"><div className="rounded-xl border border-zinc-800 bg-zinc-950/30 p-3"><p className="text-[10px] uppercase tracking-wider text-zinc-600">Всего</p><p className="mt-2 text-xl font-bold text-zinc-200">{subscriptions.length}</p></div><div className="rounded-xl border border-amber-500/15 bg-amber-500/5 p-3"><p className="text-[10px] uppercase tracking-wider text-zinc-600">На проверке</p><p className="mt-2 text-xl font-bold text-amber-300">{proposed.length}</p></div><div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 p-3"><p className="text-[10px] uppercase tracking-wider text-zinc-600">Активные</p><p className="mt-2 text-xl font-bold text-emerald-300">{active.length}</p></div></div>{loading ? <div className="mt-4 flex items-center gap-2 text-xs text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" />Загружаю подписки…</div> : error ? <p className="mt-4 text-xs text-zinc-600">Подписки временно недоступны</p> : visible.length === 0 ? <p className="mt-4 rounded-xl border border-dashed border-zinc-800 p-4 text-xs text-zinc-600">Подписок пока нет</p> : <div className="mt-4 grid gap-2 md:grid-cols-2">{visible.map(item => { const deadline = item.next_charge_at || item.trial_ends_at; const status = item.status === 'PROPOSED' ? 'На проверке' : 'Активна'; return <div key={item.id} className="rounded-xl border border-zinc-800 bg-zinc-950/30 p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-xs font-semibold text-zinc-200">{item.name}</p><p className="mt-1 truncate text-[11px] text-zinc-500">{item.provider || 'Вручную'}</p></div><span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-semibold ${item.status === 'PROPOSED' ? 'bg-amber-500/10 text-amber-300' : 'bg-emerald-500/10 text-emerald-300'}`}>{status}</span></div>{deadline && <p className="mt-3 text-[11px] text-zinc-500">Ближайшая дата: {formatDate(deadline)}</p>}</div>; })}</div>}</section>;
 }

@@ -71,13 +71,18 @@ async def process_callback_query(callback: dict):
         await answer_callback(cb_id, "Invalid request")
         return
 
-    action, nonce, action_id = parts
+    action, nonce, action_id_raw = parts
+    try:
+        action_id = int(action_id_raw)
+    except (TypeError, ValueError):
+        await answer_callback(cb_id, "Invalid request")
+        return
     from backend.app.agent.confirmation import confirm_callback, cancel_callback
 
     if action == "confirm":
-        result = await confirm_callback(nonce, chat_id)
+        result = await confirm_callback(nonce, chat_id, action_id=action_id)
     elif action == "cancel":
-        result = await cancel_callback(nonce, chat_id)
+        result = await cancel_callback(nonce, chat_id, action_id=action_id)
     else:
         await answer_callback(cb_id, "Unknown action")
         return

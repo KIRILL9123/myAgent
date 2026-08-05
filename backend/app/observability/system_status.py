@@ -53,7 +53,7 @@ def get_system_status() -> dict:
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "overall": "ok" if model["status"] == "ok" else "degraded",
-        "backend": {"status": "ok", "message": "Home Agent API is running"},
+        "backend": {"status": "ok", "message": "Mira API is running"},
         "llm": {
             "provider": provider,
             "model": llm.get_model_for_role("main"),

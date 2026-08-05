@@ -3,7 +3,7 @@ import { apiRequest } from './client';
 const API_BASE = '/api/sandbox';
 
 export interface SandboxFile { path: string; type: 'file' | 'directory'; size: number; }
-export interface SandboxSnapshot { status: string; session_id: string; workspace: string; files: SandboxFile[]; total_bytes: number; limits: Record<string, number>; runtime: { configured_runtime: string; ready: boolean; message: string; security?: string; }; }
+export interface SandboxSnapshot { status: string; session_id: string; workspace: string; files: SandboxFile[]; total_bytes: number; limits: Record<string, number>; lifecycle: { state: 'empty' | 'draft_changed' | 'checkpointed' | 'runtime_unavailable'; changed_files: number; baseline_at: string; }; runtime: { configured_runtime: string; ready: boolean; message: string; security?: string; }; }
 export interface SandboxCheckResult { status: string; check: string; path: string; return_code?: number; stdout?: string; stderr?: string; message?: string; duration_ms?: number; }
 export interface SandboxDiffFile { path: string; status: 'added' | 'modified' | 'removed'; diff: string; additions: number; deletions: number; }
 export interface SandboxDiff { status: string; session_id: string; baseline_at: string; summary: { added: number; modified: number; removed: number; changed_files: number; }; files: SandboxDiffFile[]; }

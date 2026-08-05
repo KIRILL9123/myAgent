@@ -1,18 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Brain, Calendar, CheckCircle2, ChevronDown, Clock, Code2, CreditCard, FileStack,
-  LayoutDashboard, ListTodo, Mail, Menu, MessageSquare, MonitorCog,
-  ShieldCheck, Sparkles, TriangleAlert, Wallet, X, Bell,
+  Bell,
+  Brain,
+  Calendar,
+  CheckCircle2,
+  ChevronDown,
+  FileStack,
+  LayoutDashboard,
+  Mail,
+  Menu,
+  MessageSquare,
+  Plus,
+  Upload,
+  WalletCards,
+  X,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { DOCUMENT_ACCEPT, uploadDocument } from '../api/documents';
 
-interface AppShellProps { children: React.ReactNode; }
+interface AppShellProps { children: React.ReactNode; onNewChat: () => void; }
 
 interface NavItem {
   path: string;
   label: string;
   mobile: string;
-  icon: typeof LayoutDashboard;
+  icon: LucideIcon;
 }
 
 interface NavGroup {
@@ -23,6 +36,9 @@ interface NavGroup {
 
 const HOME: NavItem = { path: '/dashboard', label: 'Главная', mobile: 'Главная', icon: LayoutDashboard };
 const CHAT: NavItem = { path: '/chat', label: 'Чат', mobile: 'Чат', icon: MessageSquare };
+const NOTIFICATIONS: NavItem = { path: '/notifications', label: 'Центр уведомлений', mobile: 'Уведомления', icon: Bell };
+const MAIL: NavItem = { path: '/mail', label: 'Почта', mobile: 'Почта', icon: Mail };
+const TASKS: NavItem = { path: '/commitments', label: 'Обязательства', mobile: 'Задачи', icon: CheckCircle2 };
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -30,48 +46,61 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Планирование',
     items: [
       { path: '/calendar', label: 'Календарь', mobile: 'Календарь', icon: Calendar },
-      { path: '/deadlines', label: 'Дедлайны', mobile: 'Дедлайны', icon: Clock },
-      { path: '/commitments', label: 'Обязательства', mobile: 'Обязательства', icon: CheckCircle2 },
+      TASKS,
     ],
   },
   {
-    id: 'communication',
-    label: 'Коммуникации',
-    items: [{ path: '/mail', label: 'Почта', mobile: 'Почта', icon: Mail }],
-  },
-  {
     id: 'money',
-    label: 'Деньги',
+    label: 'Финансы',
     items: [
-      { path: '/finance', label: 'Финансы', mobile: 'Финансы', icon: Wallet },
-      { path: '/subscriptions', label: 'Подписки', mobile: 'Подписки', icon: CreditCard },
+      { path: '/finance', label: 'Финансы', mobile: 'Финансы', icon: WalletCards },
     ],
   },
   {
     id: 'intelligence',
-    label: 'Интеллект',
+    label: 'Знания',
     items: [
       { path: '/memory', label: 'Память', mobile: 'Память', icon: Brain },
-      { path: '/state', label: 'Состояние', mobile: 'Состояние', icon: Sparkles },
       { path: '/documents', label: 'Документы', mobile: 'Документы', icon: FileStack },
-    ],
-  },
-  {
-    id: 'control',
-    label: 'Центр контроля',
-    items: [
-      { path: '/notifications', label: 'Уведомления', mobile: 'Уведомления', icon: Bell },
-      { path: '/errors', label: 'Ошибки', mobile: 'Ошибки', icon: TriangleAlert },
-      { path: '/approvals', label: 'Подтверждения', mobile: 'Подтверждения', icon: ShieldCheck },
-      { path: '/system', label: 'Система', mobile: 'Система', icon: MonitorCog },
-      { path: '/sandbox', label: 'Песочница', mobile: 'Песочница', icon: Code2 },
     ],
   },
 ];
 
-const ALL_SECONDARY_ITEMS = NAV_GROUPS.flatMap(group => group.items);
+const ALL_SECONDARY_ITEMS = [NOTIFICATIONS, MAIL, ...NAV_GROUPS.flatMap(group => group.items)];
 
-export default function AppShell({ children }: AppShellProps) {
+function MobileUploadAction() {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const upload = async (file: File) => {
+    setBusy(true);
+    setFeedback(null);
+    try {
+      const item = await uploadDocument(file);
+      setFeedback(item.status === 'ready' ? `Добавлен: ${item.original_name}` : 'Файл добавлен, но не обработан');
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Не удалось загрузить файл');
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = '';
+      window.setTimeout(() => setFeedback(null), 4000);
+    }
+  };
+
+  return (
+    <>
+      <input ref={inputRef} type="file" accept={DOCUMENT_ACCEPT} className="mobile-upload-input" onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file); }} />
+      <button type="button" onClick={() => inputRef.current?.click()} disabled={busy} aria-busy={busy} aria-label="Загрузить файл" className="mobile-nav-link mobile-nav-upload">
+        <Upload className="shell-nav-icon" aria-hidden="true" />
+        <span>{busy ? 'Загрузка' : 'Загрузить'}</span>
+      </button>
+      {feedback && <div className="mobile-upload-feedback" role="status">{feedback}</div>}
+    </>
+  );
+}
+
+export default function AppShell({ children, onNewChat }: AppShellProps) {
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ planning: true });
@@ -91,12 +120,12 @@ export default function AppShell({ children }: AppShellProps) {
       <Link
         key={item.path}
         to={item.path}
-        className={mobile
-          ? `flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 transition-colors ${active ? 'text-purple-300' : 'text-zinc-500 hover:text-zinc-200'}`
-          : `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-all ${active ? 'bg-purple-650 text-zinc-100 shadow-lg shadow-purple-900/20' : 'text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200'}`}
+        aria-current={active ? 'page' : undefined}
+        data-active={active}
+        className={mobile ? 'mobile-nav-link' : 'shell-nav-link'}
       >
-        <Icon className={mobile ? 'h-5 w-5' : 'h-4 w-4 shrink-0'} />
-        <span className={mobile ? 'max-w-full truncate text-[10px]' : ''}>{mobile ? item.mobile : item.label}</span>
+        <Icon className="shell-nav-icon" aria-hidden="true" />
+        <span>{mobile ? item.mobile : item.label}</span>
       </Link>
     );
   };
@@ -105,64 +134,79 @@ export default function AppShell({ children }: AppShellProps) {
     const open = Boolean(openGroups[group.id]);
     const active = isGroupActive(group);
     return (
-      <div key={group.id}>
+      <div key={group.id} className="shell-nav-group">
         <button
           type="button"
           onClick={() => setOpenGroups(current => ({ ...current, [group.id]: !open }))}
-          className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${active ? 'text-purple-200' : 'text-zinc-500 hover:bg-zinc-800/30 hover:text-zinc-300'}`}
+          className="shell-nav-section"
           aria-expanded={open}
+          data-active={active}
         >
           <span>{group.label}</span>
-          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
         </button>
-        {open && <div className="mt-1 space-y-1 pl-1">{group.items.map(item => navLink(item))}</div>}
+        {open && <div className="shell-nav-items">{group.items.map(item => navLink(item))}</div>}
       </div>
     );
   };
 
-  const mobileMoreContent = NAV_GROUPS.map(group => (
-    <React.Fragment key={group.id}>
-      <div className="col-span-2 px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-zinc-600">{group.label}</div>
-      {group.items.map(item => navLink(item, true))}
-    </React.Fragment>
-  ));
+  const mobileMoreContent = (
+    <>
+      <div className="mobile-nav-section-title">Обзор</div>
+      {navLink(HOME, true)}
+      {navLink(MAIL, true)}
+      {NAV_GROUPS.map(group => (
+        <React.Fragment key={group.id}>
+          <div className="mobile-nav-section-title">{group.label}</div>
+          {group.items.filter(item => item.path !== TASKS.path).map(item => navLink(item, true))}
+        </React.Fragment>
+      ))}
+    </>
+  );
 
   const secondaryActive = ALL_SECONDARY_ITEMS.some(item => isActive(item.path));
+  const moreActive = secondaryActive && ![TASKS.path, NOTIFICATIONS.path].includes(location.pathname);
+  const handleNewChatClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    onNewChat();
+  };
 
   return (
-    <div className="flex h-[100dvh] min-h-[100dvh] w-screen flex-col overflow-hidden bg-zinc-950 font-sans text-zinc-100 sm:flex-row">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900 p-5 select-none sm:flex">
-        <div className="flex items-center gap-3 px-2 py-3">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-purple-650 text-xs font-bold text-white shadow-[0_0_12px_#a855f7]">MA</div>
-          <span className="font-mono text-sm font-bold uppercase tracking-wide text-zinc-200">MyAgent</span>
+    <div className="app-shell">
+      <aside className="app-sidebar" aria-label="Основная навигация">
+        <div className="brand-row">
+          <img className="brand-logo" src="/mira-logo.png" alt="" aria-hidden="true" />
+          <div className="brand-copy"><span className="brand-name">Mira</span><span className="brand-caption">Личное рабочее пространство</span></div>
         </div>
-        <nav className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-          <div className="space-y-1">{navLink(HOME)}{navLink(CHAT)}</div>
+
+        <Link to="/chat" className="new-chat-button" onClick={handleNewChatClick}><Plus className="h-4 w-4" aria-hidden="true" />Новая беседа</Link>
+
+        <nav className="shell-nav">
+          <div className="shell-nav-primary">{navLink(HOME)}{navLink(CHAT)}{navLink(NOTIFICATIONS)}{navLink(MAIL)}</div>
           {NAV_GROUPS.map(groupNav)}
         </nav>
-        <div className="mt-4 border-t border-zinc-800 px-4 py-3 font-mono text-[10px] text-zinc-500">Локальный режим</div>
+
+        <div className="sidebar-footer"><span className="status-dot" aria-hidden="true" />Локальный режим</div>
       </aside>
 
-      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      <div className="app-main">
+        <div className="app-main-content">{children}</div>
 
         {moreOpen && (
-          <div className="absolute inset-x-3 bottom-[4.75rem] z-40 max-h-[70dvh] overflow-y-auto rounded-2xl border border-zinc-700 bg-zinc-900/95 p-2 shadow-2xl backdrop-blur-xl sm:hidden">
-            <div className="mb-1 flex items-center justify-between px-3 py-2 text-xs font-semibold text-zinc-300">
-              <span>Все разделы</span>
-              <button onClick={() => setMoreOpen(false)} aria-label="Закрыть меню разделов" className="rounded-lg p-1 text-zinc-500 hover:text-zinc-200"><X className="h-4 w-4" /></button>
-            </div>
-            <div className="grid grid-cols-2 gap-1">{mobileMoreContent}</div>
+          <div className="mobile-nav-sheet" role="dialog" aria-label="Все разделы">
+            <div className="mobile-nav-sheet-header"><span>Все разделы</span><button type="button" onClick={() => setMoreOpen(false)} aria-label="Закрыть меню"><X className="h-4 w-4" /></button></div>
+            <div className="mobile-nav-grid">{mobileMoreContent}</div>
           </div>
         )}
 
-        <nav className="z-30 flex shrink-0 items-center gap-1 border-t border-zinc-800 bg-zinc-900/95 px-2 pb-[env(safe-area-inset-bottom)] pt-1.5 backdrop-blur-md sm:hidden">
-          {navLink(HOME, true)}
+        <nav className="mobile-nav" aria-label="Мобильная навигация">
           {navLink(CHAT, true)}
-          {navLink({ path: '/commitments', label: 'Задачи', mobile: 'Задачи', icon: ListTodo }, true)}
-          <button onClick={() => setMoreOpen(value => !value)} aria-expanded={moreOpen} aria-label="Открыть все разделы" className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 ${moreOpen || secondaryActive ? 'text-purple-300' : 'text-zinc-500'}`}>
-            {moreOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            <span className="text-[10px]">Ещё</span>
+          {navLink(TASKS, true)}
+          {navLink(NOTIFICATIONS, true)}
+          <MobileUploadAction />
+          <button type="button" onClick={() => setMoreOpen(value => !value)} aria-expanded={moreOpen} aria-label="Открыть все разделы" className="mobile-nav-link mobile-nav-more" data-active={moreOpen || moreActive}>
+            {moreOpen ? <X className="shell-nav-icon" aria-hidden="true" /> : <Menu className="shell-nav-icon" aria-hidden="true" />}
+            <span>Ещё</span>
           </button>
         </nav>
       </div>

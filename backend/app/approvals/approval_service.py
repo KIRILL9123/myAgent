@@ -83,6 +83,12 @@ def create_sandbox_apply_request(plan: dict[str, Any], source_channel: str = "we
     }
 
 
+def create_document_proposal_request(source_id: str, title: str, summary: str,
+                                     payload: dict[str, Any], source_channel: str = "web") -> str:
+    """Create or refresh a pending document-derived action proposal."""
+    return _upsert_request("DOCUMENT_PROPOSAL", source_id, title, summary, payload, source_channel)
+
+
 def _reconcile_resolved() -> None:
     """Keep the projection accurate when a legacy domain UI resolves an item."""
     with get_db_connection() as conn:
@@ -131,6 +137,12 @@ def _reconcile_resolved() -> None:
                 ).fetchone()
                 if source and source[0] != "draft":
                     resolved_status = "APPROVED" if source[0] == "approved" else "REJECTED"
+            elif kind == "SUBSCRIPTION_FINANCE_LINK":
+                source = conn.execute(
+                    "SELECT status FROM subscription_finance_links WHERE id = ?", (source_id.split(":", 1)[0],)
+                ).fetchone()
+                if source and source[0] != "PROPOSED":
+                    resolved_status = "APPROVED" if source[0] == "LINKED" else "REJECTED"
             if resolved_status:
                 conn.execute(
                     """UPDATE approval_requests
@@ -165,6 +177,11 @@ def sync_pending_approvals() -> None:
             """SELECT id, name, description, category, created_at
                FROM procedural_skills WHERE status = 'draft'"""
         ).fetchall()
+
+    # Existing active subscriptions created before this feature should receive
+    # the same explicit Finance proposal as newly approved subscriptions.
+    from backend.app.finance.subscription_link_service import ensure_active_subscription_finance_proposals
+    ensure_active_subscription_finance_proposals()
 
     for fact_id, content, category, confidence, source_type, created_at in facts:
         _upsert_request(
@@ -255,6 +272,9 @@ async def resolve_approval(approval_id: str, decision: str,
         elif kind == "SUBSCRIPTION":
             from backend.app.subscriptions.subscription_service import transition_subscription
             transition_subscription(source_id, "cancel", {"source": "approval_center", "note": note})
+        elif kind == "SUBSCRIPTION_FINANCE_LINK":
+            from backend.app.finance.subscription_link_service import decline_subscription_finance_link
+            decline_subscription_finance_link(request["payload"].get("link_id", source_id.split(":", 1)[0]), note)
         elif kind == "ACTION":
             from backend.app.storage.db import get_pending_action, delete_pending_action
             action = get_pending_action(request["payload"].get("session_id", ""))
@@ -266,6 +286,8 @@ async def resolve_approval(approval_id: str, decision: str,
             from backend.app.memory.skill_service import disable_skill
             if not disable_skill(int(source_id)):
                 raise ValueError("skill is no longer pending")
+        elif kind == "DOCUMENT_PROPOSAL":
+            pass
         status = "REJECTED"
     else:
         if kind == "FACT":
@@ -277,24 +299,42 @@ async def resolve_approval(approval_id: str, decision: str,
             transition_commitment(source_id, "approve", {"source": "approval_center", "note": note})
         elif kind == "SUBSCRIPTION":
             from backend.app.subscriptions.subscription_service import transition_subscription
-            transition_subscription(source_id, "approve", {"source": "approval_center", "note": note})
+            subscription = transition_subscription(source_id, "approve", {"source": "approval_center", "note": note})
+            from backend.app.finance.subscription_link_service import ensure_subscription_finance_proposal
+            ensure_subscription_finance_proposal(subscription, request.get("source_channel", "web"))
+        elif kind == "SUBSCRIPTION_FINANCE_LINK":
+            from backend.app.finance.subscription_link_service import approve_subscription_finance_link
+            approve_subscription_finance_link(request["payload"].get("link_id", source_id.split(":", 1)[0]), approval_id)
         elif kind == "ACTION":
             from backend.app.agent.orchestrator import _dispatch_tool, sanitize_tool_result
             from backend.app.storage.db import claim_pending_action, finalize_pending_action, get_pending_action
             payload = request["payload"]
             session_id = payload.get("session_id", "")
+            source_channel = "telegram" if session_id.startswith("telegram_") else "web"
+            chat_id = session_id[len("telegram_"):] if source_channel == "telegram" else ""
             action = get_pending_action(session_id)
             if not action:
                 raise ValueError("action is no longer pending")
-            claimed = claim_pending_action(action["id"], action["nonce_hash"], action.get("chat_id", ""))
+            claimed = claim_pending_action(
+                action["id"], action["nonce_hash"], chat_id=chat_id,
+                source_channel=source_channel, session_id=session_id,
+            )
             if not claimed:
                 raise ValueError("action could not be claimed")
             result = await asyncio.to_thread(_dispatch_tool, action["action"], action["args"])
             result = sanitize_tool_result(action["action"], result)
             if isinstance(result, dict) and result.get("status") == "error":
-                finalize_pending_action(action["id"], "failed", result.get("message", ""))
+                finalize_pending_action(
+                    action["id"], "failed", result.get("message", ""),
+                    source_channel=source_channel, chat_id=chat_id,
+                    session_id=session_id,
+                )
                 raise ValueError(result.get("message", "action failed"))
-            finalize_pending_action(action["id"], "executed")
+            finalize_pending_action(
+                action["id"], "executed",
+                source_channel=source_channel, chat_id=chat_id,
+                session_id=session_id,
+            )
         elif kind == "SANDBOX_APPLY":
             from backend.app.sandbox_service import SandboxError, apply_sandbox_plan
             plan = request["payload"].get("sandbox_plan")
@@ -308,6 +348,9 @@ async def resolve_approval(approval_id: str, decision: str,
             from backend.app.memory.skill_service import approve_skill
             if not approve_skill(int(source_id)):
                 raise ValueError("skill is no longer pending")
+        elif kind == "DOCUMENT_PROPOSAL":
+            from backend.app.documents.document_proposal_service import apply_document_proposal
+            await asyncio.to_thread(apply_document_proposal, request, approval_id)
         status = "APPROVED"
 
     now = _now()

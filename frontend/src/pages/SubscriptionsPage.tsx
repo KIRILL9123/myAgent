@@ -77,8 +77,14 @@ export default function SubscriptionsPage() {
   const runAction = async (id: string, action: 'approve' | 'cancel') => {
     setBusyId(id); setError(null);
     try {
-      if (action === 'approve') await approveSubscription(id);
-      else await cancelSubscription(id);
+      if (action === 'approve') {
+        const result = await approveSubscription(id);
+        if (result.finance_link?.status === 'pending_approval') {
+          setNotice('Подписка активирована. Отдельное подтверждение шаблона расходов появилось в Центре подтверждений.');
+        } else if (result.finance_link?.status === 'not_eligible') {
+          setNotice(`Подписка активирована без Finance-шаблона: ${result.finance_link.reason}`);
+        }
+      } else await cancelSubscription(id);
       await load();
     } catch (err: any) { setError(err.message || 'Не удалось изменить подписку'); }
     finally { setBusyId(null); }

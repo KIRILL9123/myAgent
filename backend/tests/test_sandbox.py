@@ -61,6 +61,21 @@ def test_diff_tracks_changes_and_can_reset_baseline(sandbox_root):
     assert not (sandbox_root / "demo" / ".sandbox_metadata").exists()
 
 
+def test_workspace_snapshot_reports_lifecycle_and_checkpoint(sandbox_root):
+    empty = sandbox_service.workspace_snapshot("demo")
+    assert empty["lifecycle"]["state"] == "empty"
+
+    sandbox_service.write_file("demo", "main.py", "print(1)\n")
+    changed = sandbox_service.workspace_snapshot("demo")
+    assert changed["lifecycle"]["state"] == "draft_changed"
+    assert changed["lifecycle"]["changed_files"] == 1
+
+    sandbox_service.capture_baseline("demo")
+    checkpointed = sandbox_service.workspace_snapshot("demo")
+    assert checkpointed["lifecycle"]["state"] == "checkpointed"
+    assert checkpointed["lifecycle"]["changed_files"] == 0
+
+
 @pytest.mark.asyncio
 async def test_apply_is_approval_gated_and_creates_backup(sandbox_root, tmp_path, monkeypatch):
     monkeypatch.setattr(db, "DB_PATH", str(tmp_path / "apply.db"))

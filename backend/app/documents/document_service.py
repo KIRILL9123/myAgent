@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import hashlib
-import html
 import json
 import os
 import re
+import sqlite3
 import uuid
+from functools import lru_cache
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +19,19 @@ MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
 MAX_EXTRACTED_CHARS = 2_000_000
 CHUNK_SIZE = 1_200
 CHUNK_OVERLAP = 160
-SUPPORTED_EXTENSIONS = {".txt", ".md", ".markdown", ".csv", ".json", ".html", ".htm", ".pdf"}
+SUPPORTED_EXTENSIONS = {
+    ".txt", ".md", ".markdown", ".csv", ".json", ".html", ".htm", ".xml", ".pdf",
+    ".docx", ".pptx", ".xlsx", ".png", ".jpg", ".jpeg", ".webp", ".epub",
+}
+
+
+@lru_cache(maxsize=1)
+def _markitdown_converter():
+    try:
+        from markitdown import MarkItDown
+    except ImportError as exc:
+        raise ValueError("Для извлечения текста нужен пакет MarkItDown. Установите зависимости проекта и повторите загрузку.") from exc
+    return MarkItDown(enable_plugins=False)
 
 
 def _safe_name(filename: str) -> str:
@@ -33,33 +47,13 @@ def _extension(filename: str) -> str:
 def _extract_text(filename: str, payload: bytes) -> tuple[str, dict[str, Any]]:
     extension = _extension(filename)
     if extension not in SUPPORTED_EXTENSIONS:
-        raise ValueError("Поддерживаются TXT, Markdown, CSV, JSON, HTML и PDF")
+        raise ValueError("Формат документа не поддерживается")
 
-    if extension == ".pdf":
-        try:
-            from pypdf import PdfReader
-        except ImportError as exc:
-            raise ValueError("Для PDF нужен пакет pypdf. Установите зависимости проекта и повторите загрузку.") from exc
-        import io
-
-        reader = PdfReader(io.BytesIO(payload))
-        pages: list[str] = []
-        for index, page in enumerate(reader.pages):
-            pages.append(f"[Страница {index + 1}]\n{page.extract_text() or ''}")
-        return "\n\n".join(pages), {"pages": len(reader.pages), "extractor": "pypdf"}
-
-    text = payload.decode("utf-8-sig", errors="replace")
-    if extension in {".html", ".htm"}:
-        text = re.sub(r"<script\b[^>]*>.*?</script>", " ", text, flags=re.IGNORECASE | re.DOTALL)
-        text = re.sub(r"<style\b[^>]*>.*?</style>", " ", text, flags=re.IGNORECASE | re.DOTALL)
-        text = re.sub(r"<[^>]+>", " ", text)
-        text = html.unescape(text)
-    elif extension == ".json":
-        try:
-            text = json.dumps(json.loads(text), ensure_ascii=False, indent=2)
-        except json.JSONDecodeError:
-            pass
-    return text, {"extractor": "text"}
+    # The converter receives accepted upload bytes only. Do not pass user-controlled
+    # paths/URLs and keep plugins disabled: document content is untrusted input.
+    result = _markitdown_converter().convert_stream(BytesIO(payload), file_extension=extension)
+    text = result.text_content.strip()
+    return text, {"extractor": "markitdown", "format": extension.lstrip(".")}
 
 
 def _chunks(text: str) -> list[tuple[int, int, str]]:
@@ -121,40 +115,19 @@ def get_document(document_id: int) -> dict[str, Any] | None:
     return rows[0] if rows else None
 
 
-def ingest_document(filename: str, payload: bytes, mime_type: str = "application/octet-stream") -> dict[str, Any]:
-    original_name = _safe_name(filename)
-    if not payload:
-        raise ValueError("Файл пустой")
-    if len(payload) > MAX_DOCUMENT_BYTES:
-        raise ValueError("Максимальный размер документа — 20 MB")
-    extension = _extension(original_name)
-    if extension not in SUPPORTED_EXTENSIONS:
-        raise ValueError("Поддерживаются TXT, Markdown, CSV, JSON, HTML и PDF")
-
-    digest = hashlib.sha256(payload).hexdigest()
-    existing = _select_documents("WHERE sha256 = ?", (digest,))
-    if existing:
-        return existing[0]
-
-    stored_name = f"{uuid.uuid4().hex}{extension}"
-    VAULT_DIR.mkdir(parents=True, exist_ok=True)
-    target = VAULT_DIR / stored_name
-    target.write_bytes(payload)
-    extracted = ""
-    metadata: dict[str, Any] = {"original_name": original_name}
-    status = "ready"
-    error_message = None
-    try:
-        extracted, extraction_metadata = _extract_text(original_name, payload)
-        metadata.update(extraction_metadata)
-        chunks = _chunks(extracted)
-        if not chunks:
-            raise ValueError("В документе не найден текст для поиска")
-    except Exception as exc:
-        chunks = []
-        status = "failed"
-        error_message = str(exc)[:500]
-
+def _insert_document(
+    original_name: str,
+    stored_name: str,
+    mime_type: str,
+    extension: str,
+    payload: bytes,
+    digest: str,
+    status: str,
+    error_message: str | None,
+    extracted: str,
+    metadata: dict[str, Any],
+    chunks: list[tuple[int, int, str]],
+) -> int:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -178,6 +151,62 @@ def ingest_document(filename: str, payload: bytes, mime_type: str = "application
                     (content, document_id, chunk_id),
                 )
         conn.commit()
+        return int(document_id)
+
+
+def ingest_document(filename: str, payload: bytes, mime_type: str = "application/octet-stream") -> dict[str, Any]:
+    original_name = _safe_name(filename)
+    if not payload:
+        raise ValueError("Файл пустой")
+    if len(payload) > MAX_DOCUMENT_BYTES:
+        raise ValueError("Максимальный размер документа — 20 MB")
+    extension = _extension(original_name)
+    if extension not in SUPPORTED_EXTENSIONS:
+        raise ValueError("Формат документа не поддерживается")
+
+    digest = hashlib.sha256(payload).hexdigest()
+    existing = _select_documents("WHERE sha256 = ?", (digest,))
+    if existing:
+        return existing[0]
+
+    stored_name = f"{uuid.uuid4().hex}{extension}"
+    VAULT_DIR.mkdir(parents=True, exist_ok=True)
+    target = VAULT_DIR / stored_name
+    try:
+        target.write_bytes(payload)
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
+    extracted = ""
+    metadata: dict[str, Any] = {"original_name": original_name}
+    status = "ready"
+    error_message = None
+    try:
+        extracted, extraction_metadata = _extract_text(original_name, payload)
+        metadata.update(extraction_metadata)
+        chunks = _chunks(extracted)
+        if not chunks:
+            raise ValueError("В документе не найден текст для поиска")
+    except Exception as exc:
+        chunks = []
+        status = "failed"
+        error_message = str(exc)[:500]
+
+    try:
+        document_id = _insert_document(
+            original_name, stored_name, mime_type, extension, payload, digest,
+            status, error_message, extracted, metadata, chunks,
+        )
+    except sqlite3.IntegrityError:
+        existing = _select_documents("WHERE sha256 = ?", (digest,))
+        if existing:
+            target.unlink(missing_ok=True)
+            return existing[0]
+        target.unlink(missing_ok=True)
+        raise
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
     result = get_document(int(document_id))
     assert result is not None
     return result

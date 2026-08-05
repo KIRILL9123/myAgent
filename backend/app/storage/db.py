@@ -6,9 +6,12 @@ from typing import Any
 from contextlib import contextmanager
 
 DB_PATH = os.environ.get("DATABASE_PATH") or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "home_agent.db")
+PENDING_ACTION_TTL_MINUTES = 15
 
 def _get_connection() -> sqlite3.Connection:
-    return sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
 
 @contextmanager
 def get_db_connection() -> Any:
@@ -125,8 +128,9 @@ def save_pending_action(session_id: str, action_name: str, args: dict[str, Any],
         cursor.execute(
             """
             INSERT INTO pending_actions (session_id, action_name, args, status, nonce_hash,
-                                         source_channel, chat_id, telegram_message_id)
-            VALUES (?, ?, ?, 'pending', ?, ?, ?, ?)
+                                         source_channel, chat_id, telegram_message_id, expires_at)
+            VALUES (?, ?, ?, 'pending', ?, ?, ?, ?,
+                    datetime('now', '+' || ? || ' minutes'))
             ON CONFLICT(session_id) DO UPDATE SET 
                 action_name=excluded.action_name,
                 args=excluded.args,
@@ -135,10 +139,14 @@ def save_pending_action(session_id: str, action_name: str, args: dict[str, Any],
                 source_channel=excluded.source_channel,
                 chat_id=excluded.chat_id,
                 telegram_message_id=excluded.telegram_message_id,
+                expires_at=excluded.expires_at,
+                failure_reason=NULL,
+                claimed_at=NULL,
+                resolved_at=NULL,
                 created_at=CURRENT_TIMESTAMP
             """,
             (session_id, action_name, args_json, nonce,
-             source_channel, chat_id, telegram_message_id)
+             source_channel, chat_id, telegram_message_id, PENDING_ACTION_TTL_MINUTES)
         )
         conn.commit()
         cursor.execute("SELECT rowid FROM pending_actions WHERE session_id=?", (session_id,))
@@ -150,8 +158,11 @@ def get_pending_action(session_id: str) -> dict[str, Any] | None:
         cursor = conn.cursor()
         cursor.execute(
             """SELECT COALESCE(id, rowid) AS id, session_id, action_name, args, status, nonce_hash,
-                      source_channel, chat_id, telegram_message_id, expires_at
-               FROM pending_actions WHERE session_id = ? AND status = 'pending'""",
+                      source_channel, chat_id, telegram_message_id, expires_at,
+                      failure_reason, claimed_at, resolved_at
+               FROM pending_actions
+               WHERE session_id = ? AND status = 'pending'
+                 AND (expires_at IS NULL OR expires_at > datetime('now'))""",
             (session_id,)
         )
         row = cursor.fetchone()
@@ -166,53 +177,118 @@ def delete_pending_action(session_id: str) -> None:
         cursor.execute("DELETE FROM pending_actions WHERE session_id = ?", (session_id,))
         conn.commit()
 
-def find_pending_by_nonce(nonce: str, chat_id: str = "") -> dict[str, Any] | None:
+def find_pending_by_nonce(nonce: str, chat_id: str = "",
+                          source_channel: str | None = None,
+                          action_id: int | None = None,
+                          session_id: str | None = None) -> dict[str, Any] | None:
     with get_db_connection() as conn:
         cursor = conn.cursor()
+        clauses = [
+            "nonce_hash = ?",
+            "status = 'pending'",
+            "(expires_at IS NULL OR expires_at > datetime('now'))",
+        ]
+        params: list[Any] = [nonce]
+        if source_channel is not None:
+            clauses.append("source_channel = ?")
+            params.append(source_channel)
+        if chat_id:
+            clauses.append("COALESCE(chat_id, '') = ?")
+            params.append(str(chat_id))
+        if action_id is not None:
+            clauses.append("COALESCE(id, rowid) = ?")
+            params.append(action_id)
+        if session_id is not None:
+            clauses.append("session_id = ?")
+            params.append(session_id)
         cursor.execute(
-            """SELECT COALESCE(id, rowid) AS id, session_id, action_name, args, status, nonce_hash,
-                      source_channel, chat_id, telegram_message_id, expires_at
+            f"""SELECT COALESCE(id, rowid) AS id, session_id, action_name, args, status, nonce_hash,
+                      source_channel, chat_id, telegram_message_id, expires_at,
+                      failure_reason, claimed_at, resolved_at
                FROM pending_actions
-               WHERE nonce_hash = ? AND status = 'pending'
-               AND (expires_at IS NULL OR expires_at > datetime('now'))""",
-            (nonce,)
+               WHERE {' AND '.join(clauses)}""",
+            params,
         )
         row = cursor.fetchone()
-    if not row:
-        return None
-    row_dict = _pending_row(row)
-    if chat_id and str(row_dict.get("chat_id", "")) != str(chat_id):
-        return None
-    return row_dict
+    return _pending_row(row) if row else None
 
-def claim_pending_action(action_id: int, nonce: str, chat_id: str = "") -> dict[str, Any] | None:
+def claim_pending_action(action_id: int, nonce: str, chat_id: str = "",
+                         source_channel: str = "web",
+                         session_id: str | None = None) -> dict[str, Any] | None:
     with get_db_connection() as conn:
         cursor = conn.cursor()
+        session_clause = "" if session_id is None else " AND session_id = ?"
         cursor.execute(
-            """UPDATE pending_actions SET status='executing'
-               WHERE rowid=? AND nonce_hash=? AND status='pending'
+            f"""UPDATE pending_actions
+               SET status='executing', claimed_at=CURRENT_TIMESTAMP
+               WHERE COALESCE(id, rowid)=? AND nonce_hash=? AND status='pending'
+               AND source_channel=? AND COALESCE(chat_id, '')=?
+               {session_clause}
                AND (expires_at IS NULL OR expires_at > datetime('now'))""",
-            (action_id, nonce)
+            [action_id, nonce, source_channel, str(chat_id), *([session_id] if session_id is not None else [])],
         )
         if cursor.rowcount == 0:
             return None
         conn.commit()
         cursor.execute(
             """SELECT COALESCE(id, rowid) AS id, session_id, action_name, args, status, nonce_hash,
-                      source_channel, chat_id, telegram_message_id, expires_at
-               FROM pending_actions WHERE rowid=?""",
+                      source_channel, chat_id, telegram_message_id, expires_at,
+                      failure_reason, claimed_at, resolved_at
+               FROM pending_actions WHERE COALESCE(id, rowid)=?""",
             (action_id,)
         )
         row = cursor.fetchone()
     return _pending_row(row) if row else None
 
-def finalize_pending_action(action_id: int, status: str, error: str = "") -> None:
+def finalize_pending_action(action_id: int, status: str, error: str = "",
+                            source_channel: str | None = None,
+                            chat_id: str = "",
+                            session_id: str | None = None) -> bool:
     with get_db_connection() as conn:
         cursor = conn.cursor()
+        clauses = ["COALESCE(id, rowid)=?"]
+        params: list[Any] = [status, error or None, action_id]
+        if source_channel is not None:
+            clauses.extend([
+                "status = 'executing'",
+                "source_channel = ?",
+                "COALESCE(chat_id, '') = ?",
+            ])
+            params.extend([source_channel, str(chat_id)])
+            if session_id is not None:
+                clauses.append("session_id = ?")
+                params.append(session_id)
         cursor.execute(
-            "UPDATE pending_actions SET status=? WHERE rowid=?", (status, action_id)
+            f"""UPDATE pending_actions
+               SET status=?, failure_reason=?, resolved_at=CURRENT_TIMESTAMP
+               WHERE {' AND '.join(clauses)}""",
+            params,
         )
         conn.commit()
+        return cursor.rowcount == 1
+
+def cancel_pending_action(action_id: int, nonce: str, source_channel: str,
+                          chat_id: str = "", session_id: str | None = None) -> bool:
+    """Atomically cancel a still-pending action owned by this identity."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        session_clause = "" if session_id is None else " AND session_id = ?"
+        params: list[Any] = [action_id, nonce, source_channel, str(chat_id)]
+        if session_id is not None:
+            params.append(session_id)
+        cursor.execute(
+            f"""UPDATE pending_actions
+               SET status='cancelled', failure_reason=NULL,
+                   resolved_at=CURRENT_TIMESTAMP
+               WHERE COALESCE(id, rowid)=? AND nonce_hash=?
+                 AND status='pending'
+                 AND source_channel=? AND COALESCE(chat_id, '')=?
+                 {session_clause}
+                 AND (expires_at IS NULL OR expires_at > datetime('now'))""",
+            params,
+        )
+        conn.commit()
+        return cursor.rowcount == 1
 
 def _pending_row(row) -> dict[str, Any]:
     args = {}
@@ -225,6 +301,7 @@ def _pending_row(row) -> dict[str, Any]:
         "id": row[0], "session_id": row[1], "action": row[2], "args": args,
         "status": row[4], "nonce_hash": row[5], "source_channel": row[6],
         "chat_id": row[7], "telegram_message_id": row[8], "expires_at": row[9],
+        "failure_reason": row[10], "claimed_at": row[11], "resolved_at": row[12],
     }
 
 # ─── Mail Sync State Methods ───────────────────────────────────────────────────

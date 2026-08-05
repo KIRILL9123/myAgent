@@ -1,33 +1,21 @@
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from backend.app.commitments.commitment_service import list_commitments
+from backend.app.conflicts.conflict_service import detect_conflicts
 from backend.app.countdown.countdown_service import get_all_countdowns
+from backend.app.calendar.calendar_service import list_events
 from backend.app.finance.finance_service import get_summary
 from backend.app.subscriptions.subscription_service import list_subscriptions
 from backend.app.storage.db import get_db_connection
 from backend.app.action_center_service import build_action_center
-
-
-def _parse_datetime(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
-
-
-def _reference_time(value: datetime | None) -> datetime:
-    if value is None:
-        return datetime.now(timezone.utc)
-    if value.tzinfo is None:
-        raise ValueError("reference_time must include a timezone")
-    return value.astimezone(timezone.utc)
+from backend.app.temporal.time_context import (
+    TemporalContext,
+    build_temporal_context,
+    classify_due,
+    parse_datetime,
+)
 
 
 def _alert(severity: str, signal_type: str, title: str, detail: str,
@@ -60,8 +48,6 @@ def _loads(value: str | None, default: Any) -> Any:
 def _calendar_signal(today: date, include_external: bool) -> dict[str, Any]:
     if not include_external:
         return {"status": "not_requested", "events": [], "error": None}
-    from backend.app.connectors.caldav_connector import list_events
-
     result = list_events(today.isoformat(), (today + timedelta(days=1)).isoformat())
     if isinstance(result, dict):
         return {"status": "error", "events": [], "error": result.get("message", "calendar unavailable")}
@@ -90,32 +76,51 @@ def _mail_signal(include_external: bool) -> dict[str, Any]:
 
 
 def build_state_snapshot(reference_time: datetime | None = None,
-                         include_external: bool = True) -> dict[str, Any]:
+                         include_external: bool = True,
+                         *,
+                         timezone_name: str | None = None,
+                         temporal_context: TemporalContext | None = None) -> dict[str, Any]:
     """Aggregate current personal signals into a deterministic, read-only snapshot."""
-    now = _reference_time(reference_time)
-    today = now.astimezone().date()
+    if temporal_context is not None and reference_time is not None:
+        raise ValueError("provide either reference_time or temporal_context")
+    context = temporal_context or build_temporal_context(reference_time, timezone_name)
+    now = context.now_utc
+    today = context.today
     commitments = list_commitments(include_completed=False)
     subscriptions = list_subscriptions()
-    countdown_result = get_all_countdowns()
+    countdown_result = get_all_countdowns(temporal_context=context)
     countdowns = countdown_result.get("countdowns", []) if isinstance(countdown_result, dict) else []
     month_start = today.replace(day=1).isoformat()
     month_end = (today.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
     finance = get_summary(month_start, month_end.isoformat())
     calendar = _calendar_signal(today, include_external)
     mail = _mail_signal(include_external)
+    conflicts = detect_conflicts(
+        temporal_context=context,
+        horizon_days=30,
+        include_external=include_external,
+    )
 
     alerts: list[dict[str, Any]] = []
-    near_commitment_limit = now + timedelta(days=2)
+    for conflict in conflicts.get("conflicts", []):
+        alerts.append(_alert(
+            conflict.get("priority", "high"),
+            "conflict",
+            conflict["title"],
+            conflict["summary"],
+            conflict.get("due_at") or conflict.get("event_start"),
+            "/calendar",
+        ))
     for item in commitments:
         if item.get("status") != "ACTIVE":
             continue
-        due = _parse_datetime(item.get("deadline_at"))
-        if not due:
+        due = classify_due(item.get("deadline_at"), context, 2)
+        if not due.attention:
             continue
-        if due < now:
+        if due.status == "overdue":
             alerts.append(_alert("critical", "commitment", f"Просрочено: {item['title']}",
                                  "Обязательство требует пересмотра.", item.get("deadline_at"), "/commitments"))
-        elif due <= near_commitment_limit:
+        elif due.status in {"due_today", "upcoming"}:
             alerts.append(_alert("high", "commitment", f"Скоро срок: {item['title']}",
                                  "Срок наступает в ближайшие два дня.", item.get("deadline_at"), "/commitments"))
 
@@ -123,13 +128,13 @@ def build_state_snapshot(reference_time: datetime | None = None,
         if item.get("status") != "ACTIVE":
             continue
         event_at = item.get("next_charge_at") or item.get("trial_ends_at")
-        event = _parse_datetime(event_at)
-        if not event:
+        due = classify_due(event_at, context, 7)
+        if not due.attention:
             continue
-        if event < now:
+        if due.status == "overdue":
             alerts.append(_alert("critical", "subscription", f"Проверьте подписку: {item['name']}",
                                  "Дата списания или окончания trial уже прошла.", event_at, "/subscriptions"))
-        elif event <= now + timedelta(days=7):
+        elif due.status in {"due_today", "upcoming"}:
             kind = "списание" if item.get("next_charge_at") else "окончание trial"
             alerts.append(_alert("high", "subscription", f"Скоро {kind}: {item['name']}",
                                  "Проверьте, нужно ли продолжать подписку.", event_at, "/subscriptions"))
@@ -172,10 +177,11 @@ def build_state_snapshot(reference_time: datetime | None = None,
     active_commitments = [item for item in commitments if item.get("status") == "ACTIVE"]
     active_subscriptions = [item for item in subscriptions if item.get("status") == "ACTIVE"]
     upcoming_deadlines = [item for item in countdowns if isinstance(item.get("days_remaining"), int) and 0 <= item["days_remaining"] <= 30]
-    action_center = build_action_center(now, mode="attention", limit=5, include_external=False)
+    action_center = build_action_center(temporal_context=context, mode="attention", limit=5, include_external=False)
     return {
         "generated_at": now.isoformat(),
-        "timezone": str(now.astimezone().tzinfo),
+        "timezone": context.timezone_name,
+        "today": today.isoformat(),
         "health": health,
         "headline": headline,
         "counts": {
@@ -188,6 +194,7 @@ def build_state_snapshot(reference_time: datetime | None = None,
             "unread_emails": mail.get("unread_count", 0),
             "alerts_total": len(alerts),
             "alerts_critical": critical_count,
+            "conflicts": len(conflicts.get("conflicts", [])),
         },
         "alerts": alerts[:12],
         "next_actions": alerts[:5],
@@ -199,6 +206,7 @@ def build_state_snapshot(reference_time: datetime | None = None,
                                 "amount": item.get("amount"), "currency": item.get("currency")} for item in subscriptions if item.get("status") in {"ACTIVE", "PROPOSED"}],
             "deadlines": upcoming_deadlines[:10],
             "calendar": calendar,
+            "conflicts": conflicts,
             "finance": finance,
             "mail": mail,
         },
@@ -211,8 +219,9 @@ def build_state_snapshot(reference_time: datetime | None = None,
 
 def persist_daily_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     """Upsert one snapshot for the local calendar day and return its metadata."""
-    generated_at = _parse_datetime(snapshot.get("generated_at")) or datetime.now(timezone.utc)
-    snapshot_date = generated_at.astimezone().date().isoformat()
+    generated_at = parse_datetime(snapshot.get("generated_at")) or build_temporal_context().now_utc
+    snapshot_context = build_temporal_context(generated_at, snapshot.get("timezone"))
+    snapshot_date = snapshot_context.today.isoformat()
     with get_db_connection() as conn:
         conn.execute(
             """INSERT INTO state_snapshots
@@ -237,15 +246,32 @@ def persist_daily_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
 
 
 def capture_daily_snapshot(reference_time: datetime | None = None,
-                           include_external: bool = True) -> dict[str, Any]:
-    snapshot = build_state_snapshot(reference_time, include_external=include_external)
+                           include_external: bool = True,
+                           *,
+                           timezone_name: str | None = None,
+                           temporal_context: TemporalContext | None = None) -> dict[str, Any]:
+    snapshot = build_state_snapshot(
+        reference_time,
+        include_external=include_external,
+        timezone_name=timezone_name,
+        temporal_context=temporal_context,
+    )
     persist_daily_snapshot(snapshot)
     return snapshot
 
 
-def get_state_history(days: int = 30) -> list[dict[str, Any]]:
+def get_state_history(
+    days: int = 30,
+    reference_time: datetime | None = None,
+    *,
+    timezone_name: str | None = None,
+    temporal_context: TemporalContext | None = None,
+) -> list[dict[str, Any]]:
     days = max(1, min(int(days), 365))
-    cutoff = (datetime.now().astimezone().date() - timedelta(days=days - 1)).isoformat()
+    if temporal_context is not None and reference_time is not None:
+        raise ValueError("provide either reference_time or temporal_context")
+    context = temporal_context or build_temporal_context(reference_time, timezone_name)
+    cutoff = (context.today - timedelta(days=days - 1)).isoformat()
     with get_db_connection() as conn:
         rows = conn.execute(
             """SELECT snapshot_date, generated_at, health, headline, counts_json, alerts_json
@@ -259,10 +285,16 @@ def get_state_history(days: int = 30) -> list[dict[str, Any]]:
 
 def build_state_report(reference_time: datetime | None = None,
                        include_external: bool = True,
-                       history_days: int = 30) -> dict[str, Any]:
+                       history_days: int = 30,
+                       *,
+                       timezone_name: str | None = None,
+                       temporal_context: TemporalContext | None = None) -> dict[str, Any]:
     """Return current state plus a compact trend and deterministic State of Me brief."""
-    snapshot = capture_daily_snapshot(reference_time, include_external=include_external)
-    history = get_state_history(history_days)
+    if temporal_context is not None and reference_time is not None:
+        raise ValueError("provide either reference_time or temporal_context")
+    context = temporal_context or build_temporal_context(reference_time, timezone_name)
+    snapshot = capture_daily_snapshot(temporal_context=context, include_external=include_external)
+    history = get_state_history(history_days, temporal_context=context)
     previous = next((item for item in history if item["snapshot_date"] != history[0]["snapshot_date"]), None) if history else None
     changes: dict[str, int] = {}
     if previous:

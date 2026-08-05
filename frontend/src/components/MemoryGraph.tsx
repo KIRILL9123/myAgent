@@ -241,7 +241,7 @@ export default function MemoryGraph({ refreshTrigger }: MemoryGraphProps) {
       }}
     >
       {/* Floating Controls (Top-Left) */}
-      <div className="absolute top-6 left-6 z-10 flex flex-col gap-2 pointer-events-auto">
+      <div className="absolute top-20 left-6 z-10 flex flex-col gap-2 pointer-events-auto">
         <button
           onClick={handleFitView}
           className="p-2 bg-zinc-900/90 border border-zinc-800/80 rounded-xl text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 transition-all font-semibold text-[10px] shadow-lg backdrop-blur-md flex items-center gap-1.5 cursor-pointer"

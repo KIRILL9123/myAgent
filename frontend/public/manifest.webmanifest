@@ -1,10 +1,10 @@
 {
-  "name": "Home Agent",
-  "short_name": "Home Agent",
-  "description": "Личный AI-ассистент для чата, календаря и обязательств",
+  "name": "Mira",
+  "short_name": "Mira",
+  "description": "Personal AI workspace for chat, calendar, memory, and daily operations",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#09090b",
-  "theme_color": "#09090b",
-  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+  "background_color": "#212121",
+  "theme_color": "#212121",
+  "icons": [{ "src": "/mira-logo.png", "sizes": "1024x1024", "type": "image/png" }]
 }

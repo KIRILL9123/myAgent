@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.app.connectors.mail_connector import list_unread_emails
+from backend.app.api.utils import run_blocking
 from backend.app.subscriptions.email_extractor import extract_email_subscriptions
 from backend.app.subscriptions.subscription_service import (
     create_subscription,
@@ -120,7 +121,10 @@ async def api_update_subscription(subscription_id: str, req: SubscriptionUpdateR
 @router.post("/{subscription_id}/approve")
 async def api_approve_subscription(subscription_id: str, req: ApprovalRequest):
     try:
-        return transition_subscription(subscription_id, "approve", req.provenance)
+        subscription = transition_subscription(subscription_id, "approve", req.provenance)
+        from backend.app.finance.subscription_link_service import ensure_subscription_finance_proposal
+        finance_link = ensure_subscription_finance_proposal(subscription, "web")
+        return {**subscription, "finance_link": finance_link}
     except (ValueError, KeyError) as exc:
         raise _error(exc)
 
@@ -136,7 +140,10 @@ async def api_cancel_subscription(subscription_id: str):
 @router.post("/{subscription_id}/reopen")
 async def api_reopen_subscription(subscription_id: str):
     try:
-        return transition_subscription(subscription_id, "reopen")
+        subscription = transition_subscription(subscription_id, "reopen")
+        from backend.app.finance.subscription_link_service import ensure_subscription_finance_proposal
+        finance_link = ensure_subscription_finance_proposal(subscription, "web")
+        return {**subscription, "finance_link": finance_link}
     except (ValueError, KeyError) as exc:
         raise _error(exc)
 
@@ -152,7 +159,7 @@ async def api_extract_email_subscription(req: EmailSubscriptionRequest):
 
 @router.post("/scan-email")
 async def api_scan_email_for_subscriptions(req: EmailScanRequest):
-    result = list_unread_emails(req.account, limit=req.limit, bypass_last_seen=True)
+    result = await run_blocking(list_unread_emails, req.account, limit=req.limit, bypass_last_seen=True)
     if isinstance(result, dict) and result.get("status") == "error":
         raise HTTPException(status_code=502, detail=result.get("message", "mail scan failed"))
     scanned = 0

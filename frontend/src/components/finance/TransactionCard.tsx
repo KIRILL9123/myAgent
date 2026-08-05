@@ -4,7 +4,7 @@ import type { Transaction } from '../../types';
 interface TransactionCardProps {
   transaction: Transaction;
   formatDate: (value: string) => string;
-  formatCurrency: (value: number) => string;
+  formatCurrency: (value: number, currency?: string) => string;
   onDelete: (id: number) => void;
 }
 
@@ -35,7 +35,7 @@ export default function TransactionCard({ transaction, formatDate, formatCurrenc
             </h2>
           </div>
           <span className={`text-base font-bold font-mono shrink-0 ${isIncome ? 'text-emerald-450' : 'text-rose-450'}`}>
-            {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
+            {isIncome ? '+' : '-'}{formatCurrency(transaction.amount, transaction.currency)}
           </span>
         </div>
 

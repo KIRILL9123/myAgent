@@ -1,6 +1,6 @@
-# myAgent — Frontend
+# Mira — Frontend
 
-React + TypeScript + Vite dashboard for the myAgent home assistant backend.
+React + TypeScript + Vite dashboard for the Mira personal assistant backend.
 
 ## Stack
 

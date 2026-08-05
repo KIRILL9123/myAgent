@@ -129,12 +129,12 @@ export default function CountdownsPage() {
       {/* Main Container */}
       <main className="flex-1 overflow-y-auto w-full h-full flex flex-col">
         {/* Controls Bar */}
-        <div className="flex justify-between items-center px-6 py-5 bg-zinc-950/40 border-b border-zinc-900 shrink-0">
-          <span className="text-xs text-zinc-450 font-medium">Список отсортирован по дате наступления</span>
+        <div className="deadlines-toolbar">
+          <span className="text-xs font-medium text-zinc-400">Список отсортирован по дате наступления</span>
           
           <button
             onClick={handleOpenCreate}
-            className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-zinc-100 rounded-xl px-5 py-2.5 text-xs font-semibold tracking-wide transition-all shadow-lg shadow-rose-950/20"
+            className="ui-button ui-button-primary"
           >
             <Plus className="h-4 w-4" />
             Добавить дедлайн
@@ -142,7 +142,7 @@ export default function CountdownsPage() {
         </div>
 
         {/* Display Content Area */}
-        <div className="flex-1 w-full p-6">
+        <div className="deadlines-content">
           {loading ? (
             <div className="w-full h-64 flex flex-col items-center justify-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
@@ -170,7 +170,7 @@ export default function CountdownsPage() {
               </div>
               <button 
                 onClick={handleOpenCreate}
-                className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors"
+                className="text-xs font-semibold text-emerald-300 transition-colors hover:text-emerald-200"
               >
                 Создать дедлайн
               </button>
@@ -303,7 +303,7 @@ export default function CountdownsPage() {
                   placeholder="Например: Сдача проекта Ausbildung"
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-850 focus:border-rose-500 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition-all"
+                  className="input"
                 />
               </div>
 
@@ -317,7 +317,7 @@ export default function CountdownsPage() {
                   required
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-850 focus:border-rose-500 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none transition-all font-sans"
+                  className="input"
                 />
               </div>
 
@@ -329,7 +329,7 @@ export default function CountdownsPage() {
                 <select
                   value={formCategory}
                   onChange={(e) => setFormCategory(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-850 focus:border-rose-500 rounded-xl px-4.5 py-2.5 text-xs text-zinc-100 focus:outline-none transition-all font-sans cursor-pointer"
+                  className="input cursor-pointer"
                 >
                   {COUNTDOWN_CATEGORIES.map((cat) => (
                     <option key={cat.name} value={cat.name}>
@@ -351,7 +351,7 @@ export default function CountdownsPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-850 active:bg-rose-700 text-zinc-100 rounded-xl px-5 py-2.5 text-xs font-semibold tracking-wide transition-all shadow-md shadow-rose-955/20"
+                  className="ui-button ui-button-primary"
                 >
                   {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   Добавить дедлайн

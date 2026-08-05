@@ -1,6 +1,12 @@
 export type SubscriptionStatus = 'PROPOSED' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED';
 export type SubscriptionType = 'TRIAL' | 'PAID' | 'UNKNOWN';
 
+export interface SubscriptionFinanceLink {
+  status: 'pending_approval' | 'linked' | 'not_eligible';
+  approval_id?: string;
+  reason?: string;
+}
+
 export interface Subscription {
   id: string;
   name: string;
@@ -23,6 +29,7 @@ export interface Subscription {
   source_ref: string | null;
   created_at: string;
   updated_at: string;
+  finance_link?: SubscriptionFinanceLink;
 }
 
 export interface SubscriptionCreateInput {
