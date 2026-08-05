@@ -1,16 +1,23 @@
-# Home Agent
+# Mira
 
-A local AI agent running 24/7 on a Mac as a home server, designed to manage daily routines (calendar, email, and eventually smart home). It's accessible locally via Wi-Fi and remotely via Tailscale.
+A local-first personal AI workspace for one person. Mira brings chat, calendar,
+commitments, finance, mail, memory, documents and notifications into one assistant.
+It is designed to run privately on a personal computer or home server; the current
+development and always-on tooling is Windows-friendly, with platform-specific
+integrations documented separately.
 
 ## Status
-**Current state**: Multi-module MVP implemented (chat, calendar, mail, finance, countdowns, memory, scheduler).
+**Current state**: Personal workspace MVP implemented across Chat, Dashboard/Today,
+Calendar, Tasks/Commitments, Mail, Finance, Subscriptions, Memory, Documents,
+Action Center/Notifications, Scheduler, Telegram parity and the Code Sandbox.
 
 ## Prerequisites
 
 - **Python 3.11+**
-  *   *Note for macOS users*: The default system `python3` command points to an older version (e.g., Python 3.9.x). You must explicitly create your virtual environment using `python3.11 -m venv .venv` (or use a manager like `pyenv` or `uv`). Do NOT use `python3 -m venv .venv` if your default python3 version is older than 3.11, as the modern type union operators (`|`) used in the codebase will crash on startup.
+   *   On Windows, create the environment with `py -3.11 -m venv .venv` and activate it with `.\.venv\Scripts\Activate.ps1`.
+   *   On macOS/Linux, use `python3.11 -m venv .venv` (or a manager such as `pyenv` or `uv`).
 - **Node.js & npm** (tested on Node v20/v22) for the frontend dashboard.
-- **Ollama** installed separately (https://ollama.com) and running locally.
+- **A local model server** configured in `.env` (Ollama is supported; an OpenAI-compatible local provider can also be configured).
 - **FFmpeg** installed on the host system (required for processing and transcribing Telegram audio messages).
   *   On macOS, install via: `brew install ffmpeg`
 
@@ -18,30 +25,40 @@ A local AI agent running 24/7 on a Mac as a home server, designed to manage dail
 
 1. **Clone the repository** (or copy to your home directory):
    ```bash
-   git clone <repository_url> home-agent
-   cd home-agent
+   git clone <repository_url> mira
+   cd mira
    ```
 
 2. **Create and configure the Python virtual environment**:
-   Create the virtual environment using Python 3.11+ and install Python dependencies:
-   ```bash
-   python3.11 -m venv .venv
-   source .venv/bin/activate
+   Create the virtual environment using Python 3.11+ and install Python dependencies.
+   On Windows PowerShell:
+   ```powershell
+   py -3.11 -m venv .venv
+   .\.venv\Scripts\Activate.ps1
    pip install -r requirements.txt
    python -m playwright install chromium
    ```
+   On macOS/Linux, use `python3.11 -m venv .venv`, `source .venv/bin/activate`,
+   then run the same `pip` and Playwright commands.
 
-3. **Install Ollama Model**:
-   Pull the target model used by the LLM client:
+3. **Configure the local model server**:
+   If using Ollama, install it separately and pull the configured model:
    ```bash
    ollama pull qwen2.5:7b
    ```
+   An OpenAI-compatible local provider can be used instead by configuring its endpoint
+   and model in `.env`.
 
 4. **Configure Environment Variables**:
    Copy `.env.example` to `.env` and populate your secrets:
    ```bash
    cp .env.example .env
    ```
+   In PowerShell, use `Copy-Item .env.example .env` instead.
+   The example is intentionally safe for a personal local installation: it uses the
+   local calendar, starts in `dry_run`, disables subscription email scans, and leaves
+   the API key empty. Keep those defaults while testing; explicitly change only the
+   integrations you personally want to use.
    *Instructions for each section in `.env`:*
    - **iCloud CalDAV**: Create an App-Specific Password at [appleid.apple.com](https://appleid.apple.com) and enter it in `CALDAV_PASSWORD`.
    - **Gmail**: If using Gmail, create a Google App-Specific Password at [myaccount.google.com](https://myaccount.google.com) (requires 2FA enabled on your Google account) and enter it in `GMAIL_APP_PASSWORD`.
@@ -57,6 +74,7 @@ A local AI agent running 24/7 on a Mac as a home server, designed to manage dail
    ```bash
    cp frontend/.env.example frontend/.env
    ```
+   In PowerShell, use `Copy-Item frontend/.env.example frontend/.env` instead.
    Open `frontend/.env` and set `VITE_API_KEY` to the same value you used for `HOME_AGENT_API_KEY` in the backend `.env`.
 
 6. **Build the Frontend (Mandatory for Web Dashboard)**:
@@ -69,7 +87,7 @@ A local AI agent running 24/7 on a Mac as a home server, designed to manage dail
    ```
    *Note*: The production assets are generated in `frontend/dist/` and served automatically by the FastAPI backend.
 
-6. **Start the Application**:
+7. **Start the Application**:
    Launch the FastAPI web server from the project root:
    ```bash
    powershell -ExecutionPolicy Bypass -File .\dev-tools\start_backend.ps1
@@ -100,7 +118,11 @@ CI runs automatically on push/PR via GitHub Actions.
 See [docs/TESTING.md](docs/TESTING.md) for details on test architecture and fixtures.
 
 ## Architecture & Design
-See [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ROADMAP.md](docs/ROADMAP.md) for deeper details.
+See [PRODUCT_ARCHITECTURE.md](PRODUCT_ARCHITECTURE.md) for product boundaries,
+[ARCHITECTURE.md](docs/ARCHITECTURE.md) for runtime architecture,
+[OPERATIONS.md](docs/OPERATIONS.md) for running the project,
+[SECURITY_AND_SAFETY.md](docs/SECURITY_AND_SAFETY.md) for safety contracts,
+and [ROADMAP.md](docs/ROADMAP.md) plus [BACKLOG.md](docs/BACKLOG.md) for future work.
 
 ## Project Documents
 
@@ -108,8 +130,12 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ROADMAP.md](docs/ROADMAP.md) fo
 - [Operations and reliability](docs/OPERATIONS.md)
 - [Security and safety](docs/SECURITY_AND_SAFETY.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Product architecture](PRODUCT_ARCHITECTURE.md)
+- [Feature proposal template](docs/templates/FEATURE_PROPOSAL.md)
+- [Provenance and evidence bundle](docs/design/PROVENANCE_BUNDLE.md)
 - [Long-term roadmap](docs/ROADMAP.md)
 - [Active backlog](docs/BACKLOG.md)
 - [Commitment contract](docs/domain/COMMITMENT_CONTRACT.md)
 - [Memory evolution design](docs/design/MEMORY_EVOLUTION.md)
 - [Decision log](docs/decisions/DECISION_LOG.md)
+- [Open-source integrations](docs/decisions/OSS_INTEGRATIONS.md)

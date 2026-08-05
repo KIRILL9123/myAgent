@@ -120,6 +120,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         replace_existing=True,
         misfire_grace_time=3600,
     )
+
+    async def calendar_reminder_job():
+        from backend.app.notifications.delivery_service import deliver_calendar_reminders
+
+        try:
+            await deliver_calendar_reminders()
+        except Exception as exc:
+            print(f"[NOTIFICATIONS] Calendar reminder delivery failed: {exc}")
+
+    scheduler.add_job(
+        calendar_reminder_job,
+        trigger=IntervalTrigger(minutes=5),
+        id="calendar_reminder_job",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
     # Keep the legacy functions above available for compatibility, but make
     # the unified policy layer the only scheduled reminder sender.
     scheduler.remove_job("commitment_reminder_job")
@@ -160,9 +176,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     async def personal_state_snapshot_job():
         from backend.app.state.state_service import capture_daily_snapshot
+        from backend.app.notifications.delivery_service import get_notification_preferences
 
         try:
-            await asyncio.to_thread(capture_daily_snapshot, None, True)
+            timezone_name = get_notification_preferences()["timezone"]
+            await asyncio.to_thread(capture_daily_snapshot, None, True, timezone_name=timezone_name)
         except Exception as exc:
             print(f"[STATE] Daily snapshot failed: {exc}")
 
@@ -233,7 +251,7 @@ def _log_task_exception(task):
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
-    title="Home Agent API",
+    title="Mira API",
     description="Local AI agent managing routines",
     version="0.1.0",
     lifespan=lifespan
@@ -331,6 +349,9 @@ app.include_router(countdown_router, prefix="/api/countdown")
 from backend.app.api.memory import router as memory_router
 app.include_router(memory_router, prefix="/api/memory")
 
+from backend.app.api.decisions import router as decisions_router
+app.include_router(decisions_router, prefix="/api/memory/decisions")
+
 from backend.app.api.documents import router as documents_router
 app.include_router(documents_router, prefix="/api/documents")
 
@@ -342,6 +363,9 @@ app.include_router(mail_router, prefix="/api/mail")
 
 from backend.app.api.commitments import router as commitments_router
 app.include_router(commitments_router, prefix="/api/commitments")
+
+from backend.app.api.planning import router as planning_router
+app.include_router(planning_router, prefix="/api/planning")
 
 from backend.app.api.subscriptions import router as subscriptions_router
 app.include_router(subscriptions_router, prefix="/api/subscriptions")
@@ -393,7 +417,7 @@ async def spa_fallback(request: Request, exc: StarletteHTTPException) -> Respons
 
 @app.get("/health")
 async def health_check() -> dict[str, str]:
-    return {"status": "ok", "message": "Home Agent is running"}
+    return {"status": "ok", "message": "Mira is running"}
 
 # Gracefully mount frontend static files if they exist
 frontend_dist_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "dist")

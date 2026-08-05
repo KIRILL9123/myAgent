@@ -53,9 +53,12 @@ Planned follow-ups:
 
 - search older mail, not only unread messages;
 - connect reminders to calendar and Personal State Engine;
-- unified approval-center projection for subscription proposals;
 - provider-specific cancellation checklists, always requiring user confirmation.
 
 Subscription proposals are now also projected into the shared Approval Center as
 `SUBSCRIPTION` records. The dedicated subscription page remains available for
 domain-specific details and reminder management.
+
+An active monthly EUR subscription may additionally create a separate
+`SUBSCRIPTION_FINANCE_LINK` proposal. Only its approval creates a recurring
+Finance template; see [SUBSCRIPTION_FINANCE_LINK.md](SUBSCRIPTION_FINANCE_LINK.md).

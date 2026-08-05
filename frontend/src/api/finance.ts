@@ -1,6 +1,6 @@
 import type {
   FinanceSummary,
-  FinanceCategory,
+  FinanceForecast,
   RecurringTemplate,
   Transaction,
   TransactionCreateInput,
@@ -10,7 +10,7 @@ import { apiRequest } from './client';
 
 export type {
   FinanceSummary,
-  FinanceCategory,
+  FinanceForecast,
   RecurringTemplate,
   Transaction,
   TransactionCreateInput,
@@ -31,8 +31,8 @@ export async function fetchSummary(startDate: string, endDate: string): Promise<
   return apiRequest<FinanceSummary>(`${API_BASE}/summary?${params}`);
 }
 
-export async function fetchFinanceCategories(): Promise<FinanceCategory[]> {
-  return apiRequest<FinanceCategory[]>(`${API_BASE}/categories`);
+export async function fetchForecast(months = 3): Promise<FinanceForecast> {
+  return apiRequest<FinanceForecast>(`${API_BASE}/forecast?months=${months}`);
 }
 
 export async function createTransaction(input: TransactionCreateInput): Promise<Transaction> {

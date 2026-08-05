@@ -60,6 +60,15 @@ trusted-home testing; for access outside the home network use a VPN such as
 Tailscale or a reverse proxy with HTTPS. Do not expose port 8000 directly to the
 public internet.
 
+### Phone access preflight — 2026-08-05
+
+The repository configuration is not considered phone-ready while the local
+`.env` and `frontend/.env` contain the development placeholder API key. Before
+opening the dashboard on a phone, replace both values with the same random long
+token, verify the exact LAN origin, and restart the backend/frontend. The
+cross-domain acceptance test intentionally remains local and dry-run; it does
+not grant LAN access or contact Telegram/iCloud.
+
 ## Testing
 
 - Unit and API suite: `pytest backend/tests -q`.
@@ -67,6 +76,9 @@ public internet.
   `--frontend-only` for focused checks). It runs backend tests and frontend lint/build,
   returns a failing exit code on regression and appends a compact verdict to
   `logs/release_gate.jsonl`.
+- CI must exercise the same release-critical checks as the local release gate. Any
+  intentional difference must be documented in the reliability audit and in the
+  workflow itself.
 - Live E2E suite is opt-in because it contacts local running services.
 - Every production-relevant regression becomes a permanent test.
 - External side effects are prohibited in CI and sandbox runs.
@@ -81,9 +93,15 @@ public internet.
 
 ## Database migrations
 
-The current code contains compatibility checks for legacy SQLite schemas. The next
-reliability step is a numbered migration system or Alembic so schema history, ordering,
-rollback expectations and deployment state are explicit.
+The current schema mechanism is the numbered SQL migration set in
+`backend/app/storage/migrations`. `db.init_db()` records applied versions and runs
+pending migrations during startup. Compatibility checks for legacy SQLite schemas remain.
+The remaining reliability work is migration-parser coverage, rollback verification,
+CI parity with the release gate, request budgets, and a tested recovery runbook.
+Foreign-key enforcement, bounded document-upload cleanup, and notification delivery
+bookkeeping were hardened in the 2026-08-04 reliability cycle. See
+[RELIABILITY_AUDIT_2026-08-04.md](decisions/RELIABILITY_AUDIT_2026-08-04.md) for the
+current order and acceptance criteria.
 
 ## Observability target
 

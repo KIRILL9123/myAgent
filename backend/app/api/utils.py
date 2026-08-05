@@ -2,13 +2,18 @@ import asyncio
 from fastapi import HTTPException
 from typing import Callable, Any
 
+async def run_blocking(func: Callable, *args, **kwargs) -> Any:
+    """Run a synchronous service or connector outside the event-loop thread."""
+    return await asyncio.to_thread(func, *args, **kwargs)
+
+
 async def run_api_tool(func: Callable, *args, **kwargs) -> Any:
     """
     Executes a blocking service/connector function in a separate thread,
     validates the return payload, and maps error dictionaries to FastAPI HTTPExceptions.
     """
     try:
-        result = await asyncio.to_thread(func, *args, **kwargs)
+        result = await run_blocking(func, *args, **kwargs)
         
         # If the result indicates an error in our unified format
         if isinstance(result, dict) and result.get("status") == "error":

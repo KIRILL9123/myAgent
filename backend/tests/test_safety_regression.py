@@ -75,12 +75,12 @@ class TestPermissionLevels:
         assert check_permission("nonexistent_tool") is None
 
     def test_all_registered_tools_have_permissions(self):
-        """Every tool in TOOL_MODEL_REGISTRY must have a permission entry."""
-        from backend.app.agent.tool_models import TOOL_MODEL_REGISTRY
-        for tool_name in TOOL_MODEL_REGISTRY:
+        """Every tool in the canonical registry must declare a permission."""
+        from backend.app.agent.tool_registry import TOOL_REGISTRY
+        for tool_name in TOOL_REGISTRY:
             level = check_permission(tool_name)
             assert level is not None, (
-                f"Tool '{tool_name}' has no permission entry in tool_permissions.json"
+                f"Tool '{tool_name}' has no permission entry in the tool registry"
             )
 
 

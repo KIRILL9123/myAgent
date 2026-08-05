@@ -1,3 +1,5 @@
+import type { CalendarEvent } from './calendar';
+
 export type StateHealth = 'clear' | 'watch' | 'attention';
 
 export interface StateAlert {
@@ -7,6 +9,32 @@ export interface StateAlert {
   detail: string;
   due_at: string | null;
   target: string | null;
+}
+
+export interface StateTaskSummary {
+  id: string;
+  title: string;
+  status: string;
+  deadline_at: string | null;
+  owner: string;
+}
+
+export interface StateSubscriptionSummary {
+  id: string | number;
+  name: string;
+  status: string;
+  trial_ends_at: string | null;
+  next_charge_at: string | null;
+  amount: number | null;
+  currency: string | null;
+}
+
+export interface StateDeadlineSummary {
+  id: number;
+  title: string;
+  target_date: string;
+  days_remaining: number;
+  category?: string | null;
 }
 
 export interface StateSnapshot {
@@ -24,14 +52,16 @@ export interface StateSnapshot {
     unread_emails: number;
     alerts_total: number;
     alerts_critical: number;
+    conflicts: number;
   };
   alerts: StateAlert[];
   next_actions: StateAlert[];
   domains: {
-    commitments: Array<Record<string, unknown>>;
-    subscriptions: Array<Record<string, unknown>>;
-    deadlines: Array<Record<string, unknown>>;
-    calendar: { status: string; events: Array<Record<string, unknown>>; error: string | null };
+    commitments: StateTaskSummary[];
+    subscriptions: StateSubscriptionSummary[];
+    deadlines: StateDeadlineSummary[];
+    calendar: { status: string; events: CalendarEvent[]; error: string | null };
+    conflicts: { status: string; conflicts: Array<Record<string, unknown>>; error?: string };
     finance: { total_income: number; total_expense: number; net_balance: number };
     mail: { status: string; unread_count: number; accounts: Array<Record<string, unknown>>; error: string | null };
   };

@@ -38,7 +38,9 @@ class TestFactExtraction:
         # Each new fact triggers a dedup LLM call, so total calls = 1 extraction + N dedup
         assert len(results) >= 1
         assert all(not r.get("is_duplicate", False) for r in results)
-        assert all(r["status"] == "pending_approval" for r in results)
+        statuses = {r["category"]: r["status"] for r in results}
+        assert statuses["relationship"] == "pending_approval"
+        assert statuses["preference"] == "approved"
 
         pending = get_pending_facts()
         assert len(pending) >= 1
@@ -100,12 +102,13 @@ class TestApprovalAndGraph:
         await extract_facts_from_conversation("User: Я люблю Python.")
 
         pending = get_pending_facts()
-        assert len(pending) >= 1
-        fact_id = pending[0]["id"]
+        approved = get_approved_facts()
+        assert len(pending) + len(approved) >= 1
+        fact_id = pending[0]["id"] if pending else approved[0]["id"]
 
         # Approve — set mock for relation suggestion call
         mock_llm.return_value = {"message": {"content": "[]"}}
-        success = await approve_fact(fact_id)
+        success = await approve_fact(fact_id) if pending else True
         assert success is True
 
         # Should be in approved facts

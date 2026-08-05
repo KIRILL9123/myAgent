@@ -1,11 +1,13 @@
 import os
+import asyncio
 import logging
 from logging.handlers import RotatingFileHandler
-from datetime import datetime, date, timedelta
-from backend.app.connectors.caldav_connector import list_events
+from backend.app.temporal.time_context import build_temporal_context
+from backend.app.calendar.calendar_service import list_events
 from backend.app.connectors.mail_connector import list_unread_emails
 from backend.app.agent.llm import chat as chat_with_ollama
 from backend.app.audit.audit_log import log_action
+from backend.app.notifications.delivery_service import get_notification_preferences
 from backend.app.notifications.telegram_notifier import send_notification
 
 # Setup rotating logger for summaries.log
@@ -37,21 +39,23 @@ async def morning_summary():
     from backend.app.core.execution_mode import is_dry_run
 
     log_action("morning_summary", "STARTED", "Executing scheduled morning summary task.")
-    
+
+    temporal_context = build_temporal_context(timezone_name=get_notification_preferences()["timezone"])
     # 1. Fetch Calendar Events for Today
-    today = date.today()
-    tomorrow = today + timedelta(days=1)
+    today = temporal_context.today
+    tomorrow = temporal_context.tomorrow
     
     # Convert to YYYY-MM-DD
     start_date = today.strftime("%Y-%m-%d")
     end_date = tomorrow.strftime("%Y-%m-%d")
     
-    events = list_events(start_date=start_date, end_date=end_date)
+    events, emails = await asyncio.gather(
+        asyncio.to_thread(list_events, start_date=start_date, end_date=end_date),
+        asyncio.to_thread(list_unread_emails, limit=10),
+    )
     if isinstance(events, dict) and events.get("status") == "error":
         events = []
 
-    # 2. Fetch Unread Emails (sync-state mutation now guarded inside the function)
-    emails = list_unread_emails(limit=10, bypass_last_seen=is_dry_run())
     if isinstance(emails, dict) and emails.get("status") == "error":
         emails = []
 
@@ -59,7 +63,11 @@ async def morning_summary():
     # It is local-only here because calendar and mail were already fetched above.
     try:
         from backend.app.state.state_service import build_state_snapshot
-        state = build_state_snapshot(include_external=False)
+        state = await asyncio.to_thread(
+            build_state_snapshot,
+            temporal_context=temporal_context,
+            include_external=False,
+        )
         state_text = (
             f"Состояние: {state['headline']}. "
             f"Активных обязательств: {state['counts']['active_commitments']}; "

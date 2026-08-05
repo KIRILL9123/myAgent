@@ -24,7 +24,7 @@ You MUST choose one of these categories for each fact:
 - preference (e.g. likes/dislikes, food choice, timing preferences)
 - habit (e.g. wakes up at 10 AM, goes to gym on Mondays)
 - relationship (e.g. wife is Anna, colleague is Dmitry)
-- project (e.g. learning Python, working on Home Agent)
+- project (e.g. learning Python, working on Mira)
 - other (any other persistent fact)
 
 Return a JSON array of objects, where each object has:

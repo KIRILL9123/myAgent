@@ -13,4 +13,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - run: pytest backend/tests/ -v
+      - run: npm ci
+        working-directory: frontend
+      - run: python dev-tools/release_gate.py
+      - run: python docs/codemap/verify_codemap.py

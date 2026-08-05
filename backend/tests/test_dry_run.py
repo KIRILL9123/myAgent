@@ -6,6 +6,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def _ensure_dry_run(monkeypatch):
     monkeypatch.delenv("EXECUTION_MODE", raising=False)
+    monkeypatch.delenv("CALENDAR_ALLOW_WRITES", raising=False)
 
 
 # ──────────────────────────────────────────────────────────────────────

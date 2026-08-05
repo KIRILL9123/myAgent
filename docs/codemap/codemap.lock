@@ -1,0 +1,201 @@
+{
+  "generated_at": "2026-08-05T19:15:41.455Z",
+  "current_commit": "abc6babadb23c4634b1fea215f8886f3b20ca3ed",
+  "generated_from_commit": "abc6babadb23c4634b1fea215f8886f3b20ca3ed",
+  "working_tree_has_uncommitted_changes": true,
+  "scanned_scope": [
+    "frontend/src",
+    "backend/app",
+    "backend/tests",
+    "requirements.txt",
+    "frontend/package.json",
+    ".github/workflows/ci.yml"
+  ],
+  "excluded_directories": [
+    ".git",
+    ".venv",
+    "venv",
+    "frontend/node_modules",
+    "dist",
+    "build",
+    "cache",
+    "__pycache__",
+    ".pytest_cache",
+    "logs",
+    "runtime-logs",
+    "sandbox",
+    ".sandbox_backups",
+    ".sandbox_metadata",
+    "attached_assets",
+    "vendor"
+  ],
+  "fingerprint_algorithm": "SHA-256 over sorted relative file paths and current file contents, concatenating UTF-8 path + NUL + raw file bytes for each file; tracked and non-ignored untracked source files are included.",
+  "module_fingerprints": {
+    "frontend/src": {
+      "path": "frontend/src",
+      "file_count": 63,
+      "fingerprint": "2001ca3ba3629d8cd9c11cb46c73d8ce1671ab3c6e1ecf609f18ac64a8cd5f36"
+    },
+    "backend/app/__init__.py": {
+      "path": "backend/app/__init__.py",
+      "file_count": 1,
+      "fingerprint": "779556fbf87b47c0c63c83de4ae5433885d37fc166f08968aadd55be3cee0602"
+    },
+    "backend/app/action_center_service.py": {
+      "path": "backend/app/action_center_service.py",
+      "file_count": 1,
+      "fingerprint": "516504c00f23c60e140dfa1c1073d6c7bbd167c68aefbf43573923fca0f52533"
+    },
+    "backend/app/action_state_service.py": {
+      "path": "backend/app/action_state_service.py",
+      "file_count": 1,
+      "fingerprint": "eecc9686a24d075d573a27992a0645ae98b2ee165eef53e9c923faca1ff87755"
+    },
+    "backend/app/agent": {
+      "path": "backend/app/agent",
+      "file_count": 7,
+      "fingerprint": "0ec3ded42acd91b291c7f8930be21548053cc20a92bcdd9f469dc0f7827e64db"
+    },
+    "backend/app/api": {
+      "path": "backend/app/api",
+      "file_count": 20,
+      "fingerprint": "2dbbdbb29f97ed9145d47bbfedb2e61ee7e7a95d10b0501eb9546edb58bdece6"
+    },
+    "backend/app/approvals": {
+      "path": "backend/app/approvals",
+      "file_count": 2,
+      "fingerprint": "52a8632f52fd64de8c78e45139f602b6b54e0853d1e1f0073e62736de0963b08"
+    },
+    "backend/app/audit": {
+      "path": "backend/app/audit",
+      "file_count": 2,
+      "fingerprint": "01cc55a077f1fd4281b876487d2fc1593a72c5fbc1a96f5078ae5e6e0b04e3dc"
+    },
+    "backend/app/calendar": {
+      "path": "backend/app/calendar",
+      "file_count": 4,
+      "fingerprint": "19bcab87af8a8f581a17045915412f0adc176d8f8ed0dd8ca57c576e2f910fc1"
+    },
+    "backend/app/commitments": {
+      "path": "backend/app/commitments",
+      "file_count": 3,
+      "fingerprint": "5e96d50e676ec664bd1798fbb4ba9daa8aa1fce8e428c8326aa6dc33a573894b"
+    },
+    "backend/app/conflicts": {
+      "path": "backend/app/conflicts",
+      "file_count": 3,
+      "fingerprint": "9ec8ca4f972190bbfebb12fc266a6e40572b3e2c0d7746f0974a772f0faa5c1c"
+    },
+    "backend/app/connectors": {
+      "path": "backend/app/connectors",
+      "file_count": 6,
+      "fingerprint": "ce026cf366abd897d1e44f514d92e61c6a146011a1dfc723240518d6381bc829"
+    },
+    "backend/app/core": {
+      "path": "backend/app/core",
+      "file_count": 2,
+      "fingerprint": "f7fa67bb8003d0afd359aa7e50e61da2b394c1266a1e44aaf69d6e2d4915ecd4"
+    },
+    "backend/app/countdown": {
+      "path": "backend/app/countdown",
+      "file_count": 2,
+      "fingerprint": "91dfa1a478520ad49d321af35bed160604b1a21c0c7e49fc0d5568c1642b9ac3"
+    },
+    "backend/app/documents": {
+      "path": "backend/app/documents",
+      "file_count": 4,
+      "fingerprint": "3349f35f253f363e4bd37f172d2c7fcbfb36ee19f04cd8f348709c4641699c68"
+    },
+    "backend/app/finance": {
+      "path": "backend/app/finance",
+      "file_count": 3,
+      "fingerprint": "16ad3878faf646691ab6b7774d9c457aaf8ef6240896878cf57fbac98a9171fd"
+    },
+    "backend/app/host_control": {
+      "path": "backend/app/host_control",
+      "file_count": 2,
+      "fingerprint": "c1e7049dac7ed6c282aebeb515b90a56b0e576b302dc10ca421085bb297820eb"
+    },
+    "backend/app/main.py": {
+      "path": "backend/app/main.py",
+      "file_count": 1,
+      "fingerprint": "7e99ca5f6b6a50f37fa7a079397a23c46cb5d6470b437c41519576819355128a"
+    },
+    "backend/app/memory": {
+      "path": "backend/app/memory",
+      "file_count": 6,
+      "fingerprint": "18f94d1b0dd645ffa2c4b369bdd9bd2edb857747734e5755f9478753ed8b6a2d"
+    },
+    "backend/app/notifications": {
+      "path": "backend/app/notifications",
+      "file_count": 3,
+      "fingerprint": "0bcbd3306d94e11ab405f347cd43f76940b7c3baf2bdd198535708a8367fb8c0"
+    },
+    "backend/app/observability": {
+      "path": "backend/app/observability",
+      "file_count": 5,
+      "fingerprint": "8869e24b4b3b186965375c2c96092f62fb02202e2168c97d04204b34588014f4"
+    },
+    "backend/app/permissions": {
+      "path": "backend/app/permissions",
+      "file_count": 2,
+      "fingerprint": "5954102b91e4d643b3bc6b5b216a55dbb46bd3b43a54e832e6a94c44cbdc60ee"
+    },
+    "backend/app/sandbox_runner.py": {
+      "path": "backend/app/sandbox_runner.py",
+      "file_count": 1,
+      "fingerprint": "3450aa37e5f6d2ccabe6ce437de4ccb72b7b6ac99273c7621501d89f45613d89"
+    },
+    "backend/app/sandbox_service.py": {
+      "path": "backend/app/sandbox_service.py",
+      "file_count": 1,
+      "fingerprint": "82ebea641f1ce29ca1ce38a1dbb5729698e5994ef973ba12d28da55b7e455cd0"
+    },
+    "backend/app/state": {
+      "path": "backend/app/state",
+      "file_count": 2,
+      "fingerprint": "e2792e405a2a5d579f9baa85059107cfcd138bf0038e944adcbeda7b5cac1c9c"
+    },
+    "backend/app/storage": {
+      "path": "backend/app/storage",
+      "file_count": 34,
+      "fingerprint": "05e7b9bfda360e579e4e01bd22f09f64c12a2a553fe3476b390a466d8486d48f"
+    },
+    "backend/app/subscriptions": {
+      "path": "backend/app/subscriptions",
+      "file_count": 3,
+      "fingerprint": "a49d4e75e0e75296782e06328fad3f7f97aea889148e8df4e3b0cbc0a6d4dc53"
+    },
+    "backend/app/temporal": {
+      "path": "backend/app/temporal",
+      "file_count": 2,
+      "fingerprint": "c343c5ba4e041fe4246d20b7c761ae1097477fccd90a03e73e00f836db62abe2"
+    },
+    "backend/app/voice": {
+      "path": "backend/app/voice",
+      "file_count": 1,
+      "fingerprint": "a17f42dc182969e6bc7bdbe740118d125c26516c7d2fad275194f250e31c3857"
+    },
+    "requirements.txt": {
+      "path": "requirements.txt",
+      "file_count": 1,
+      "fingerprint": "ad34f785c51c493266cf07ead879b75af25257aab511b2d64cb9f66e0b337d4c"
+    },
+    "frontend/package.json": {
+      "path": "frontend/package.json",
+      "file_count": 1,
+      "fingerprint": "84931c36fb96fe660483e757d26f97073b58ef24a6690901f6faabade6f26aaa"
+    },
+    "backend/tests": {
+      "path": "backend/tests",
+      "file_count": 56,
+      "fingerprint": "52c71bea96a0c056a3b2b30ed5eabfa89dda04bdd4c3d8d49f2fa72362be04fd"
+    },
+    "backend/app/planning": {
+      "path": "backend/app/planning",
+      "file_count": 2,
+      "fingerprint": "c34bfba124090afc5ba99563ee8c3b8921e7539041ee25de83854fe24ab49b43"
+    }
+  },
+  "stale_modules": []
+}

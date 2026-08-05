@@ -16,6 +16,7 @@ export interface Commitment {
   created_at: string;
   updated_at: string;
   related_calendar_event_ids: string[];
+  project_id: string | null;
 }
 
 export interface EmailCommitmentInput {
@@ -50,6 +51,10 @@ export async function approveCommitment(id: string): Promise<Commitment> {
 
 export async function completeCommitment(id: string): Promise<Commitment> {
   return request<Commitment>(`/${id}/complete`, { method: 'POST' });
+}
+
+export async function updateCommitment(id: string, changes: { deadline_at?: string | null; reminder_at?: string | null }): Promise<Commitment> {
+  return request<Commitment>(`/${id}`, { method: 'PATCH', body: JSON.stringify(changes) });
 }
 
 export async function cancelCommitment(id: string): Promise<Commitment> {

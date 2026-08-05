@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Any, Literal, Optional
 
 
@@ -13,14 +13,123 @@ class SearchEventsArgs(BaseModel):
     query: str
 
 
+class FindCalendarSlotsArgs(BaseModel):
+    start_date: str
+    end_date: Optional[str] = None
+    duration_minutes: int = Field(default=60, ge=15, le=1440)
+    earliest_time: Optional[str] = Field(default="09:00", pattern=r"^\d{1,2}(?::\d{2})?$")
+    latest_time: Optional[str] = Field(default="18:00", pattern=r"^\d{1,2}(?::\d{2})?$")
+    max_results: int = Field(default=5, ge=1, le=20)
+
+
+class GetCalendarConflictsArgs(BaseModel):
+    horizon_days: int = Field(default=30, ge=1, le=365)
+
+
+TaskStatus = Literal["PROPOSED", "ACTIVE", "COMPLETED", "CANCELLED", "EXPIRED"]
+
+
+class ListTasksArgs(BaseModel):
+    status: Optional[TaskStatus] = None
+    include_completed: bool = False
+
+
+class CreateTaskArgs(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    description: Optional[str] = Field(default=None, max_length=5000)
+    deadline_at: Optional[str] = None
+    reminder_at: Optional[str] = None
+
+
+class RescheduleTaskArgs(BaseModel):
+    task_id: str = Field(min_length=1, max_length=100)
+    deadline_at: str
+    reminder_at: Optional[str] = None
+
+
+class TaskIdArgs(BaseModel):
+    task_id: str = Field(min_length=1, max_length=100)
+
+
+# ── Planning and Decision Journal models ─────────────────────────────────────
+
+GoalStatus = Literal["ACTIVE", "COMPLETED", "PAUSED", "ARCHIVED"]
+ProjectStatus = Literal["PLANNED", "ACTIVE", "COMPLETED", "PAUSED", "ARCHIVED"]
+DecisionStatus = Literal["ACTIVE", "REVISIT", "SUPERSEDED", "ARCHIVED"]
+
+
+class CreateGoalArgs(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    description: Optional[str] = Field(default=None, max_length=5000)
+    target_date: Optional[str] = None
+
+
+class ListGoalsArgs(BaseModel):
+    status: Optional[GoalStatus] = None
+
+
+class UpdateGoalArgs(BaseModel):
+    goal_id: str = Field(min_length=1, max_length=100)
+    title: Optional[str] = Field(default=None, min_length=1, max_length=300)
+    description: Optional[str] = Field(default=None, max_length=5000)
+    target_date: Optional[str] = None
+    status: Optional[GoalStatus] = None
+
+
+class CreateProjectArgs(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    goal_id: Optional[str] = Field(default=None, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=5000)
+    status: ProjectStatus = "PLANNED"
+    start_date: Optional[str] = None
+    target_date: Optional[str] = None
+
+
+class ListProjectsArgs(BaseModel):
+    status: Optional[ProjectStatus] = None
+    goal_id: Optional[str] = None
+
+
+class UpdateProjectArgs(BaseModel):
+    project_id: str = Field(min_length=1, max_length=100)
+    goal_id: Optional[str] = None
+    title: Optional[str] = Field(default=None, min_length=1, max_length=300)
+    description: Optional[str] = Field(default=None, max_length=5000)
+    status: Optional[ProjectStatus] = None
+    start_date: Optional[str] = None
+    target_date: Optional[str] = None
+
+
+class LinkTaskToProjectArgs(BaseModel):
+    project_id: str = Field(min_length=1, max_length=100)
+    task_id: str = Field(min_length=1, max_length=100)
+
+
+class CreateDecisionArgs(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    decision_text: str = Field(min_length=1, max_length=10000)
+    rationale: Optional[str] = Field(default=None, max_length=10000)
+    alternatives: list[str] = Field(default_factory=list, max_length=20)
+    review_at: Optional[str] = None
+
+
+class ListDecisionsArgs(BaseModel):
+    status: Optional[DecisionStatus] = None
+    query: Optional[str] = Field(default=None, max_length=200)
+
+
+class RevisitDecisionArgs(BaseModel):
+    decision_id: str = Field(min_length=1, max_length=100)
+
+
 class GetWeatherArgs(BaseModel):
     city: str
-    forecast_days: Optional[int] = 5
+    forecast_days: Optional[int] = Field(default=5, ge=1, le=7)
 
 
 class WebSearchArgs(BaseModel):
     query: str
-    max_results: Optional[int] = 5
+    max_results: Optional[int] = Field(default=5, ge=1, le=10)
 
 
 class WebFetchArgs(BaseModel):
@@ -38,6 +147,16 @@ class ListDocumentsArgs(BaseModel):
     status: Literal["active", "all", "ready", "failed", "archived"] = "active"
 
 
+class ScanDocumentProposalsArgs(BaseModel):
+    document_id: int = Field(ge=1)
+
+
+class ProposeDocumentActionArgs(BaseModel):
+    document_id: int = Field(ge=1)
+    candidate_id: str = Field(min_length=1, max_length=64)
+    action_type: Literal["commitment", "calendar_event"]
+
+
 class HostDiagnosticsArgs(BaseModel):
     pass
 
@@ -52,6 +171,13 @@ class CreateEventArgs(BaseModel):
     start_datetime: str
     end_datetime: Optional[str] = None
     description: Optional[str] = None
+    commitment_id: Optional[str] = None
+    all_day: bool = False
+    recurrence: Optional[Literal["none", "daily", "weekly", "monthly", "yearly"]] = None
+    recurrence_until: Optional[str] = None
+    reminder_minutes: Optional[int] = Field(default=None, ge=0)
+    calendar_id: Optional[str] = None
+    allow_conflicts: bool = False
 
 
 class DeleteEventArgs(BaseModel):
@@ -96,6 +222,7 @@ class AddTransactionArgs(BaseModel):
     category: str
     description: Optional[str] = None
     date: Optional[str] = None
+    currency: Optional[str] = Field(default=None, pattern=r"^(?:[A-Za-z]{3}|€|\$|£|₴)$")
 
 
 class GetTransactionsArgs(BaseModel):
@@ -107,6 +234,33 @@ class GetTransactionsArgs(BaseModel):
 class GetSummaryArgs(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+
+
+class GetFinanceForecastArgs(BaseModel):
+    months: int = Field(default=3, ge=1, le=24)
+    start_date: Optional[str] = None
+
+
+class AddRecurringTemplateArgs(BaseModel):
+    type: TransactionType
+    amount: float = Field(gt=0)
+    category: str
+    description: Optional[str] = None
+    currency: Optional[str] = Field(default=None, pattern=r"^[A-Za-z]{3}$")
+    frequency: Literal["weekly", "monthly", "yearly"] = "monthly"
+    day_of_month: Optional[int] = Field(default=None, ge=1, le=31)
+    day_of_week: Optional[int] = Field(default=None, ge=0, le=6)
+    month_of_year: Optional[int] = Field(default=None, ge=1, le=12)
+
+    @model_validator(mode="after")
+    def validate_schedule_fields(self):
+        if self.frequency == "weekly" and self.day_of_week is None:
+            raise ValueError("day_of_week is required for weekly recurrence")
+        if self.frequency in {"monthly", "yearly"} and self.day_of_month is None:
+            raise ValueError("day_of_month is required for monthly and yearly recurrence")
+        if self.frequency == "yearly" and self.month_of_year is None:
+            raise ValueError("month_of_year is required for yearly recurrence")
+        return self
 
 
 # ─── Countdown models ─────────────────────────────────────────────────────────
@@ -143,37 +297,3 @@ class SandboxWriteFileArgs(SandboxReadFileArgs):
 class SandboxRunCheckArgs(SandboxReadFileArgs):
     check: Literal["python", "pytest", "node", "compile_python"] = "python"
     timeout_seconds: int = Field(default=30, ge=1, le=120)
-
-
-# ─── Registry ─────────────────────────────────────────────────────────────────
-
-TOOL_MODEL_REGISTRY: dict[str, type[BaseModel]] = {
-    "list_events": ListEventsArgs,
-    "search_events": SearchEventsArgs,
-    "get_weather": GetWeatherArgs,
-    "web_search": WebSearchArgs,
-    "web_fetch": WebFetchArgs,
-    "search_documents": SearchDocumentsArgs,
-    "list_documents": ListDocumentsArgs,
-    "get_host_diagnostics": HostDiagnosticsArgs,
-    "host_control": HostControlArgs,
-    "create_event": CreateEventArgs,
-    "modify_event": ModifyEventArgs,
-    "delete_event": DeleteEventArgs,
-    "list_unread_emails": ListUnreadEmailsArgs,
-    "search_emails": SearchEmailsArgs,
-    "send_email": SendEmailArgs,
-    "add_transaction": AddTransactionArgs,
-    "get_transactions": GetTransactionsArgs,
-    "get_summary": GetSummaryArgs,
-    "add_countdown": AddCountdownArgs,
-    "get_all_countdowns": GetAllCountdownsArgs,
-    "delete_countdown": DeleteCountdownArgs,
-    "sandbox_list_files": SandboxSessionArgs,
-    "sandbox_read_file": SandboxReadFileArgs,
-    "sandbox_write_file": SandboxWriteFileArgs,
-    "sandbox_run_check": SandboxRunCheckArgs,
-    "sandbox_get_diff": SandboxSessionArgs,
-    "sandbox_delete_file": SandboxReadFileArgs,
-    "sandbox_request_apply": SandboxSessionArgs,
-}

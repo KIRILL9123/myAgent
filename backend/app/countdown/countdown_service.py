@@ -1,8 +1,9 @@
+from datetime import datetime
 from typing import Any, Dict, List
-import datetime
 from backend.app.storage.db import get_db_connection
 from backend.app.audit.audit_log import log_action
 from backend.app.core.execution_mode import is_dry_run
+from backend.app.temporal.time_context import TemporalContext, build_temporal_context, days_until
 
 def add_countdown(title: str, target_date: str, category: str = "другое") -> Dict[str, Any]:
     """Add a new countdown deadline."""
@@ -20,7 +21,7 @@ def add_countdown(title: str, target_date: str, category: str = "другое") 
 
     try:
         # Validate date format
-        datetime.datetime.strptime(target_date, "%Y-%m-%d")
+        datetime.strptime(target_date, "%Y-%m-%d")
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -37,21 +38,27 @@ def add_countdown(title: str, target_date: str, category: str = "другое") 
         log_action("add_countdown", "ERROR", str(e))
         return {"status": "error", "message": str(e)}
 
-def get_all_countdowns() -> Dict[str, Any]:
+def get_all_countdowns(
+    reference_time: datetime | None = None,
+    *,
+    timezone_name: str | None = None,
+    temporal_context: TemporalContext | None = None,
+) -> Dict[str, Any]:
     """Get all countdowns and calculate remaining days."""
     try:
+        if temporal_context is not None and reference_time is not None:
+            raise ValueError("provide either reference_time or temporal_context")
+        context = temporal_context or build_temporal_context(reference_time, timezone_name)
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT id, title, target_date, category, created_at FROM countdowns ORDER BY target_date ASC")
             rows = cursor.fetchall()
 
         countdowns: List[Dict[str, Any]] = []
-        today = datetime.date.today()
-        
+
         for row in rows:
             c_id, title, target_date_str, category, created_at = row
-            target_date = datetime.datetime.strptime(target_date_str, "%Y-%m-%d").date()
-            days_remaining = (target_date - today).days
+            days_remaining = days_until(target_date_str, context)
             
             countdowns.append({
                 "id": c_id,

@@ -1,5 +1,5 @@
 param(
-    [string]$TaskName = "MyAgent Backend Watchdog",
+    [string]$TaskName = "Mira Backend Watchdog",
     [int]$Port = 8000,
     [string]$ListenHost = "0.0.0.0"
 )

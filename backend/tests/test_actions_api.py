@@ -14,11 +14,17 @@ def test_action_center_api_forwards_filters(monkeypatch):
     from backend.app.api import actions as actions_api
 
     monkeypatch.setenv("HOME_AGENT_API_KEY", "test-action-center-key")
+    monkeypatch.setattr(
+        actions_api,
+        "get_notification_preferences",
+        lambda: {"timezone": "Europe/Berlin"},
+    )
     captured: dict[str, object] = {}
 
-    def fake_build_action_center(reference_time, *, mode, limit, include_external):
+    def fake_build_action_center(reference_time, *, timezone_name, mode, limit, include_external):
         captured.update({
             "reference_time": reference_time,
+            "timezone_name": timezone_name,
             "mode": mode,
             "limit": limit,
             "include_external": include_external,
@@ -44,6 +50,7 @@ def test_action_center_api_forwards_filters(monkeypatch):
     assert captured["limit"] == 7
     assert captured["include_external"] is True
     assert captured["reference_time"].isoformat() == "2030-01-10T12:00:00+00:00"
+    assert captured["timezone_name"] == "Europe/Berlin"
 
 
 def test_action_center_api_rejects_unknown_mode(monkeypatch):
@@ -52,3 +59,31 @@ def test_action_center_api_rejects_unknown_mode(monkeypatch):
     )
 
     assert response.status_code == 422
+
+
+def test_action_state_api_supports_read_snooze_and_dismiss(tmp_path, monkeypatch):
+    from backend.app.storage import db
+
+    monkeypatch.setattr(db, "DB_PATH", str(tmp_path / "action-state.db"))
+    db.init_db()
+    client = TestClient(_test_app())
+    action_id = "commitment:task-1"
+
+    response = client.post(f"/api/actions/{action_id}/read")
+    assert response.status_code == 200
+    assert response.json()["state"] == "read"
+
+    response = client.post(
+        f"/api/actions/{action_id}/snooze",
+        json={"snoozed_until": "2030-01-10T12:00:00+00:00"},
+    )
+    assert response.status_code == 200
+    assert response.json()["state"] == "snoozed"
+
+    response = client.post(f"/api/actions/{action_id}/dismiss")
+    assert response.status_code == 200
+    assert response.json()["state"] == "dismissed"
+
+    response = client.post(f"/api/actions/{action_id}/unread")
+    assert response.status_code == 200
+    assert response.json()["state"] == "unread"

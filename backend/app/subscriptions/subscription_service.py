@@ -298,6 +298,11 @@ def transition_subscription(subscription_id: str, action: str,
         _record_event(conn, subscription_id, action.upper(), current, target,
                       {"approval_provenance": approval_provenance} if approval_provenance else None)
         conn.commit()
+    if target in TERMINAL_STATUSES:
+        # Stopping a subscription must stop future Finance projections, while
+        # preserving every transaction already recorded in the ledger.
+        from backend.app.finance.subscription_link_service import unlink_subscription_finance
+        unlink_subscription_finance(subscription_id)
     return _get(subscription_id)  # type: ignore[return-value]
 
 

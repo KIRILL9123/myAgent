@@ -1,12 +1,14 @@
 export class ApiError extends Error {
   status: number;
   detail: string;
+  data?: unknown;
 
-  constructor(message: string, status: number, detail = message) {
+  constructor(message: string, status: number, detail = message, data?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.detail = detail;
+    this.data = data;
   }
 }
 
@@ -19,22 +21,28 @@ function getHeaders(extra?: HeadersInit): Headers {
   return headers;
 }
 
-async function readError(response: Response): Promise<string> {
+async function readError(response: Response): Promise<{ message: string; data?: unknown }> {
   const text = await response.text();
-  if (!text) return `${response.status} ${response.statusText}`.trim();
+  if (!text) return { message: `${response.status} ${response.statusText}`.trim() };
   try {
-    const payload = JSON.parse(text) as { detail?: string; message?: string };
-    return payload.detail || payload.message || text;
+    const payload = JSON.parse(text) as { detail?: unknown; message?: unknown };
+    const detail = payload.detail;
+    const message = typeof detail === 'string'
+      ? detail
+      : typeof payload.message === 'string'
+        ? payload.message
+        : text;
+    return { message, data: detail };
   } catch {
-    return text;
+    return { message: text };
   }
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, { ...init, headers: getHeaders(init.headers) });
   if (!response.ok) {
-    const detail = await readError(response);
-    throw new ApiError(`HTTP ${response.status}: ${detail}`, response.status, detail);
+    const error = await readError(response);
+    throw new ApiError(error.message, response.status, error.message, error.data);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 from pydantic import BaseModel
 from datetime import date, datetime
 
@@ -12,7 +12,8 @@ from backend.app.finance.finance_service import (
     create_recurring_transaction,
     get_categories,
     get_recurring_templates,
-    delete_recurring_template
+    delete_recurring_template,
+    get_forecast,
 )
 
 router = APIRouter()
@@ -24,6 +25,8 @@ class TransactionCreate(BaseModel):
     description: Optional[str] = ""
     date: Optional[str] = None
     is_recurring: Optional[bool] = False
+    currency: Optional[str] = None
+    frequency: Literal["weekly", "monthly", "yearly"] = "monthly"
 
 class TransactionUpdate(BaseModel):
     type: Optional[str] = None
@@ -37,43 +40,46 @@ class RecurringTemplateCreate(BaseModel):
     amount: float
     category: str
     description: Optional[str] = ""
-    day_of_month: int
+    day_of_month: Optional[int] = None
+    currency: Optional[str] = None
+    frequency: Literal["weekly", "monthly", "yearly"] = "monthly"
+    day_of_week: Optional[int] = None
+    month_of_year: Optional[int] = None
 
 @router.post("/transactions")
 async def api_add_transaction(txn: TransactionCreate):
     try:
         txn_date = txn.date if txn.date else date.today().strftime("%Y-%m-%d")
-        description = (txn.description or "").strip()
-        if txn.is_recurring:
-            result = create_recurring_transaction(
-                type=txn.type,
-                amount=txn.amount,
-                category=txn.category,
-                description=description,
-                transaction_date=txn_date,
-            )
-        else:
-            result = add_transaction(
-                type=txn.type,
-                amount=txn.amount,
-                category=txn.category,
-                description=description,
-                transaction_date=txn_date,
-            )
+        result = add_transaction(
+            type=txn.type,
+            amount=txn.amount,
+            category=txn.category,
+            description=txn.description,
+            transaction_date=txn_date,
+            currency=txn.currency,
+        )
         if isinstance(result, dict) and result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message"))
             
-        if result.get("status") == "dry_run":
-            return result
-        return {
-            "id": result["transaction_id"],
-            "type": txn.type,
-            "amount": txn.amount,
-            "category": txn.category,
-            "description": description,
-            "date": txn_date,
-            "recurring_template_id": result.get("template_id"),
-        }
+        if txn.is_recurring:
+            try:
+                dt_obj = datetime.strptime(txn_date, "%Y-%m-%d")
+                day_of_month = dt_obj.day if txn.frequency in {"monthly", "yearly"} else None
+                add_recurring_template(
+                    type=txn.type,
+                    amount=txn.amount,
+                    category=txn.category,
+                    description=txn.description,
+                    day_of_month=day_of_month,
+                    currency=txn.currency,
+                    frequency=txn.frequency,
+                    day_of_week=dt_obj.weekday() if txn.frequency == "weekly" else None,
+                    month_of_year=dt_obj.month if txn.frequency == "yearly" else None,
+                )
+            except Exception as e:
+                result["warning"] = f"Failed to save recurring template: {str(e)}"
+                
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -124,27 +130,17 @@ async def api_get_summary(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.patch("/transactions/{transaction_id}")
-async def api_update_transaction(transaction_id: int, txn: TransactionUpdate):
+@router.get("/forecast")
+async def api_get_forecast(
+    months: int = Query(default=3, ge=1, le=24),
+    start_date: Optional[str] = None,
+):
     try:
-        if txn.date:
-            datetime.strptime(txn.date, "%Y-%m-%d")
-        result = update_transaction(
-            transaction_id,
-            type=txn.type,
-            amount=txn.amount,
-            category=txn.category,
-            description=txn.description,
-            transaction_date=txn.date,
-        )
-        if isinstance(result, dict) and result.get("status") == "error":
-            status_code = 404 if "not found" in result.get("message", "").lower() else 400
-            raise HTTPException(status_code=status_code, detail=result.get("message"))
-        return result
-    except HTTPException:
-        raise
+        if start_date:
+            datetime.strptime(start_date, "%Y-%m-%d")
+        return get_forecast(months=months, start_date=start_date)
     except ValueError as ve:
-        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(ve)}. Use YYYY-MM-DD.")
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -178,7 +174,11 @@ async def api_add_recurring_template(template: RecurringTemplateCreate):
             amount=template.amount,
             category=template.category,
             description=template.description,
-            day_of_month=template.day_of_month
+            day_of_month=template.day_of_month,
+            currency=template.currency,
+            frequency=template.frequency,
+            day_of_week=template.day_of_week,
+            month_of_year=template.month_of_year,
         )
         if isinstance(result, dict) and result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message"))

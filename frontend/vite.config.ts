@@ -9,6 +9,9 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    // The app is a personal local tool; expose the dev UI only through the
+    // machine's LAN address so a phone on the same network can use it.
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

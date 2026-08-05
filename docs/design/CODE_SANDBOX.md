@@ -19,6 +19,23 @@ There is no arbitrary shell command tool, no project-path parameter, and no
 connector access from the sandbox runtime. File writes are `RED` actions and
 therefore use the existing explicit-confirmation flow.
 
+## Workspace lifecycle
+
+The sandbox exposes a small derived lifecycle instead of becoming a general
+app-hosting platform:
+
+- `empty` — no captured files yet;
+- `draft_changed` — files differ from the saved comparison point;
+- `checkpointed` — the current workspace matches its saved checkpoint;
+- `runtime_unavailable` — the configured runner cannot execute checks.
+
+The existing baseline is the checkpoint. The snapshot API exposes the lifecycle
+state, changed-file count, and checkpoint timestamp so the UI and future
+automation can make the state explicit. Applying changes still requires the
+existing Approval Center request, conflict check, and recoverable backup.
+Named multi-checkpoint restore and live preview URLs remain intentionally out of
+scope for the personal Mira workspace.
+
 The execution runtime is Docker by default (`CODE_SANDBOX_RUNTIME=docker`).
 The container receives only the session workspace and runs with no network,
 read-only root filesystem, dropped Linux capabilities, `no-new-privileges`,

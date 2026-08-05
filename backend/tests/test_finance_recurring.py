@@ -20,7 +20,7 @@ def test_recurring_transaction_links_first_entry_to_template(test_db, real_mode)
             "category": "Подписки",
             "description": "Test subscription",
             "date": "2026-08-03",
-            "recurring_template_id": result["template_id"],
+            "source_template_id": result["template_id"],
         }
     ]
 

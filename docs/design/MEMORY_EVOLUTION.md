@@ -11,6 +11,13 @@ The `Memory` screen now starts with an overview and provides Notes, Facts, Revie
 
 SQLite FTS5 is used for local candidate retrieval across notes and active facts. Embeddings remain a later optimisation, not a requirement for the current personal scale.
 
+The 2026 GitHub audit keeps the retrieval direction deliberately incremental:
+Khoj is a reference for retrieval gating, explainable source context, scheduled
+research and skills, but it is not a second memory engine for Mira. The current
+implementation maps those ideas to Retrieval Gate, Evidence Bundle, Document
+Vault provenance and the shared Tool Registry. See
+[OSS_AUDIT_2026-08-04.md](../decisions/OSS_AUDIT_2026-08-04.md).
+
 ## What exists today
 Current `user_facts` fields already include:
 - `content`, `category`, `confidence`, `status`, `source_conversation_id`, timestamps

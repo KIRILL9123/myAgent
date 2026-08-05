@@ -1,5 +1,13 @@
 # Decision Log & Notes
 
+> **Historical document.** These notes capture decisions and implementation details from
+> July 2026 and are retained for traceability only. They are not a current source of truth.
+> Use [PRODUCT_ARCHITECTURE.md](PRODUCT_ARCHITECTURE.md),
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/OPERATIONS.md](docs/OPERATIONS.md),
+> and [docs/SECURITY_AND_SAFETY.md](docs/SECURITY_AND_SAFETY.md) for current contracts.
+> Absolute `file://` links in the historical entries below are retained as provenance
+> and are not expected to work in the current workspace.
+
 - **Date of Creation**: July 2, 2026
 - **Calendar Provider**: We use **iCloud CalDAV** instead of Google Calendar. We connect using an `app-specific password`.
 - **Mail Provider**: The implemented mail providers are **Gmail** and **ukr.net** (IMAP/SMTP). The original Phase 2 assumption of iCloud Mail was superseded — see the Phase 2 Technical Decisions section below.
@@ -11,7 +19,7 @@
 ## Phase 2 Technical Decisions (July 2, 2026)
 
 - **CalDAV write operations**: Using `icalendar` library to build VCALENDAR/VEVENT payloads for `create_event`. The `caldav` library's `save_event()` accepts raw iCalendar strings. For `delete_event` and `modify_event`, we look up events by UID across all calendars.
-- **Confirmation flow for RED actions**: Implemented using an in-memory dict (`_PENDING_ACTIONS`) keyed by `session_id`. No database needed at this stage. The user must reply with exact confirmation words ("да", "подтверждаю", etc.) to execute, or cancellation words to abort. The pending action is cleared after either outcome.
+- **Confirmation flow for RED actions (historical snapshot)**: At that stage, confirmation used an in-memory dict (`_PENDING_ACTIONS`) keyed by `session_id`. The current implementation persists pending actions in SQLite and binds claims/cancellations to nonce, source channel and chat/session identity; see [docs/SECURITY_AND_SAFETY.md](docs/SECURITY_AND_SAFETY.md).
 - **Mail via IMAP (Gmail / ukr.net)**: Uses `imaplib` (standard library) with `IMAP4_SSL` on port 993. We use `BODY.PEEK[]` to fetch emails without marking them as read. This preserves the mailbox state. Search is done via IMAP `SUBJECT` search criteria. *(Note: originally prototyped for iCloud Mail; corrected to Gmail + ukr.net before Phase 2 completion.)*
 - **App-specific passwords**: iCloud CalDAV and the mail accounts use separate app-specific passwords configured independently in `.env` (`CALDAV_PASSWORD`, `GMAIL_APP_PASSWORD`, `UKRNET_PASSWORD`).
 - **Language model behavior**: Added `CRITICAL LANGUAGE RULE` to the system prompt and lowered temperature to 0.3 to prevent `qwen2.5:7b` from mixing Russian with Chinese text.
@@ -25,7 +33,7 @@
 - **Scheduler**: Added `apscheduler` via FastAPI lifespan context manager.
 - **Morning Summary**: The agent uses LLM to generate a summary of unread emails and today's events at `MORNING_SUMMARY_TIME`.
 - **Telegram Notifications**: `telegram_notifier.py` handles proactive push notifications to the user using Telegram Bot API (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`).
-- **Email Sending**: Added SMTP sending to `mail_connector.py` for multiple providers (gmail, ukrnet). Added `send_email` to `tool_permissions.json` under `red` and implemented detailed confirmation in `orchestrator.py` showing To, Subject, and Body.
+- **Email Sending (historical snapshot)**: SMTP sending was added to `mail_connector.py` for Gmail and ukr.net. The old note referred to `tool_permissions.json`; current permission levels are owned by `backend/app/agent/tool_registry.py`.
 - **Reliability & Tool Cycle Limit (Priority 3)**: Implemented multiple safeguards to prevent infinite tool calling loops and hallucinations with Qwen2.5:
   1. **Early Stopping**: `orchestrator.py` tracks tool calls per round. If the agent repeats the exact same tool calls twice in a row, the loop breaks with a user-friendly error.
   2. **System Prompt Rules**: Added explicit instruction to NEVER retry the same tool call upon error, but explain it to the user.
