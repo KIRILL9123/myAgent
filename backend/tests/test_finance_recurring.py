@@ -17,6 +17,7 @@ def test_recurring_transaction_links_first_entry_to_template(test_db, real_mode)
             "id": result["transaction_id"],
             "type": "expense",
             "amount": 12.5,
+            "currency": "EUR",
             "category": "Подписки",
             "description": "Test subscription",
             "date": "2026-08-03",
