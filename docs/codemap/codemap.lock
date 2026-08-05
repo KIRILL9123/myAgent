@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-05T19:15:41.455Z",
-  "current_commit": "abc6babadb23c4634b1fea215f8886f3b20ca3ed",
-  "generated_from_commit": "abc6babadb23c4634b1fea215f8886f3b20ca3ed",
-  "working_tree_has_uncommitted_changes": true,
+  "generated_at": "2026-08-05T19:42:21.369Z",
+  "current_commit": "cc509c15517e0a4d77b80460621c29b72f20032b",
+  "generated_from_commit": "cc509c15517e0a4d77b80460621c29b72f20032b",
+  "working_tree_has_uncommitted_changes": false,
   "scanned_scope": [
     "frontend/src",
     "backend/app",
@@ -33,8 +33,8 @@
   "module_fingerprints": {
     "frontend/src": {
       "path": "frontend/src",
-      "file_count": 63,
-      "fingerprint": "2001ca3ba3629d8cd9c11cb46c73d8ce1671ab3c6e1ecf609f18ac64a8cd5f36"
+      "file_count": 65,
+      "fingerprint": "990e9beb2c00061662b51cd3dc3f3a987ea9306e3b86894633f371632006e01c"
     },
     "backend/app/__init__.py": {
       "path": "backend/app/__init__.py",
@@ -44,27 +44,27 @@
     "backend/app/action_center_service.py": {
       "path": "backend/app/action_center_service.py",
       "file_count": 1,
-      "fingerprint": "516504c00f23c60e140dfa1c1073d6c7bbd167c68aefbf43573923fca0f52533"
+      "fingerprint": "5ec29cbf66e25811c6104389f17828f3eb6263e70e606c2ec7997ec8c3fabde2"
     },
     "backend/app/action_state_service.py": {
       "path": "backend/app/action_state_service.py",
       "file_count": 1,
-      "fingerprint": "eecc9686a24d075d573a27992a0645ae98b2ee165eef53e9c923faca1ff87755"
+      "fingerprint": "835b75bbf45d016bdcdd4f26f12d0a652339b5ee04f8ef0fee73c7995647e229"
     },
     "backend/app/agent": {
       "path": "backend/app/agent",
       "file_count": 7,
-      "fingerprint": "0ec3ded42acd91b291c7f8930be21548053cc20a92bcdd9f469dc0f7827e64db"
+      "fingerprint": "aa3d8eab3716449544444a864ee3bcd5f877bc671bd3e303f5a928b28a6cdbea"
     },
     "backend/app/api": {
       "path": "backend/app/api",
       "file_count": 20,
-      "fingerprint": "2dbbdbb29f97ed9145d47bbfedb2e61ee7e7a95d10b0501eb9546edb58bdece6"
+      "fingerprint": "bd1786754f20f542398b0271ee54b0c7d1352942a978e02f70a1daccbb1a5f3b"
     },
     "backend/app/approvals": {
       "path": "backend/app/approvals",
       "file_count": 2,
-      "fingerprint": "52a8632f52fd64de8c78e45139f602b6b54e0853d1e1f0073e62736de0963b08"
+      "fingerprint": "6987a965003dca7719aef2e73b07bca3ae6c71dfbe50d9eb60fb2146cbab3623"
     },
     "backend/app/audit": {
       "path": "backend/app/audit",
@@ -74,22 +74,22 @@
     "backend/app/calendar": {
       "path": "backend/app/calendar",
       "file_count": 4,
-      "fingerprint": "19bcab87af8a8f581a17045915412f0adc176d8f8ed0dd8ca57c576e2f910fc1"
+      "fingerprint": "08666224553b30fb276d68e8fbbf716e39b5bde1830c29538b87438331bb383f"
     },
     "backend/app/commitments": {
       "path": "backend/app/commitments",
       "file_count": 3,
-      "fingerprint": "5e96d50e676ec664bd1798fbb4ba9daa8aa1fce8e428c8326aa6dc33a573894b"
+      "fingerprint": "a416335a90cd8c080d90642f3d3f0ad93eab8d3fbe79e5c69bbd52c3afa1a5ad"
     },
     "backend/app/conflicts": {
       "path": "backend/app/conflicts",
       "file_count": 3,
-      "fingerprint": "9ec8ca4f972190bbfebb12fc266a6e40572b3e2c0d7746f0974a772f0faa5c1c"
+      "fingerprint": "d315db9465483ffce2afc21413fcc572034d27df5df399d88277a3fe828909cb"
     },
     "backend/app/connectors": {
       "path": "backend/app/connectors",
       "file_count": 6,
-      "fingerprint": "ce026cf366abd897d1e44f514d92e61c6a146011a1dfc723240518d6381bc829"
+      "fingerprint": "b0e3ed8ac11e21df03aebf119f1ac53d58d4394b145ed1f9167bcea7b5d3610b"
     },
     "backend/app/core": {
       "path": "backend/app/core",
@@ -99,17 +99,17 @@
     "backend/app/countdown": {
       "path": "backend/app/countdown",
       "file_count": 2,
-      "fingerprint": "91dfa1a478520ad49d321af35bed160604b1a21c0c7e49fc0d5568c1642b9ac3"
+      "fingerprint": "bba8def25183e00102c3348c1644b2c7a83e56c2c3e974d3c39c9d805c1e95bd"
     },
     "backend/app/documents": {
       "path": "backend/app/documents",
       "file_count": 4,
-      "fingerprint": "3349f35f253f363e4bd37f172d2c7fcbfb36ee19f04cd8f348709c4641699c68"
+      "fingerprint": "7d94ba3b55d884b04c50a0b4c26e46566ad1c8d3e67bbe481fbcdf2c16bb9e3e"
     },
     "backend/app/finance": {
       "path": "backend/app/finance",
       "file_count": 3,
-      "fingerprint": "16ad3878faf646691ab6b7774d9c457aaf8ef6240896878cf57fbac98a9171fd"
+      "fingerprint": "f12afcf9580e9e7448fb87599004dcc24b7f2af5553e31418a5c42f0183ce602"
     },
     "backend/app/host_control": {
       "path": "backend/app/host_control",
@@ -119,27 +119,27 @@
     "backend/app/main.py": {
       "path": "backend/app/main.py",
       "file_count": 1,
-      "fingerprint": "7e99ca5f6b6a50f37fa7a079397a23c46cb5d6470b437c41519576819355128a"
+      "fingerprint": "a1ac6753a0dd7b56b720b79287c81d19e6fa5d5181ae0f8111b7eb8c8c0101e5"
     },
     "backend/app/memory": {
       "path": "backend/app/memory",
       "file_count": 6,
-      "fingerprint": "18f94d1b0dd645ffa2c4b369bdd9bd2edb857747734e5755f9478753ed8b6a2d"
+      "fingerprint": "479bf7d74f43df9d28609de97c4540cb2b75cb1027fda0ef4f9016473f75804d"
     },
     "backend/app/notifications": {
       "path": "backend/app/notifications",
       "file_count": 3,
-      "fingerprint": "0bcbd3306d94e11ab405f347cd43f76940b7c3baf2bdd198535708a8367fb8c0"
+      "fingerprint": "5324ebbe0958bee94bb60a5ed303dbff3b5fd0d59bf0c5884cce6821d5309cc1"
     },
     "backend/app/observability": {
       "path": "backend/app/observability",
       "file_count": 5,
-      "fingerprint": "8869e24b4b3b186965375c2c96092f62fb02202e2168c97d04204b34588014f4"
+      "fingerprint": "7b50f8c6b3d5a84d32212632aadd417ce9323eda06f77193cb59d6147a8af817"
     },
     "backend/app/permissions": {
       "path": "backend/app/permissions",
       "file_count": 2,
-      "fingerprint": "5954102b91e4d643b3bc6b5b216a55dbb46bd3b43a54e832e6a94c44cbdc60ee"
+      "fingerprint": "b3c1fa1b4b4b881913b200a7cf867b51a081f170fdc6f91aa7cc32a4c5943584"
     },
     "backend/app/sandbox_runner.py": {
       "path": "backend/app/sandbox_runner.py",
@@ -149,27 +149,27 @@
     "backend/app/sandbox_service.py": {
       "path": "backend/app/sandbox_service.py",
       "file_count": 1,
-      "fingerprint": "82ebea641f1ce29ca1ce38a1dbb5729698e5994ef973ba12d28da55b7e455cd0"
+      "fingerprint": "2351b50d48ac2d47c22acc8c766f161858d4caf2aeed7adbdf81e7fd66f18c4e"
     },
     "backend/app/state": {
       "path": "backend/app/state",
       "file_count": 2,
-      "fingerprint": "e2792e405a2a5d579f9baa85059107cfcd138bf0038e944adcbeda7b5cac1c9c"
+      "fingerprint": "2a8328f966936ccdea28588a227b96a44d97e3e59507fa63f72bc4ed5367e0d9"
     },
     "backend/app/storage": {
       "path": "backend/app/storage",
-      "file_count": 34,
-      "fingerprint": "05e7b9bfda360e579e4e01bd22f09f64c12a2a553fe3476b390a466d8486d48f"
+      "file_count": 35,
+      "fingerprint": "1c50623726b929c86489347e1d07f61c95604a7d8f30fde788e767c95995e9ae"
     },
     "backend/app/subscriptions": {
       "path": "backend/app/subscriptions",
       "file_count": 3,
-      "fingerprint": "a49d4e75e0e75296782e06328fad3f7f97aea889148e8df4e3b0cbc0a6d4dc53"
+      "fingerprint": "325940c1812fab3718860b57f8276d754363947901bc140065c3160a90426a9b"
     },
     "backend/app/temporal": {
       "path": "backend/app/temporal",
       "file_count": 2,
-      "fingerprint": "c343c5ba4e041fe4246d20b7c761ae1097477fccd90a03e73e00f836db62abe2"
+      "fingerprint": "87e2cd4310e93305979a47daa0a1dfe46d4f0cae88d0583443292700f07278e8"
     },
     "backend/app/voice": {
       "path": "backend/app/voice",
@@ -179,22 +179,22 @@
     "requirements.txt": {
       "path": "requirements.txt",
       "file_count": 1,
-      "fingerprint": "ad34f785c51c493266cf07ead879b75af25257aab511b2d64cb9f66e0b337d4c"
+      "fingerprint": "0e86e0e9331e25c09e2601c3090f141e62c5ef72bdcd67ec5e833e54a491d963"
     },
     "frontend/package.json": {
       "path": "frontend/package.json",
       "file_count": 1,
-      "fingerprint": "84931c36fb96fe660483e757d26f97073b58ef24a6690901f6faabade6f26aaa"
+      "fingerprint": "53afb43a5cb14ab2e7f94ca71ad2b66563cd9cb481317e2cf6f2550ea9a27c32"
     },
     "backend/tests": {
       "path": "backend/tests",
-      "file_count": 56,
-      "fingerprint": "52c71bea96a0c056a3b2b30ed5eabfa89dda04bdd4c3d8d49f2fa72362be04fd"
+      "file_count": 61,
+      "fingerprint": "80854d0ee7162aa38b1eeea5edf087941c5088f0ee394c5fca82a179115fe26c"
     },
     "backend/app/planning": {
       "path": "backend/app/planning",
       "file_count": 2,
-      "fingerprint": "c34bfba124090afc5ba99563ee8c3b8921e7539041ee25de83854fe24ab49b43"
+      "fingerprint": "bd9d2f7cd955d6609fb40b46e50fe794417846de8db1f82378acf5792689df25"
     }
   },
   "stale_modules": []

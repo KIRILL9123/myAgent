@@ -173,7 +173,23 @@ def validate() -> list[str]:
     current_commit = git("rev-parse", "HEAD")
     working_tree_dirty = bool(git("status", "--porcelain"))
     if lock.get("current_commit") != current_commit:
-        errors.append("codemap.lock: current_commit does not match HEAD")
+        # A codemap is often committed immediately after the source commit it
+        # describes. In that case the source commit is still the authoritative
+        # revision; accepting a codemap-only follow-up keeps the lock
+        # self-consistent without pretending the map describes its own commit.
+        try:
+            parent_commit = git("rev-parse", "HEAD^")
+            changed_in_commit = {
+                path for path in git("diff", "--name-only", f"{parent_commit}..{current_commit}").splitlines()
+                if path
+            }
+        except subprocess.CalledProcessError:
+            parent_commit = ""
+            changed_in_commit = set()
+        if parent_commit != lock.get("current_commit") or not changed_in_commit or not all(
+            path.startswith("docs/codemap/") for path in changed_in_commit
+        ):
+            errors.append("codemap.lock: current_commit does not match HEAD or its codemap-only parent")
     if lock.get("generated_from_commit") != codemap.get("generated_from_commit"):
         errors.append("codemap.lock: generated_from_commit differs from codemap.json")
     if lock.get("generated_at") != codemap.get("generated_at"):

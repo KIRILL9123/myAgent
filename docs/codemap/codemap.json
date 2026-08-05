@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-05T19:15:41.455Z",
-  "generated_from_commit": "abc6babadb23c4634b1fea215f8886f3b20ca3ed",
+  "generated_at": "2026-08-05T19:42:21.369Z",
+  "generated_from_commit": "cc509c15517e0a4d77b80460621c29b72f20032b",
   "scope": [
     "frontend/src",
     "backend/app",
