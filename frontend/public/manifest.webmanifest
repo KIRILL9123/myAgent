@@ -1,0 +1,10 @@
+{
+  "name": "Mira",
+  "short_name": "Mira",
+  "description": "Personal AI workspace for chat, calendar, memory, and daily operations",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#212121",
+  "theme_color": "#212121",
+  "icons": [{ "src": "/mira-logo.png", "sizes": "1024x1024", "type": "image/png" }]
+}

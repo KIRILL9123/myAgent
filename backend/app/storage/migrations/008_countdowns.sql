@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS countdowns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    target_date DATE NOT NULL,
+    category TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

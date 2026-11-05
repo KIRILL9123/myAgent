@@ -1,0 +1,22 @@
+[tool.pytest.ini_options]
+# Test discovery: only backend/tests/
+testpaths = ["backend/tests"]
+
+# Async test support via pytest-asyncio
+asyncio_mode = "auto"
+
+# Default async fixtures
+asyncio_default_fixture_loop_scope = "function"
+
+# Test markers
+markers = [
+    "unit: Fast, isolated unit tests (no DB, no network)",
+    "integration: Tests that use isolated DB or mocked services",
+    "external: Tests that require real external services (not in CI)",
+    "slow: Tests that take noticeably longer",
+]
+
+# Filter warnings
+filterwarnings = [
+    "ignore::PendingDeprecationWarning:starlette.*",
+]

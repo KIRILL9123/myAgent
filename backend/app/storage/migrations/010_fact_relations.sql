@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS fact_relations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fact_a_id INTEGER NOT NULL,
+    fact_b_id INTEGER NOT NULL,
+    relation_type TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (fact_a_id) REFERENCES user_facts(id) ON DELETE CASCADE,
+    FOREIGN KEY (fact_b_id) REFERENCES user_facts(id) ON DELETE CASCADE
+);
